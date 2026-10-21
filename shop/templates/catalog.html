@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Electronic Market</title></head>
+<body>
+<h1>Electronic Market</h1>
+<p><a href="/orders">My orders</a></p>
+<table border="1" cellpadding="4">
+  <tr><th>SKU</th><th>Product</th><th>Price</th><th>In stock</th><th></th></tr>
+  {% for sku, (name, price) in products.items() %}
+  <tr>
+    <td>{{ sku }}</td>
+    <td>{{ name }}</td>
+    <td>{{ price }} RON</td>
+    <td>{{ stock[sku] }}</td>
+    <td>
+      <form method="post" action="/orders">
+        <input type="hidden" name="sku" value="{{ sku }}">
+        <input type="number" name="qty" value="1" min="1" size="3">
+        <button>Buy</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</body>
+</html>

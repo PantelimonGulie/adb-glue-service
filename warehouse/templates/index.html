@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Warehouse</title></head>
+<body>
+<h1>Warehouse</h1>
+<h2>Stock</h2>
+<table border="1" cellpadding="4">
+  <tr><th>SKU</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Recount</th></tr>
+  {% for level in stock %}
+  <tr>
+    <td>{{ level.sku }}</td>
+    <td>{{ level.on_hand }}</td>
+    <td>{{ level.reserved }}</td>
+    <td>{{ level.available }}</td>
+    <td>
+      <form method="post" action="/stock/{{ level.sku }}/recount">
+        <input type="number" name="on_hand" value="{{ level.on_hand }}" min="0" size="3">
+        <button>Save count</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+<h2>Orders</h2>
+<table border="1" cellpadding="4">
+  <tr><th>Order</th><th>Lines</th><th>Status</th><th></th></tr>
+  {% for order in orders %}
+  <tr>
+    <td>{{ order.id }}</td>
+    <td>{% for line in order.lines %}{{ line.qty }} x {{ line.sku }} {% endfor %}</td>
+    <td>{{ order.status }}</td>
+    <td>
+      {% if order.status == "reserved" %}
+      <form method="post" action="/orders/{{ order.id }}/ship"><button>Ship</button></form>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="4">No orders yet.</td></tr>
+  {% endfor %}
+</table>
+</body>
+</html>

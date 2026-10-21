@@ -1,0 +1,12 @@
+.git
+.env
+research/
+.superpowers/
+.claude/
+docs/
+**/__pycache__
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.db
+*.pdf

@@ -1,6 +1,6 @@
 # ADB Glue Service
 
-Take-home assignment: a glue service that keeps an online store (shaped like Adobe Commerce) in sync with two warehouses, handling duplicates, retries, partial failures and stock conflicts. Due 2026-10-26. Design in `docs/architecture.md`.
+Take-home assignment: a glue service for an electronics reseller that sells on its own shop (Electronic Market, shaped like Adobe Commerce) and on the eMAG Marketplace from one warehouse. It routes orders from both channels to the warehouse, pushes true stock back to both channels, and handles duplicates, retries, partial failures and cross-channel oversell. Due 2026-10-26. Design in `docs/architecture.md`.
 
 The full implementation plan is kept outside the repo on purpose.
 

@@ -1,0 +1,54 @@
+x-app: &app
+  build: .
+  image: adb-glue-service
+  env_file:
+    - path: .env
+      required: false
+
+x-healthcheck: &healthcheck
+  interval: 5s
+  timeout: 3s
+  retries: 5
+
+services:
+  shop:
+    <<: *app
+    command: uvicorn shop.main:app --host 0.0.0.0 --port 8001
+    ports: ["8001:8001"]
+    environment:
+      GLUE_URL: http://glue:8000
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+
+  emag:
+    <<: *app
+    command: uvicorn emag.main:app --host 0.0.0.0 --port 8002
+    ports: ["8002:8002"]
+    environment:
+      GLUE_URL: http://glue:8000
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+
+  warehouse:
+    <<: *app
+    command: uvicorn warehouse.main:app --host 0.0.0.0 --port 8003
+    ports: ["8003:8003"]
+    environment:
+      GLUE_URL: http://glue:8000
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+
+  glue:
+    <<: *app
+    command: uvicorn glue.main:app --host 0.0.0.0 --port 8000
+    ports: ["8000:8000"]
+    depends_on:
+      shop: {condition: service_healthy}
+      emag: {condition: service_healthy}
+      warehouse: {condition: service_healthy}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
