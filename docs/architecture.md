@@ -61,6 +61,10 @@ All three inbound arrows are signed webhooks. Every other arrow is a call the gl
 | `audit.py` | Writes one audit row per event in the system and the matching JSON log line. |
 | `web.py`, `views.py`, `demo.py` | Dashboard pages, `/metrics`, demo controls. |
 | `assistant.py` | Gemini tool loop over four read-only tools. |
+| `auth.py` | Sign-in, signed session cookie, roles, and `require(permission)`, the one dependency every protected route uses. |
+| `rules.py` | The two admin rules: `held_back` for the stock buffer, `retry_after_recovery` for the auto-retry. |
+| `triage.py` | Asks the assistant for a recommendation on one review item and stores it on the item. |
+| `extras.py` | Routes for the Rules and Users and roles pages and the triage button. |
 
 ## Data flow
 
@@ -141,6 +145,10 @@ eMAG's re-notification is its at-least-once delivery. The glue leans on it: if a
 
 After every allocation or cancellation the reconciler pushes the affected SKUs. It also runs at startup (channels start at 0), every 10 seconds for all SKUs, and on every `stock.adjusted` from the warehouse. Each run pushes every SKU it covers, even when the glue thinks the channel already has that figure: a restarted channel or one that ignored an update is corrected on the next run. Runs hold one lock, so a slower run cannot overwrite a newer figure with an older one.
 
+The figure pushed is `max(0, on_hand − reserved)` per channel, minus whatever the stock buffer rule holds back for that channel and SKU (never below 0). A push changed by the rule is audited with `rule: stock-buffer` and the units held, and the Stock page compares each channel against its own expected figure, so a held unit is marked "Held", not "Drift".
+
+A run that reaches the warehouse after one or more runs that could not is a recovery. After releasing the lock it runs the auto-retry rule, which retries every open `order_failed` item whose `place` never went through, exactly as an operator's Retry would, with `rule:auto-retry` as the decider. It runs after the lock because a retried allocation reconciles its own SKUs.
+
 ## Conflict handling
 
 The conflict that matters is the cross-channel oversell. Both channels show the last unit for a moment, and two customers pay for it.
@@ -187,7 +195,7 @@ What the review queue allows depends on the order's current state:
 | `order_failed` | Technical: retries exhausted, unexpected answer, or a warehouse cancel that did not go through | Repeats the operation that failed, only from the state it left the order in | On the order's channel, unless already shipped or cancelled | Close with a note |
 | `unfulfillable` | Business: the channel accepted it, the warehouse cannot fill it | Places it again (stock may be back), only if the order is failed | Same | Same |
 
-A decision closes the item before acting, so a retry that fails again opens a fresh item with the new reason.
+A decision closes the item before acting, so a retry that fails again opens a fresh item with the new reason. Deciding needs the `decide` permission (operator or admin) and is recorded under the signed-in user. A person may first ask for a triage recommendation: the assistant reads the order's timeline and stock with its read-only tools and answers `ACTION` and `REASON`; the action is kept only if it is one the item allows, the text is stored on the item and shown on the card, and `triage_suggested` is audited. Nothing is decided by it.
 
 ## Order states
 
@@ -220,7 +228,7 @@ When a cancel overtakes the order it cancels (events are not ordered), the glue 
 
 | What fails | What the glue does | Fixed by |
 |---|---|---|
-| Warehouse down or slow while placing | Retries, then order `failed` and an `order_failed` item | Operator: Retry allocation |
+| Warehouse down or slow while placing | Retries, then order `failed` and an `order_failed` item | Operator: Retry allocation, or the auto-retry rule once the warehouse is reachable again |
 | Warehouse refuses the order (409) | Order `failed`, `unfulfillable` item | Operator |
 | Warehouse unreachable during reconcile | Keeps the last known stock, writes one `warehouse_unreachable` row (not one per run) | Itself, next run |
 | eMAG `order/read` fails | Event marked failed, review item opened | Itself: eMAG re-notifies until acknowledged |

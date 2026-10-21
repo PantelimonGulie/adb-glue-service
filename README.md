@@ -23,6 +23,16 @@ Use `-v` when you reset. It deletes the volume holding the glue's SQLite databas
 
 The assistant page needs a free Gemini API key in `.env` (copy `.env.example`). Without one it says "assistant offline" and everything else works.
 
+The dashboard asks you to sign in. Demo users are `viewer`, `operator` and `admin`; the default password is the user name (`VIEWER_PASSWORD`, `OPERATOR_PASSWORD`, `ADMIN_PASSWORD` in `.env` change them). The demo walkthrough below needs the demo controls, so sign in as `admin`.
+
+## Platform extras (branch)
+
+This branch adds three small extras on top of the reviewed core. Each is optional and off by default.
+
+- **Rules** (`/rules`, admin-editable, stored in SQLite). *Channel stock buffer*: tell one channel it has N fewer units than the warehouse, for one SKU or all, so the last units sell on one channel only. The Stock page marks the held units and every push it changes is audited with `rule: stock-buffer`. *Auto-retry after a warehouse outage*: when the warehouse answers again, open technical failures whose allocation never went through are retried as if an operator had clicked Retry; the item shows `decided by rule:auto-retry` and the audit log has a `rule_applied` row. Changing a rule is audited as `rule_changed`.
+- **Roles** (`/roles`). Sign-in with a signed session cookie (stdlib `hmac`, `SESSION_SECRET`). `viewer` reads every page; `operator` also decides review items and asks the assistant; `admin` also changes rules and uses the demo controls. Each permission is one FastAPI dependency on the routes, so a viewer posting a decision gets 403 whatever the page shows. `decided_by` is the signed-in user.
+- **Triage agent.** Each open review item has "Ask for a recommendation": the assistant, with the same read-only tools, drafts retry, cancel or dismiss with a one-paragraph reason citing what it found. The suggestion is shown on the card and audited as `triage_suggested`; it never acts. Offline without `GEMINI_API_KEY`, with the button disabled and the same explanation as the assistant page.
+
 ## Customer context and value
 
 **The customer.** A Romanian electronics reseller sells Apple products through two channels: its own shop, Electronic Market (an Adobe Commerce store), and the eMAG Marketplace. Both channels sell from one warehouse.
@@ -87,7 +97,7 @@ Diagrams (components, both order flows, the oversell, the order state machine) a
 1. **Adobe Commerce events** are delivered at least once, not necessarily in order, and may be duplicated, as Adobe's event documentation states. Each carries an event id (`x-adobe-event-id` here). A redelivery may also come under a new id, so the glue deduplicates by order id as well.
 2. **eMAG notifications** carry only the order id and type; the full order is read through the API (`order/read`). eMAG re-sends a new-order notification until the seller calls `order/acknowledge`. Order statuses are numeric (0 cancelled, 1 new, 2 in progress, 3 prepared, 4 finalized), stock is pushed in batches through `product_offer/save`, and a batch can fail for one item while the rest succeed. The mock mirrors public copies of the eMAG Marketplace API v4 documentation. Those copies may be out of date, and exact rate limits are unverified, so the glue simply honours `Retry-After` on 429.
 3. **The warehouse owns stock.** Its figure (`on_hand − reserved`) is the truth; the channels' figures are only what the glue last told them. Its order endpoint is atomic and accepts an `Idempotency-Key`.
-4. **Channel priority: first to reach the warehouse wins.** Neither channel is preferred. A rule such as "keep the last unit for eMAG" belongs in the Rules screen marked "coming later".
+4. **Channel priority: first to reach the warehouse wins.** Neither channel is preferred. Holding units back from one channel is a Rule (off by default), not part of the conflict logic.
 5. **Money and payments** are out of scope. A customer has already paid when an order reaches the glue; cancelling means the channel refunds them. The glue never touches payment data.
 6. **One warehouse, one order line per mock order**, single currency. The models and the warehouse accept several lines; the mock checkouts only create one.
 7. **Webhook signing.** Every source signs its webhooks with a shared-secret HMAC. Adobe I/O Events uses its own public-key signature scheme, and whether real eMAG callbacks can be signed is unverified. Because the glue pulls each eMAG order through the authenticated API anyway, a forged eMAG notification could at most trigger a read.
@@ -96,14 +106,14 @@ Diagrams (components, both order flows, the oversell, the order state machine) a
 
 - **SQLite and one process instead of a queue and a worker pool.** The inbox table works like a queue (claim, process, mark done or failed) and survives restarts, which is all one shop needs. The cost is one writer and no horizontal scaling. The code is shaped so the inbox can become a real queue without touching handlers.
 - **Pulling stock from the warehouse instead of trusting events alone.** Every reconcile overwrites both channels with the warehouse's figure, even when nothing seems to have changed. That costs a few extra calls but heals any drift: a missed event, a restarted channel, a rejected update. Events make it fast; the periodic pull makes it correct.
-- **First come, first served across channels.** Simple, explainable and fair. It does not protect eMAG's seller rating; a stock buffer per channel would, at the cost of selling less.
+- **First come, first served across channels.** Simple, explainable and fair. It does not protect eMAG's seller rating; the stock buffer rule does, at the cost of selling less, which is why it is a switch for the business and not the default.
 - **A person decides oversells instead of automatic cancellation.** Cancelling a paid order is a business decision: maybe stock arrives tomorrow, maybe the customer accepts a different model. The glue does the safe part (reserve nothing it cannot fulfil, cap the channels at 0) and queues the rest with the reason.
 - **Mocks instead of real sandboxes.** The mocks copy the parts of the real APIs that matter for the logic (at-least-once delivery, acknowledge, batch responses with per-item errors, numeric statuses) and add fault switches, so every failure mode can be shown on demand. The cost is that real API quirks are untested.
 - **Server-rendered UI with HTMX instead of a SPA.** Less code and no build. The pages poll every few seconds rather than using websockets, which is fine for one operator.
 
 ## Known limitations and what was left out
 
-- **No login or roles.** "Signed in as operator" is a placeholder; the only protection on dashboard actions is the cross-site request guard. Roles are a "coming later" screen. Reason: real auth belongs to the customer's identity provider.
+- **Demo sign-in only.** Three fixed users with passwords from the environment and a signed session cookie; no password hashing, no user management, no rate limit on sign-in. Reason: real auth belongs to the customer's identity provider; the roles and the per-route permission checks are what would stay.
 - **No real connectors.** The shop, eMAG and the warehouse are mocks. Their API shapes follow the real ones but are not tested against them.
 - **Left out on purpose:** courier and AWB generation, returns and refunds, payments, invoices, multi-warehouse, product catalogue sync. Each is a project of its own and none changes the conflict and retry design.
 - **One instance only.** Two glue processes on the same database would both claim events. Scaling is described below.
@@ -120,7 +130,7 @@ docker compose run --rm --build glue sh -c "ruff check . && ruff format --check 
 
 `--build` puts the current code in the image; drop it if the image is already up to date.
 
-The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file and zero retry back-off. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (19 tests) runs in under a second.
+The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file, zero retry back-off and a session signed in as `operator`. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (26 tests) runs in about a second.
 
 Covered:
 
@@ -134,8 +144,9 @@ Covered:
 - A recount below reserved caps both channels at 0, queues each affected order once, and refuses retry with 409.
 - The retry policy itself: `Retry-After` honoured, exponential back-off, 4xx returned without retrying, exhaustion raises.
 - Unsigned, forged and wrong-source webhooks get 401; a signed but invalid event, or a shop-signed event about an eMAG order, gets 422; dashboard actions without the HTMX header or from another origin get 403.
+- Platform extras: the stock buffer lowers eMAG by N and leaves the shop alone, per SKU or for all; auto-retry fires once when the warehouse recovers and audits the rule; a viewer gets 403 on a decision while an operator succeeds; only an admin can save a rule or use the demo controls; a wrong password and a tampered session cookie are rejected; triage with a stub model returns a suggestion, calls a read-only tool, and changes nothing.
 
-Not covered: the HTML pages, the assistant (it needs a live model), the background loops' timing, shipping, timeouts (the in-process transport does not enforce them), and recovery after a crash. These were checked by hand in the browser.
+Not covered: the HTML pages, the assistant against a live model, the background loops' timing, shipping, timeouts (the in-process transport does not enforce them), and recovery after a crash. These were checked by hand in the browser.
 
 ## Observability
 
@@ -170,14 +181,15 @@ Not covered: the HTML pages, the assistant (it needs a live model), the backgrou
 - Coalesce stock pushes: collect changed SKUs for a second, then send one eMAG batch, so a flash sale becomes a few calls instead of hundreds.
 - Reconcile only SKUs that changed since the last run, with a slow full sweep as the safety net.
 - A circuit breaker per target system, so a dead warehouse fails fast instead of holding slots for the whole retry budget.
-- A stock buffer per channel (a Rule), so the last units are not offered on both channels at once.
+- The stock buffer rule, switched on, so the last units are not offered on both channels at once.
 
 ## Security
 
 - **Signed webhooks.** Every inbound webhook carries `x-signature: sha256=<HMAC of the raw body>`, with a separate secret per source. Signatures are compared in constant time, an empty secret never verifies, and each source may only send its own event types about its own orders (the warehouse cannot post `order.placed`, and a shop-signed event cannot place or cancel an `emag-` order). Rejections are written to the audit log as `signature_rejected`.
 - **Strict validation at the edge.** Event ids, order ids, SKUs and quantities have patterns and limits. A payload that fails validation gets 422 and an `event_rejected` audit row; it never reaches the inbox.
-- **Cross-site request guard.** Every state-changing dashboard request (review decisions, demo controls, assistant questions) must carry `HX-Request: true`, and its `Origin`, if present, must match the host. A cross-site form cannot set that header, and a cross-site script would need a CORS preflight the glue never approves.
-- **Read-only assistant.** Its four tools only read; there is no tool that changes anything, so a question (or text hidden in order data) can at worst produce a wrong answer. Arguments are clamped and chat history is sanitised before it is sent to the model.
+- **Cross-site request guard.** Every state-changing dashboard request (review decisions, demo controls, assistant questions, rule changes, triage) must carry `HX-Request: true`, and its `Origin`, if present, must match the host. A cross-site form cannot set that header, and a cross-site script would need a CORS preflight the glue never approves.
+- **Sessions and roles.** The session cookie is `user:expiry:HMAC-SHA256`, verified in constant time with `SESSION_SECRET`, HttpOnly, SameSite=Lax, 12 hours. Every page needs a session and every action needs a permission, checked by a FastAPI dependency on the route, so hiding a button is never the only guard. Sign-ins and rejected attempts are audited.
+- **Read-only assistant and triage.** The assistant's four tools only read; there is no tool that changes anything, so a question (or text hidden in order data) can at worst produce a wrong answer. Triage uses the same tools and only stores a suggestion. Arguments are clamped and chat history is sanitised before it is sent to the model.
 - **Outbound URLs** are built from validated ids and URL-encoded.
 
 ## Use of AI
@@ -191,8 +203,8 @@ Not covered: the HTML pages, the assistant (it needs a live model), the backgrou
 
 ## Possible extensions
 
-- **Rules engine.** Per-channel stock buffers, channel priority for the last unit, auto-cancel of unfulfillable orders under a value threshold. The screen exists as "coming later".
-- **Users and roles.** Sign-in through the customer's identity provider; who may cancel an eMAG order versus only retry.
-- **Triage agent.** Let the assistant suggest the action for each review item with its reasoning, still decided by a person.
+- **More rules.** Channel priority for the last unit, auto-cancel of unfulfillable orders under a value threshold, a per-SKU stop-selling threshold. The two rules on this branch show the shape: a row in `rules`, one function applied in the reconciler or the review flow, every effect audited.
+- **Real sign-in.** The customer's identity provider in place of the three demo users; finer permissions, such as who may cancel an eMAG order versus only retry.
+- **Triage that learns.** Compare suggestions with the decisions people took and surface the disagreements.
 - **Real connectors.** Adobe Commerce through Adobe I/O Events and the REST API, eMAG through the Marketplace API with its authentication, the warehouse through whatever it offers.
 - **A real queue and Postgres**, as described under Scalability.
