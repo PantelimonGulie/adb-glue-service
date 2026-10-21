@@ -9,7 +9,6 @@ ACTIONS = frozenset(
     {
         "event_received",
         "duplicate_dropped",
-        "event_ignored",
         "order_known",
         "event_failed",
         "emag_acknowledged",
@@ -22,6 +21,7 @@ ACTIONS = frozenset(
         "placed_after_cancel",
         "stock_pushed",
         "stock_push_failed",
+        "warehouse_unreachable",
         "review_opened",
         "review_decided",
     }

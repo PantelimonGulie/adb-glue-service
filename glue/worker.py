@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from common.models import Order
-from glue import review, router
+from glue import reconciler, review, router
 from glue.audit import record
 from glue.context import Context
 
@@ -23,6 +23,7 @@ HANDLERS = {
     "order.cancelled": cancel_shop_order,
     "emag.notification": router.import_emag_order,
     "order.shipped": router.mark_shipped,
+    "stock.adjusted": reconciler.reconcile_sku,
 }
 
 
@@ -35,12 +36,8 @@ def order_id_in(event: dict) -> str | None:
 
 async def handle(ctx: Context, event: dict) -> None:
     event_id = event["event_id"]
-    handler = HANDLERS.get(event["type"])
     try:
-        if handler is None:
-            record(ctx.db, event_id, "event", event_id, "event_ignored", type=event["type"])
-        else:
-            await handler(ctx, event)
+        await HANDLERS[event["type"]](ctx, event)
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
         ctx.db.finish_event(event_id, "failed", error)

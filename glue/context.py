@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import asyncio
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -15,3 +16,7 @@ class Context:
     shop: ShopClient
     emag: EmagClient
     warehouse: WarehouseClient
+    # Reconcile runs read-then-push; serialising them keeps a slower run from
+    # overwriting a newer stock figure on the channels.
+    reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    warehouse_down: bool = False

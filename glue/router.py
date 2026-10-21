@@ -1,13 +1,10 @@
-from collections.abc import Awaitable, Callable
-
-import httpx
 from pydantic import BaseModel
 
 from common.models import Order, OrderLine
-from glue import review
+from glue import reconciler, review
 from glue.audit import record
 from glue.context import Context
-from glue.retry import RetryExhausted, send_with_retries
+from glue.retry import RetryExhausted, with_retries
 
 
 class EmagProduct(BaseModel):
@@ -20,19 +17,6 @@ class EmagOrder(BaseModel):
     status: int
     products: list[EmagProduct]
     customer: str
-
-
-async def with_retries(
-    ctx: Context,
-    send: Callable[[], Awaitable[httpx.Response]],
-    on_retry: Callable[[int, float, str], None] | None = None,
-) -> httpx.Response:
-    return await send_with_retries(
-        send,
-        attempts=ctx.settings.retry_attempts,
-        base_seconds=ctx.settings.retry_base_seconds,
-        on_retry=on_retry,
-    )
 
 
 def fail(ctx: Context, order_id: str, correlation_id: str, kind: str, reason: str) -> None:
@@ -73,7 +57,8 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
         ctx.db.set_order(order.id, status="allocated", last_error=None)
         lines = [line.model_dump() for line in order.lines]
         record(ctx.db, correlation_id, "order", order.id, "order_allocated", lines=lines)
-        return
+        skus = [line.sku for line in order.lines]
+        return await reconciler.reconcile_skus(ctx, skus, correlation_id)
     if response.status_code == 409:
         reason = "warehouse has no stock: sold on another channel first"
         return fail(ctx, order.id, correlation_id, "unfulfillable", reason)
@@ -113,7 +98,8 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         ctx.db.insert_order_if_new(stub, status="cancelled")
         record(ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed")
         return
-    if order["status"] == "allocated":
+    releases_stock = order["status"] == "allocated"
+    if releases_stock:
         try:
             response = await with_retries(ctx, lambda: ctx.warehouse.cancel_order(order_id))
         except RetryExhausted as exc:
@@ -124,6 +110,20 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
             return fail(ctx, order_id, correlation_id, "order_failed", reason)
     ctx.db.set_order(order_id, status="cancelled")
     record(ctx.db, correlation_id, "order", order_id, "order_cancelled", was=order["status"])
+    if releases_stock:
+        skus = [line["sku"] for line in order["lines"]]
+        await reconciler.reconcile_skus(ctx, skus, correlation_id)
+
+
+async def cancel_on_channel(ctx: Context, order_id: str, correlation_id: str) -> None:
+    order = ctx.db.get_order(order_id)
+    if order["channel"] == "shop":
+        response = await with_retries(ctx, lambda: ctx.shop.cancel(order_id))
+    else:
+        emag_id = int(order["channel_order_id"])
+        response = await with_retries(ctx, lambda: ctx.emag.set_status(emag_id, 0))
+    response.raise_for_status()
+    await cancel_order(ctx, order_id, correlation_id)
 
 
 async def mark_shipped(ctx: Context, event: dict) -> None:

@@ -4,13 +4,12 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import APIRouter, FastAPI, Request
 
-from glue import inbox
+from glue import inbox, reconciler, review, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
 from glue.db import Database
 from glue.settings import Settings
-from glue.worker import run_forever
 
 router = APIRouter()
 
@@ -31,6 +30,26 @@ async def debug_audit(request: Request, entity: str | None = None) -> list[dict]
     return db.audit_for(entity) if entity else db.audit_tail()
 
 
+@router.get("/debug/review")
+async def debug_review(request: Request, status: str = "open") -> list[dict]:
+    return request.app.state.ctx.db.list_review(status)
+
+
+@router.post("/debug/review/{item_id}/{action}")
+async def debug_decide(request: Request, item_id: int, action: str) -> dict:
+    return await review.decide(request.app.state.ctx, item_id, action)
+
+
+@router.get("/debug/stock")
+async def debug_stock(request: Request) -> dict:
+    db = request.app.state.ctx.db
+    return {
+        "warehouse": db.stock(),
+        "shop": db.channel_stock("shop"),
+        "emag": db.channel_stock("emag"),
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings
@@ -45,9 +64,15 @@ async def lifespan(app: FastAPI):
             emag=EmagClient(http, settings.emag_url),
             warehouse=WarehouseClient(http, settings.warehouse_url),
         )
-        worker = asyncio.create_task(run_forever(app.state.ctx))
+        # Channels start at zero stock; fill them before any order can be processed.
+        await reconciler.reconcile_all(app.state.ctx)
+        tasks = [
+            asyncio.create_task(worker.run_forever(app.state.ctx)),
+            asyncio.create_task(reconciler.run_forever(app.state.ctx)),
+        ]
         yield
-        worker.cancel()
+        for task in tasks:
+            task.cancel()
     db.close()
 
 

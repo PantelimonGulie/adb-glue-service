@@ -4,6 +4,8 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 
+from glue.context import Context
+
 RETRYABLE_STATUSES = {408, 429}
 
 
@@ -45,3 +47,16 @@ async def send_with_retries(
         if on_retry:
             on_retry(attempt, delay, problem)
         await asyncio.sleep(delay)
+
+
+async def with_retries(
+    ctx: Context,
+    send: Callable[[], Awaitable[httpx.Response]],
+    on_retry: Callable[[int, float, str], None] | None = None,
+) -> httpx.Response:
+    return await send_with_retries(
+        send,
+        attempts=ctx.settings.retry_attempts,
+        base_seconds=ctx.settings.retry_base_seconds,
+        on_retry=on_retry,
+    )
