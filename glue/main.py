@@ -2,9 +2,10 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI
 
-from glue import inbox, reconciler, review, worker
+from common import ui
+from glue import demo, inbox, reconciler, web, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -17,37 +18,6 @@ router = APIRouter()
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
-
-
-@router.get("/debug/orders")
-async def debug_orders(request: Request) -> list[dict]:
-    return request.app.state.ctx.db.list_orders()
-
-
-@router.get("/debug/audit")
-async def debug_audit(request: Request, entity: str | None = None) -> list[dict]:
-    db = request.app.state.ctx.db
-    return db.audit_for(entity) if entity else db.audit_tail()
-
-
-@router.get("/debug/review")
-async def debug_review(request: Request, status: str = "open") -> list[dict]:
-    return request.app.state.ctx.db.list_review(status)
-
-
-@router.post("/debug/review/{item_id}/{action}")
-async def debug_decide(request: Request, item_id: int, action: str) -> dict:
-    return await review.decide(request.app.state.ctx, item_id, action)
-
-
-@router.get("/debug/stock")
-async def debug_stock(request: Request) -> dict:
-    db = request.app.state.ctx.db
-    return {
-        "warehouse": db.stock(),
-        "shop": db.channel_stock("shop"),
-        "emag": db.channel_stock("emag"),
-    }
 
 
 @asynccontextmanager
@@ -80,7 +50,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     app = FastAPI(title="Glue", lifespan=lifespan)
     app.state.settings = settings or Settings.from_env()
+    app.mount("/static", ui.static, name="static")
     app.include_router(inbox.router)
+    app.include_router(web.router)
+    app.include_router(demo.router)
     app.include_router(router)
     return app
 

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ {"rules": "Rules", "roles": "Users and roles", "assistant": "Assistant"}[active] }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ self.title() }}</h1>
+</div>
+<section class="soon">
+  <p class="soon-badge">Not in this version</p>
+  {% if active == "rules" %}
+  <p>Rules will let the business set channel policy without a code change: hold a few units back from eMAG, prefer one channel when stock runs low, or stop selling a SKU below a threshold. This version uses one fixed rule, the first order to reach the warehouse wins, so the conflict path stays easy to follow and every exception still reaches a person.</p>
+  {% elif active == "roles" %}
+  <p>Roles will separate who can watch from who can decide: support staff read orders and the audit log, operators work the review queue, admins change rules. Real sign-in is out of scope for this proof of concept, so everyone who opens the dashboard acts as the operator, and every decision is recorded under that name.</p>
+  {% else %}
+  <p>The assistant will answer questions such as which orders are at risk right now, by reading the same orders, stock and audit log you see here. It is read-only and cites order ids and times so every answer can be checked. It is the next piece to be built.</p>
+  {% endif %}
+  <p><a href="/">Back to the overview</a></p>
+</section>
+{% endblock %}

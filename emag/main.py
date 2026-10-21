@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from common import ui
+
 OFFERS = {
     "IPH16-128": ("Telefon mobil Apple iPhone 16, 128GB, 5G, Black", 4349),
     "IPH16-256": ("Telefon mobil Apple iPhone 16, 256GB, 5G, Black", 4949),
@@ -23,7 +25,7 @@ OFFERS = {
 STATUSES = {0: "cancelled", 1: "new", 2: "in progress", 3: "prepared", 4: "finalized"}
 
 log = logging.getLogger(__name__)
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
 
@@ -97,6 +99,7 @@ async def listing(request: Request):
         "stock": state.stock,
         "orders": state.orders.values(),
         "statuses": STATUSES,
+        "chaos": state.chaos,
     }
     return templates.TemplateResponse(request, "listing.html", context)
 
@@ -199,6 +202,7 @@ def create_app() -> FastAPI:
     app.state.order_ids = itertools.count(500123)
     app.state.chaos = Chaos()
     app.middleware("http")(apply_chaos)
+    app.mount("/static", ui.static, name="static")
     app.include_router(router)
     return app
 

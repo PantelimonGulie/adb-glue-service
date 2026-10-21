@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set active = "stock" %}
+{% block title %}Stock{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Stock</h1>
+  <p>The warehouse is the truth. Each channel should show what the warehouse can still sell: on hand minus reserved, never below zero. Anything else is drift, and the next reconcile fixes it.</p>
+</div>
+<div class="table-wrap">
+  <table class="grid stock">
+    <thead>
+      <tr>
+        <th rowspan="2">SKU</th>
+        <th colspan="3" class="group">Warehouse</th>
+        <th rowspan="2" class="num">Should sell</th>
+        <th colspan="2" class="group">Last told to</th>
+      </tr>
+      <tr><th class="num">On hand</th><th class="num">Reserved</th><th class="num">Available</th><th class="num">Shop</th><th class="num">eMAG</th></tr>
+    </thead>
+    <tbody hx-get="/stock/rows" hx-trigger="every 3s">
+      {% include "_stock_rows.html" %}
+    </tbody>
+  </table>
+</div>
+<p class="legend">
+  <span class="cell-flag tone-warn">Drift</span> the channel shows a different number than it should.
+  <span class="cell-flag tone-bad">Not applied</span> the last push failed; it is retried on the next run.
+</p>
+{% endblock %}

@@ -12,6 +12,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from common import ui
 from common.events import emit
 from common.models import Order, OrderLine
 
@@ -24,7 +25,7 @@ PRODUCTS = {
     "WATCH-S10": ("Apple Watch Series 10 42mm", 2099),
 }
 
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
 
@@ -79,7 +80,8 @@ async def catalog(request: Request):
 @router.get("/orders")
 async def my_orders(request: Request):
     orders = request.app.state.orders.values()
-    return templates.TemplateResponse(request, "orders.html", {"orders": orders})
+    context = {"orders": orders, "products": PRODUCTS}
+    return templates.TemplateResponse(request, "orders.html", context)
 
 
 @router.post("/orders")
@@ -157,6 +159,7 @@ def create_app() -> FastAPI:
     app.state.orders = {}
     app.state.order_numbers = itertools.count(1001)
     app.state.last_event = None
+    app.mount("/static", ui.static, name="static")
     app.include_router(router)
     return app
 

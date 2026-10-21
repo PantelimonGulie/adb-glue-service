@@ -1,45 +1,71 @@
-<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>eMAG Marketplace</title></head>
-<body>
-<h1>eMAG Marketplace</h1>
-<h2>Offers from Electronic Market</h2>
-<table border="1" cellpadding="4">
-  <tr><th>Part number</th><th>Offer</th><th>Price</th><th>Stock</th><th></th></tr>
-  {% for sku, (name, price) in offers.items() %}
-  <tr>
-    <td>{{ sku }}</td>
-    <td>{{ name }}</td>
-    <td>{{ price }} RON</td>
-    <td>{{ stock[sku] }}</td>
-    <td>
-      <form method="post" action="/buy">
-        <input type="hidden" name="sku" value="{{ sku }}">
-        <input type="number" name="qty" value="1" min="1" size="3">
-        <button>Buy</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-<h2>Orders</h2>
-<table border="1" cellpadding="4">
-  <tr><th>Order</th><th>Products</th><th>Customer</th><th>Status</th><th></th></tr>
-  {% for order in orders %}
-  <tr>
-    <td>{{ order.id }}</td>
-    <td>{% for p in order.products %}{{ p.quantity }} x {{ p.part_number }} {% endfor %}</td>
-    <td>{{ order.customer }}</td>
-    <td>{{ order.status }} ({{ statuses[order.status] }})</td>
-    <td>
-      {% if order.status in (1, 2) %}
-      <form method="post" action="/orders/{{ order.id }}/cancel"><button>Cancel</button></form>
-      {% endif %}
-    </td>
-  </tr>
-  {% else %}
-  <tr><td colspan="5">No orders yet.</td></tr>
-  {% endfor %}
-</table>
-</body>
-</html>
+{% extends "mock_base.html" %}
+{% block title %}Offers | eMAG Marketplace (mock){% endblock %}
+{% block skin %}skin-market{% endblock %}
+{% block body %}
+<header class="market-header">
+  <p class="market-name">eMAG Marketplace (mock)</p>
+  <p class="market-seller">Seller account: Electronic Market</p>
+</header>
+<main class="market-main">
+  {% if chaos.freeze_stock or chaos.rate_limit or chaos.reject_sku or chaos.down %}
+  <ul class="market-faults" aria-label="Active demo faults">
+    {% if chaos.freeze_stock %}<li>Stock updates from the seller are ignored. Offers keep their old stock.</li>{% endif %}
+    {% if chaos.rate_limit %}<li>The seller API answers 429, retry after 1 second.</li>{% endif %}
+    {% if chaos.reject_sku %}<li>Stock updates for {{ chaos.reject_sku }} are rejected.</li>{% endif %}
+    {% if chaos.down %}<li>The seller API is down.</li>{% endif %}
+  </ul>
+  {% endif %}
+  <section class="market-section">
+    <h1>Offers</h1>
+    <p class="market-help">What customers see on the marketplace. Buying here plays the customer and sends the seller a new-order notification.</p>
+    <div class="table-wrap">
+      <table class="market-table">
+        <thead><tr><th>Part number</th><th>Offer title</th><th class="num">Price</th><th class="num">Stock</th><th>Customer purchase</th></tr></thead>
+        <tbody>
+          {% for sku, (name, price) in offers.items() %}
+          <tr>
+            <td class="pn">{{ sku }}</td>
+            <td>{{ name }}</td>
+            <td class="num">{{ "{:,}".format(price) | replace(",", ".") }} RON</td>
+            <td class="num {{ 'is-zero' if not stock[sku] }}">{{ stock[sku] }}</td>
+            <td>
+              <form class="market-buy" method="post" action="/buy">
+                <input type="hidden" name="sku" value="{{ sku }}">
+                <label><span class="visually-hidden">Quantity of {{ sku }}</span><input type="number" name="qty" value="1" min="1"{% if stock[sku] %} max="{{ stock[sku] }}"{% endif %}></label>
+                <button type="submit"{% if not stock[sku] %} disabled{% endif %}>Buy</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="market-section">
+    <h2>Orders</h2>
+    <p class="market-help">Status codes follow the marketplace API: 1 new, 2 in progress, 3 prepared, 4 finalized, 0 cancelled. A new order keeps being re-notified until the seller acknowledges it.</p>
+    <div class="table-wrap">
+      <table class="market-table">
+        <thead><tr><th>Order</th><th>Products</th><th>Customer</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for order in orders | reverse %}
+          <tr>
+            <td class="pn">{{ order.id }}</td>
+            <td>{% for p in order.products %}{{ p.quantity }} × {{ p.part_number }} {% endfor %}</td>
+            <td>{{ order.customer }}</td>
+            <td><span class="market-status s{{ order.status }}">{{ order.status }} {{ statuses[order.status] }}</span></td>
+            <td>
+              {% if order.status in (1, 2) %}
+              <form method="post" action="/orders/{{ order.id }}/cancel"><button type="submit" class="btn-outline">Cancel as customer</button></form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty">No orders yet. Buy an offer above to create one.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

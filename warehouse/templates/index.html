@@ -1,43 +1,68 @@
-<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Warehouse</title></head>
-<body>
-<h1>Warehouse</h1>
-<h2>Stock</h2>
-<table border="1" cellpadding="4">
-  <tr><th>SKU</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Recount</th></tr>
-  {% for level in stock %}
-  <tr>
-    <td>{{ level.sku }}</td>
-    <td>{{ level.on_hand }}</td>
-    <td>{{ level.reserved }}</td>
-    <td>{{ level.available }}</td>
-    <td>
-      <form method="post" action="/stock/{{ level.sku }}/recount">
-        <input type="number" name="on_hand" value="{{ level.on_hand }}" min="0" size="3">
-        <button>Save count</button>
-      </form>
-    </td>
-  </tr>
-  {% endfor %}
-</table>
-<h2>Orders</h2>
-<table border="1" cellpadding="4">
-  <tr><th>Order</th><th>Lines</th><th>Status</th><th></th></tr>
-  {% for order in orders %}
-  <tr>
-    <td>{{ order.id }}</td>
-    <td>{% for line in order.lines %}{{ line.qty }} x {{ line.sku }} {% endfor %}</td>
-    <td>{{ order.status }}</td>
-    <td>
-      {% if order.status == "reserved" %}
-      <form method="post" action="/orders/{{ order.id }}/ship"><button>Ship</button></form>
-      {% endif %}
-    </td>
-  </tr>
-  {% else %}
-  <tr><td colspan="4">No orders yet.</td></tr>
-  {% endfor %}
-</table>
-</body>
-</html>
+{% extends "mock_base.html" %}
+{% block title %}Warehouse operations (mock){% endblock %}
+{% block fonts %}<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap">{% endblock %}
+{% block skin %}skin-warehouse{% endblock %}
+{% block body %}
+<header class="wh-header">
+  <h1>Warehouse operations</h1>
+  <p>Bucharest. One stock for the shop and eMAG.</p>
+</header>
+<main class="wh-main">
+  {% if chaos.down or chaos.slow_seconds or chaos.fail_next %}
+  <ul class="wh-faults" aria-label="Active demo faults">
+    {% if chaos.down %}<li>API down: every call gets 503.</li>{% endif %}
+    {% if chaos.slow_seconds %}<li>API slow: {{ chaos.slow_seconds }} s before each answer.</li>{% endif %}
+    {% if chaos.fail_next %}<li>Next {{ chaos.fail_next }} API calls fail with 503.</li>{% endif %}
+  </ul>
+  {% endif %}
+  <section class="wh-section">
+    <h2>Orders</h2>
+    <div class="table-wrap">
+      <table class="wh-table">
+        <thead><tr><th>Order</th><th>Lines</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {% for order in orders | reverse %}
+          <tr class="{{ 'is-done' if order.status != 'reserved' }}">
+            <td class="code">{{ order.id }}</td>
+            <td>{% for line in order.lines %}{{ line.qty }} × {{ line.sku }} {% endfor %}</td>
+            <td>{{ {"reserved": "Reserved, to pick", "shipped": "Shipped", "cancelled": "Cancelled"}.get(order.status, order.status) }}</td>
+            <td>
+              {% if order.status == "reserved" %}
+              <form method="post" action="/orders/{{ order.id }}/ship"><button type="submit">Ship</button></form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty">No orders. They arrive here once the glue allocates them.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="wh-section">
+    <h2>Stock</h2>
+    <p class="wh-help">Available is on hand minus reserved. A recount replaces on hand with what was counted on the shelf.</p>
+    <div class="table-wrap">
+      <table class="wh-table">
+        <thead><tr><th>SKU</th><th class="num">On hand</th><th class="num">Reserved</th><th class="num">Available</th><th>Recount</th></tr></thead>
+        <tbody>
+          {% for level in stock %}
+          <tr>
+            <td class="code">{{ level.sku }}</td>
+            <td class="num">{{ level.on_hand }}</td>
+            <td class="num">{{ level.reserved }}</td>
+            <td class="num {{ 'is-negative' if level.available < 0 }}">{{ level.available }}</td>
+            <td>
+              <form class="wh-recount" method="post" action="/stock/{{ level.sku }}/recount">
+                <label><span class="visually-hidden">Counted on hand for {{ level.sku }}</span><input type="number" name="on_hand" value="{{ level.on_hand }}" min="0"></label>
+                <button type="submit">Save count</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+{% endblock %}

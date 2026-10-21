@@ -1,0 +1,14 @@
+{% from "_ui.html" import channel, clock, lines, status_pill %}
+{% for order in orders %}
+<tr class="{{ 'row-bad' if order.status == 'failed' }}">
+  <td><a class="order-link" href="/orders/{{ order.order_id }}">{{ order.order_id }}</a></td>
+  <td>{{ channel(order.channel) }}</td>
+  <td>{{ lines(order.lines) }}</td>
+  <td>{{ status_pill(order.status) }}</td>
+  <td class="num">{{ order.attempts }}</td>
+  <td class="error-cell">{{ order.last_error or "" }}</td>
+  <td>{{ clock(order.updated_at) }}</td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="empty">No orders yet. Buy something on the shop or on eMAG and it appears here within a few seconds.</td></tr>
+{% endfor %}

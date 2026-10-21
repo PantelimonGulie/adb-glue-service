@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+from common import ui
 from common.events import emit
 from common.models import Order, StockLevel
 
@@ -23,7 +24,7 @@ SEED_ON_HAND = {
     "WATCH-S10": 8,
 }
 
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
 
@@ -39,7 +40,7 @@ def unavailable(retry_after: bool) -> JSONResponse:
 
 
 async def apply_chaos(request: Request, call_next):
-    if request.url.path in ("/", "/chaos"):
+    if request.url.path in ("/", "/chaos") or request.url.path.startswith("/static/"):
         return await call_next(request)
     chaos = request.app.state.chaos
     if chaos.slow_seconds:
@@ -79,7 +80,11 @@ async def send(request: Request, event_type: str, data: dict) -> None:
 @router.get("/")
 async def index(request: Request):
     state = request.app.state
-    context = {"stock": stock_levels(state.stock), "orders": state.orders.values()}
+    context = {
+        "stock": stock_levels(state.stock),
+        "orders": state.orders.values(),
+        "chaos": state.chaos,
+    }
     return templates.TemplateResponse(request, "index.html", context)
 
 
@@ -170,6 +175,7 @@ def create_app() -> FastAPI:
     app.state.accepted = {}
     app.state.chaos = Chaos()
     app.middleware("http")(apply_chaos)
+    app.mount("/static", ui.static, name="static")
     app.include_router(router)
     return app
 

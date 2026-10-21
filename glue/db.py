@@ -179,3 +179,19 @@ class Database:
             "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [decoded(row, "detail") for row in rows]
+
+    def timeline(self, order_id: str) -> list[dict]:
+        # Pulls in rows that share a correlation id with the order, e.g. the inbound event
+        # and the stock pushes it triggered.
+        rows = self.conn.execute(
+            "SELECT * FROM audit_log WHERE entity_id = ? OR correlation_id IN"
+            " (SELECT correlation_id FROM audit_log WHERE entity_id = ?) ORDER BY id",
+            (order_id, order_id),
+        ).fetchall()
+        return [decoded(row, "detail") for row in rows]
+
+    def counters(self, since: str = "") -> dict[str, int]:
+        rows = self.conn.execute(
+            "SELECT action, COUNT(*) AS n FROM audit_log WHERE ts >= ? GROUP BY action", (since,)
+        ).fetchall()
+        return {row["action"]: row["n"] for row in rows}
