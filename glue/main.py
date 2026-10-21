@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, FastAPI
 
 from common import ui
-from glue import demo, inbox, reconciler, web, worker
+from glue import assistant, demo, inbox, reconciler, web, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
             shop=ShopClient(http, settings.shop_url),
             emag=EmagClient(http, settings.emag_url),
             warehouse=WarehouseClient(http, settings.warehouse_url),
+            assistant=assistant.client(settings, http),
         )
         # Channels start at zero stock; fill them before any order can be processed.
         await reconciler.reconcile_all(app.state.ctx)

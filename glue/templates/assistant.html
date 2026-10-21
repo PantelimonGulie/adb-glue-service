@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set active = "assistant" %}
+{% block title %}Assistant{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Assistant</h1>
+  <p>Ask in plain words about orders, stock and what the service did. It reads the same orders, stock and audit log you see here and cites order ids and times, so every answer can be checked. It is read-only: it can look things up but cannot retry, cancel or change anything.</p>
+</div>
+<section class="panel chat" id="chat" aria-live="polite">
+  {% include "_assistant_chat.html" %}
+</section>
+{% endblock %}

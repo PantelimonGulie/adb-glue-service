@@ -30,8 +30,9 @@
   ("stock", "/stock", "Stock"),
   ("review", "/review", "Review queue"),
   ("audit", "/audit", "Audit log"),
+  ("assistant", "/assistant", "Assistant"),
 ] %}
-{% set later = [("rules", "Rules"), ("roles", "Users and roles"), ("assistant", "Assistant")] %}
+{% set later = [("rules", "Rules"), ("roles", "Users and roles")] %}
 <nav class="sidebar" aria-label="Main">
   <ul>
     {% for key, href, label in nav %}

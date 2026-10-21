@@ -1,14 +1,14 @@
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from glue import review, views
+from glue import assistant, review, views
 from glue.context import Context
 
-SOON_PAGES = ("rules", "roles", "assistant")
+SOON_PAGES = ("rules", "roles")
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -108,6 +108,29 @@ async def audit(request: Request, entity: str = ""):
 @router.get("/audit/tail")
 async def audit_tail(request: Request, entity: str = ""):
     return fragment(request, "_audit_rows.html", views.audit(ctx_of(request), entity.strip()))
+
+
+@router.get("/assistant")
+async def assistant_page(request: Request):
+    offline = ctx_of(request).assistant is None
+    return page(request, "assistant.html", {"offline": offline, "turns": []})
+
+
+@router.post("/assistant")
+async def assistant_ask(request: Request, question: str = Form(""), history: str = Form("[]")):
+    ctx = ctx_of(request)
+    turns = assistant.parse_history(history)
+    question = question.strip()[:1000]
+    if ctx.assistant is not None and question:
+        turns.append({"role": "user", "content": question})
+        try:
+            turns.append({"role": "assistant", "content": await assistant.ask(ctx, turns)})
+        except Exception as exc:
+            log.warning("assistant failed: %s: %s", type(exc).__name__, exc)
+            answer = assistant.failure_message(exc)
+            turns.append({"role": "assistant", "content": answer, "error": True})
+    context = {"offline": ctx.assistant is None, "turns": turns}
+    return fragment(request, "_assistant_chat.html", context)
 
 
 @router.get("/soon/{name}")
