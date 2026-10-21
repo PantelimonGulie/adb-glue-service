@@ -51,6 +51,22 @@ async def test_shop_signature_cannot_carry_an_emag_order(systems):
     assert systems.ctx.db.counters()["event_rejected"] == 2
 
 
+async def test_warehouse_signature_cannot_place_an_order(systems):
+    order = {"id": "shop-1", "channel": "shop", "channel_order_id": "1", "customer": "Guest"}
+    order["lines"] = [{"sku": "MBA-M4", "qty": 1}]
+
+    response = await systems.send_event("warehouse", "order.placed", order)
+
+    assert response.status_code == 422
+    assert systems.ctx.db.list_orders() == []
+
+
+def test_an_empty_secret_verifies_nothing():
+    body = b'{"type": "order.cancelled"}'
+
+    assert signing.verify("", body, signing.sign("", body)) is False
+
+
 async def test_dashboard_actions_need_the_htmx_header_from_same_origin(systems):
     no_header = await systems.http.post("http://glue/review/1/dismiss")
     demo = await systems.http.post("http://glue/demo/warehouse-down")

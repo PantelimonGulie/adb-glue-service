@@ -12,6 +12,7 @@ ACTIONS = frozenset(
         "signature_rejected",
         "event_rejected",
         "order_known",
+        "allocation_resumed",
         "event_failed",
         "emag_acknowledged",
         "order_allocated",

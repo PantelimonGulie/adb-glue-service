@@ -120,7 +120,7 @@ docker compose run --rm --build glue sh -c "ruff check . && ruff format --check 
 
 `--build` puts the current code in the image; drop it if the image is already up to date.
 
-The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file and zero retry back-off. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (16 tests) runs in under a second.
+The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file and zero retry back-off. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (19 tests) runs in under a second.
 
 Covered:
 

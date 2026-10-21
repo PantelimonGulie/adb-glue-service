@@ -1,3 +1,6 @@
+from common.models import Order
+
+
 async def test_duplicate_shop_events_create_one_order(systems):
     order_id = await systems.buy_on_shop("IPH16-128")
     await systems.chaos("shop", duplicate_last=True)
@@ -10,6 +13,18 @@ async def test_duplicate_shop_events_create_one_order(systems):
     counters = systems.ctx.db.counters()
     assert counters["duplicate_dropped"] == 1
     assert counters["order_known"] == 1
+
+
+async def test_order_left_received_by_a_crash_is_sent_again(systems):
+    order_id = await systems.buy_on_shop("IPH16-256")
+    order = Order(**systems.shop.state.orders[order_id])
+    # The glue saved the order, then stopped before the warehouse answer was recorded.
+    systems.ctx.db.insert_order_if_new(order)
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.warehouse.state.stock["IPH16-256"]["reserved"] == 1
+    assert systems.ctx.db.counters()["allocation_resumed"] == 1
 
 
 async def test_emag_renotify_does_not_allocate_twice(systems):

@@ -21,5 +21,6 @@ class Context:
     # overwriting a newer stock figure on the channels.
     reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
+    sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
     assistant: AsyncOpenAI | None = None

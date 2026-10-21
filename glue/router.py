@@ -36,6 +36,12 @@ async def place_order(ctx: Context, order: Order, correlation_id: str) -> None:
     # Business-level dedupe: eMAG re-notifies, Adobe may redeliver under a new event id.
     if not ctx.db.insert_order_if_new(order):
         existing = ctx.db.get_order(order.id)
+        if existing["status"] == "received" and order.id not in ctx.sending:
+            # Received but nobody sending it: the glue stopped before the warehouse answer was
+            # recorded. The warehouse dedupes on Idempotency-Key, so sending it again is safe.
+            record(ctx.db, correlation_id, "order", order.id, "allocation_resumed")
+            await allocate(ctx, order, correlation_id)
+            return
         action = "placed_after_cancel" if existing["status"] == "cancelled" else "order_known"
         record(ctx.db, correlation_id, "order", order.id, action)
         return
@@ -56,10 +62,13 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
             problem=problem,
         )
 
+    ctx.sending.add(order.id)
     try:
         response = await with_retries(ctx, lambda: ctx.warehouse.create_order(order), on_retry)
     except RetryExhausted as exc:
         return fail(ctx, order.id, correlation_id, "order_failed", str(exc), "place")
+    finally:
+        ctx.sending.discard(order.id)
     if response.status_code == 201:
         # A cancel handled while the warehouse call was in flight already marked the order
         # cancelled; the reservation it just got must be released again.
