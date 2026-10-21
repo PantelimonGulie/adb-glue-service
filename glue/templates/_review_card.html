@@ -1,7 +1,9 @@
 {% from "_ui.html" import channel, clock, lines, status_pill %}
+{% set item, order, allowed, error = card.item, card.order, card.allowed, card.error %}
 {% set out_of_stock = item.kind == "unfulfillable" %}
 {% set is_emag = order and order.channel == "emag" %}
 {% set still_failing = order and item.action != "dismiss" and order.status == "failed" %}
+{% set retry_cancel = item.payload.operation == "cancel" %}
 <article class="rcard {{ 'is-open' if item.status == 'open' else 'is-decided' }} kind-{{ item.kind }}" id="review-{{ item.id }}">
   <header class="rcard-head">
     <span class="tag tone-{{ 'bad' if out_of_stock else 'warn' }}">{{ "Out of stock" if out_of_stock else "Technical failure" }}</span>
@@ -28,11 +30,13 @@
   {% endif %}
   {% if item.status == "open" %}
   <div class="rcard-choices" hx-target="#review-{{ item.id }}" hx-swap="outerHTML" hx-disabled-elt="#review-{{ item.id }} button" hx-indicator="#review-{{ item.id }}">
-    {% if order %}
+    {% if "retry" in allowed %}
     <div class="choice">
-      <button type="button" class="btn-primary" hx-post="/review/{{ item.id }}/retry">Retry allocation</button>
-      <p>Send it to the warehouse again. Use it once stock is back or the warehouse is up.</p>
+      <button type="button" class="btn-primary" hx-post="/review/{{ item.id }}/retry">{{ "Retry cancel" if retry_cancel else "Retry allocation" }}</button>
+      <p>{% if retry_cancel %}Ask the warehouse again to release the reserved stock.{% else %}Send it to the warehouse again. Use it once stock is back or the warehouse is up.{% endif %}</p>
     </div>
+    {% endif %}
+    {% if "cancel" in allowed %}
     <div class="choice">
       <button type="button" class="btn-danger" hx-post="/review/{{ item.id }}/cancel">Cancel on {{ "eMAG" if is_emag else "the shop" }}</button>
       <p>{% if is_emag %}The customer is told on eMAG. Seller cancellations count against the store's eMAG rating.{% else %}The order is cancelled in the shop and the customer sees it under My orders.{% endif %}</p>

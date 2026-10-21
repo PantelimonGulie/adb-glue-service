@@ -74,7 +74,8 @@ def stock_levels(stock: dict) -> list[StockLevel]:
 
 async def send(request: Request, event_type: str, data: dict) -> None:
     state = request.app.state
-    await emit(state.http, state.events_url, event_type, data, str(uuid.uuid4()), "warehouse")
+    event_id = str(uuid.uuid4())
+    await emit(state.http, state.events_url, event_type, data, event_id, "warehouse", state.secret)
 
 
 @router.get("/")
@@ -170,6 +171,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Warehouse", lifespan=lifespan)
     app.state.events_url = os.environ.get("GLUE_URL", "http://glue:8000") + "/events"
+    app.state.secret = os.environ.get("WAREHOUSE_WEBHOOK_SECRET", "")
     app.state.stock = {sku: {"on_hand": n, "reserved": 0} for sku, n in SEED_ON_HAND.items()}
     app.state.orders = {}
     app.state.accepted = {}

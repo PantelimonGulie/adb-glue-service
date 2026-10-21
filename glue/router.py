@@ -19,10 +19,17 @@ class EmagOrder(BaseModel):
     customer: str
 
 
-def fail(ctx: Context, order_id: str, correlation_id: str, kind: str, reason: str) -> None:
-    ctx.db.set_order(order_id, status="failed", last_error=reason)
+def fail(
+    ctx: Context, order_id: str, correlation_id: str, kind: str, reason: str, operation: str
+) -> None:
+    # A failed cancel leaves the warehouse reservation in place, so the order stays allocated.
+    if operation == "place":
+        ctx.db.set_order(order_id, status="failed", last_error=reason)
+    else:
+        ctx.db.set_order(order_id, last_error=reason)
     record(ctx.db, correlation_id, "order", order_id, kind, reason=reason)
-    review.open(ctx, kind, order_id, reason, correlation_id, payload=ctx.db.get_order(order_id))
+    payload = {**ctx.db.get_order(order_id), "operation": operation}
+    review.open(ctx, kind, order_id, reason, correlation_id, payload=payload)
 
 
 async def place_order(ctx: Context, order: Order, correlation_id: str) -> None:
@@ -52,7 +59,7 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
     try:
         response = await with_retries(ctx, lambda: ctx.warehouse.create_order(order), on_retry)
     except RetryExhausted as exc:
-        return fail(ctx, order.id, correlation_id, "order_failed", str(exc))
+        return fail(ctx, order.id, correlation_id, "order_failed", str(exc), "place")
     if response.status_code == 201:
         ctx.db.set_order(order.id, status="allocated", last_error=None)
         lines = [line.model_dump() for line in order.lines]
@@ -61,9 +68,9 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
         return await reconciler.reconcile_skus(ctx, skus, correlation_id)
     if response.status_code == 409:
         reason = "warehouse has no stock: sold on another channel first"
-        return fail(ctx, order.id, correlation_id, "unfulfillable", reason)
+        return fail(ctx, order.id, correlation_id, "unfulfillable", reason, "place")
     reason = f"warehouse rejected: HTTP {response.status_code} {response.text}"
-    fail(ctx, order.id, correlation_id, "order_failed", reason)
+    fail(ctx, order.id, correlation_id, "order_failed", reason, "place")
 
 
 async def import_emag_order(ctx: Context, event: dict) -> None:
@@ -104,10 +111,10 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
             response = await with_retries(ctx, lambda: ctx.warehouse.cancel_order(order_id))
         except RetryExhausted as exc:
             reason = f"warehouse cancel not delivered: {exc}"
-            return fail(ctx, order_id, correlation_id, "order_failed", reason)
+            return fail(ctx, order_id, correlation_id, "order_failed", reason, "cancel")
         if response.status_code == 409:
             reason = "already shipped: customer cancelled after dispatch"
-            return fail(ctx, order_id, correlation_id, "order_failed", reason)
+            return fail(ctx, order_id, correlation_id, "order_failed", reason, "cancel")
     ctx.db.set_order(order_id, status="cancelled")
     record(ctx.db, correlation_id, "order", order_id, "order_cancelled", was=order["status"])
     if releases_stock:

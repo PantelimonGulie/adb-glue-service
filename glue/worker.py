@@ -36,16 +36,19 @@ def order_id_in(event: dict) -> str | None:
 
 async def handle(ctx: Context, event: dict) -> None:
     event_id = event["event_id"]
-    try:
-        await HANDLERS[event["type"]](ctx, event)
-    except Exception as exc:
-        error = f"{type(exc).__name__}: {exc}"
-        ctx.db.finish_event(event_id, "failed", error)
-        record(ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error)
-        reason = f"unexpected while handling {event['type']}: {error}"
-        review.open(ctx, "order_failed", order_id_in(event), reason, event_id, payload=event)
-        return
-    ctx.db.finish_event(event_id, "done")
+    async with ctx.worker_slots:
+        try:
+            await HANDLERS[event["type"]](ctx, event)
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            ctx.db.finish_event(event_id, "failed", error)
+            record(
+                ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
+            )
+            reason = f"unexpected while handling {event['type']}: {error}"
+            review.open(ctx, "order_failed", order_id_in(event), reason, event_id, payload=event)
+            return
+        ctx.db.finish_event(event_id, "done")
 
 
 async def process_pending(ctx: Context) -> int:
@@ -55,11 +58,15 @@ async def process_pending(ctx: Context) -> int:
 
 
 async def run_forever(ctx: Context) -> None:
+    # One task per event; only as many are claimed as there are free slots, so a slow retry
+    # occupies one slot while new events keep flowing through the rest.
+    tasks: set[asyncio.Task] = set()
     while True:
-        try:
-            processed = await process_pending(ctx)
-        except Exception:
-            log.exception("worker loop failed")
-            processed = 0
-        if not processed:
+        free = ctx.settings.worker_concurrency - len(tasks)
+        events = ctx.db.claim_pending_events(free) if free > 0 else []
+        for event in events:
+            task = asyncio.create_task(handle(ctx, event))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+        if not events:
             await asyncio.sleep(0.5)

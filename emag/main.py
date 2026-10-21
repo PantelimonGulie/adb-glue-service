@@ -1,5 +1,6 @@
 import asyncio
 import itertools
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -12,7 +13,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from common import ui
+from common import signing, ui
 
 OFFERS = {
     "IPH16-128": ("Telefon mobil Apple iPhone 16, 128GB, 5G, Black", 4349),
@@ -59,9 +60,11 @@ def find_order(request: Request, order_id: int) -> dict:
 
 
 async def notify(app: FastAPI, order_id: int, kind: str) -> None:
+    body = json.dumps({"order_id": order_id, "type": kind}).encode()
+    headers = signing.headers(app.state.secret, body)
     try:
         response = await app.state.http.post(
-            app.state.notify_url, json={"order_id": order_id, "type": kind}, timeout=2
+            app.state.notify_url, content=body, headers=headers, timeout=2
         )
         response.raise_for_status()
     except httpx.HTTPError as exc:
@@ -197,6 +200,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="eMAG Marketplace", lifespan=lifespan)
     app.state.notify_url = os.environ.get("GLUE_URL", "http://glue:8000") + "/emag/notifications"
     app.state.renotify_seconds = float(os.environ.get("RENOTIFY_SECONDS", "20"))
+    app.state.secret = os.environ.get("EMAG_WEBHOOK_SECRET", "")
     app.state.stock = dict.fromkeys(OFFERS, 0)
     app.state.orders = {}
     app.state.order_ids = itertools.count(500123)

@@ -17,6 +17,7 @@ services:
     ports: ["8001:8001"]
     environment:
       GLUE_URL: http://glue:8000
+      SHOP_WEBHOOK_SECRET: demo-shop-secret
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
@@ -27,6 +28,7 @@ services:
     ports: ["8002:8002"]
     environment:
       GLUE_URL: http://glue:8000
+      EMAG_WEBHOOK_SECRET: demo-emag-secret
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
@@ -37,6 +39,7 @@ services:
     ports: ["8003:8003"]
     environment:
       GLUE_URL: http://glue:8000
+      WAREHOUSE_WEBHOOK_SECRET: demo-warehouse-secret
     healthcheck:
       <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
@@ -49,6 +52,9 @@ services:
       SHOP_URL: http://shop:8001
       EMAG_URL: http://emag:8002
       WAREHOUSE_URL: http://warehouse:8003
+      SHOP_WEBHOOK_SECRET: demo-shop-secret
+      EMAG_WEBHOOK_SECRET: demo-emag-secret
+      WAREHOUSE_WEBHOOK_SECRET: demo-warehouse-secret
       DB_PATH: /data/glue.db
       HTTP_TIMEOUT_SECONDS: "2"
       RETRY_ATTEMPTS: "5"

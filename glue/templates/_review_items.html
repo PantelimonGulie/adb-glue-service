@@ -1,5 +1,5 @@
 <section class="review-open" aria-label="Open items">
-  {% for item, order in items %}
+  {% for card in items %}
   {% include "_review_card.html" %}
   {% else %}
   <p class="empty-state">The queue is empty. When an order cannot be allocated after retries, or a channel sold stock the warehouse does not have, it lands here with the reason.</p>
@@ -8,7 +8,7 @@
 {% if decided %}
 <section class="review-decided">
   <h2>Decided recently</h2>
-  {% for item, order in decided %}
+  {% for card in decided %}
   {% include "_review_card.html" %}
   {% endfor %}
 </section>

@@ -9,6 +9,8 @@ ACTIONS = frozenset(
     {
         "event_received",
         "duplicate_dropped",
+        "signature_rejected",
+        "event_rejected",
         "order_known",
         "event_failed",
         "emag_acknowledged",
@@ -48,6 +50,8 @@ def configure_logging() -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
+    # httpx logs a line per outbound request; the audit log is the record that matters.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def record(

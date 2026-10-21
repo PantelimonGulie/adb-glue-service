@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
             emag=EmagClient(http, settings.emag_url),
             warehouse=WarehouseClient(http, settings.warehouse_url),
             assistant=assistant.client(settings, http),
+            worker_slots=asyncio.Semaphore(settings.worker_concurrency),
         )
         # Channels start at zero stock; fill them before any order can be processed.
         await reconciler.reconcile_all(app.state.ctx)
@@ -54,6 +55,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", ui.static, name="static")
     app.include_router(inbox.router)
     app.include_router(web.router)
+    app.include_router(web.actions)
     app.include_router(demo.router)
     app.include_router(router)
     return app

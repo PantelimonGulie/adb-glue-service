@@ -1,7 +1,8 @@
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -11,8 +12,20 @@ from glue.context import Context
 SOON_PAGES = ("rules", "roles")
 
 log = logging.getLogger(__name__)
-router = APIRouter()
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+
+
+def from_dashboard(request: Request) -> None:
+    # HTMX adds HX-Request to its own calls; a cross-site form or script cannot.
+    origin = request.headers.get("origin")
+    if request.headers.get("hx-request") != "true" or (
+        origin and urlsplit(origin).netloc != request.url.netloc
+    ):
+        raise HTTPException(403, "only the dashboard may do this")
+
+
+router = APIRouter()
+actions = APIRouter(dependencies=[Depends(from_dashboard)])
 
 
 def ctx_of(request: Request) -> Context:
@@ -24,8 +37,8 @@ def page(request: Request, name: str, context: dict) -> HTMLResponse:
     return templates.TemplateResponse(request, name, context)
 
 
-def fragment(request: Request, name: str, context: dict) -> HTMLResponse:
-    return templates.TemplateResponse(request, name, context)
+def fragment(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
+    return templates.TemplateResponse(request, name, context, status_code=status_code)
 
 
 @router.get("/")
@@ -83,21 +96,24 @@ async def review_count(request: Request) -> HTMLResponse:
     return HTMLResponse(str(count) if count else "")
 
 
-@router.post("/review/{item_id}/{action}")
+@actions.post("/review/{item_id}/{action}")
 async def decide(request: Request, item_id: int, action: str):
     ctx = ctx_of(request)
-    error = None
+    status, error = 200, None
     try:
         await review.decide(ctx, item_id, action)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from None
+    except review.Conflict as exc:
+        status, error = 409, str(exc)
     except Exception as exc:
         # The operator needs to see why; review.decide has already re-queued the order.
         log.warning("review %s %s failed: %s", item_id, action, exc)
         error = str(exc)
-    item = ctx.db.get_review(item_id)
-    if item is None:
-        raise HTTPException(404, f"review item {item_id} not found")
-    context = {"item": item, "order": ctx.db.get_order(item["order_id"]), "error": error}
-    return fragment(request, "_review_card.html", context)
+    card = views.review_card(ctx, item_id, error)
+    return fragment(request, "_review_card.html", {"card": card}, status)
 
 
 @router.get("/audit")
@@ -116,7 +132,7 @@ async def assistant_page(request: Request):
     return page(request, "assistant.html", {"offline": offline, "turns": []})
 
 
-@router.post("/assistant")
+@actions.post("/assistant")
 async def assistant_ask(request: Request, question: str = Form(""), history: str = Form("[]")):
     ctx = ctx_of(request)
     turns = assistant.parse_history(history)

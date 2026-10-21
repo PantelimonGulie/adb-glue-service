@@ -20,5 +20,6 @@ class Context:
     # Reconcile runs read-then-push; serialising them keeps a slower run from
     # overwriting a newer stock figure on the channels.
     reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
     warehouse_down: bool = False
     assistant: AsyncOpenAI | None = None

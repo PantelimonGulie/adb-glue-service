@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from fastapi import Request
 
+from glue import review as review_queue
 from glue.context import Context
 
 COUNTERS = (
@@ -71,11 +72,18 @@ def stock(ctx: Context) -> dict:
     return {"rows": rows}
 
 
+def review_card(ctx: Context, item_id: int, error: str | None = None) -> dict:
+    item = ctx.db.get_review(item_id)
+    order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
+    allowed = review_queue.allowed_actions(item, order)
+    return {"item": item, "order": order, "allowed": allowed, "error": error}
+
+
 def review(ctx: Context) -> dict:
     decided = ctx.db.list_review("decided")[-8:][::-1]
     return {
-        "items": [(item, ctx.db.get_order(item["order_id"])) for item in ctx.db.list_review()],
-        "decided": [(item, ctx.db.get_order(item["order_id"])) for item in decided],
+        "items": [review_card(ctx, item["id"]) for item in ctx.db.list_review()],
+        "decided": [review_card(ctx, item["id"]) for item in decided],
     }
 
 

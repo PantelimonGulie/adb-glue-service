@@ -8,6 +8,9 @@ class Settings:
     shop_url: str = "http://shop:8001"
     emag_url: str = "http://emag:8002"
     warehouse_url: str = "http://warehouse:8003"
+    shop_webhook_secret: str = ""
+    emag_webhook_secret: str = ""
+    warehouse_webhook_secret: str = ""
     db_path: str = "/data/glue.db"
     http_timeout_seconds: float = 2
     retry_attempts: int = 5
@@ -16,6 +19,14 @@ class Settings:
     reconcile_interval_seconds: float = 10
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
+
+    def webhook_secret(self, source: str) -> str:
+        secrets = {
+            "shop": self.shop_webhook_secret,
+            "emag": self.emag_webhook_secret,
+            "warehouse": self.warehouse_webhook_secret,
+        }
+        return secrets.get(source, "")
 
     @classmethod
     def from_env(cls) -> Self:

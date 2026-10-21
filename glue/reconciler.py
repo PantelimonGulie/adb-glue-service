@@ -47,16 +47,12 @@ async def reconcile_skus(ctx: Context, skus: list[str] | None, correlation_id: s
 
 
 async def push_channels(ctx: Context, rows: list[dict], correlation_id: str) -> None:
+    # Every SKU given is pushed, even if the cache says the channel already has that figure:
+    # a restarted or unfrozen channel would otherwise keep stale numbers until the next change.
     sellable = {row["sku"]: max(0, row["available"]) for row in rows}
-    for channel, push in (("shop", push_shop), ("emag", push_emag)):
-        told = {row["sku"]: row for row in ctx.db.channel_stock(channel)}
-        pending = {
-            sku: qty
-            for sku, qty in sellable.items()
-            if sku not in told or told[sku]["dirty"] or told[sku]["qty"] != qty
-        }
-        if pending:
-            await push(ctx, pending, correlation_id)
+    if sellable:
+        await push_shop(ctx, sellable, correlation_id)
+        await push_emag(ctx, sellable, correlation_id)
 
 
 async def push_shop(ctx: Context, pending: dict[str, int], correlation_id: str) -> None:
@@ -110,10 +106,8 @@ def retry_logger(
 def note_push(
     ctx: Context, correlation_id: str, channel: str, sku: str, qty: int, problem: str | None
 ) -> None:
-    ctx.db.set_channel_stock(channel, sku, qty, dirty=problem is not None)
-    if problem is None:
-        record(ctx.db, correlation_id, "stock", sku, "stock_pushed", channel=channel, qty=qty)
-    else:
+    changed = ctx.db.set_channel_stock(channel, sku, qty, dirty=problem is not None)
+    if problem is not None:
         record(
             ctx.db,
             correlation_id,
@@ -124,6 +118,8 @@ def note_push(
             qty=qty,
             problem=problem,
         )
+    elif changed:
+        record(ctx.db, correlation_id, "stock", sku, "stock_pushed", channel=channel, qty=qty)
 
 
 def open_conflicts(ctx: Context, row: dict, correlation_id: str) -> None:

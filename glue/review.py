@@ -4,6 +4,12 @@ from glue.audit import record
 from glue.context import Context
 
 ACTIONS = ("retry", "cancel", "dismiss")
+# A retry repeats the operation that failed, which only makes sense from the state it left.
+RETRY_FROM = {"place": "failed", "cancel": "allocated"}
+
+
+class Conflict(Exception):
+    pass
 
 
 def open(
@@ -29,16 +35,32 @@ def open(
     return item_id
 
 
-async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "operator") -> dict:
-    item = ctx.db.get_review(item_id)
-    if item is None or item["status"] != "open":
-        raise LookupError(f"review item {item_id} is not open")
+def allowed_actions(item: dict, order: dict | None) -> set[str]:
+    if item["status"] != "open":
+        return set()
+    actions = {"dismiss"}
+    if order is None:
+        return actions
+    if order["status"] == RETRY_FROM[item["payload"].get("operation", "place")]:
+        actions.add("retry")
+    if order["status"] not in ("shipped", "cancelled"):
+        actions.add("cancel")
+    return actions
+
+
+async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "operator") -> None:
     if action not in ACTIONS:
         raise ValueError(f"unknown review action {action!r}")
+    item = ctx.db.get_review(item_id)
+    if item is None:
+        raise LookupError(f"review item {item_id} not found")
+    if item["status"] != "open":
+        raise Conflict(f"already decided: {item['action']} by {item['decided_by']}")
     order_id = item["order_id"]
     order = ctx.db.get_order(order_id) if order_id else None
-    if order is None and action != "dismiss":
-        raise LookupError(f"review item {item_id} has no order to {action}")
+    if action not in allowed_actions(item, order):
+        state = f"order is {order['status']}" if order else "no order attached"
+        raise Conflict(f"cannot {action}: {state}")
     correlation_id = f"review-{item_id}"
     # Closed before acting: a retry that fails again must be able to open a fresh item.
     ctx.db.decide_review(item_id, action, decided_by)
@@ -54,11 +76,13 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         decided_by=decided_by,
     )
     try:
-        if action == "retry":
+        if action == "retry" and item["payload"].get("operation") == "cancel":
+            await router.cancel_order(ctx, order_id, correlation_id)
+        elif action == "retry":
             await router.allocate(ctx, Order(id=order_id, **order), correlation_id)
         elif action == "cancel":
             await router.cancel_on_channel(ctx, order_id, correlation_id)
     except Exception as exc:
-        open(ctx, item["kind"], order_id, f"{action} failed: {exc}", correlation_id, payload=order)
+        reason = f"{action} failed: {exc}"
+        open(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
         raise
-    return ctx.db.get_review(item_id)

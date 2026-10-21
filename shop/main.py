@@ -48,7 +48,7 @@ def find_order(request: Request, order_id: str) -> dict:
 async def send(request: Request, event_type: str, data: dict) -> None:
     state = request.app.state
     state.last_event = (event_type, data, str(uuid.uuid4()))
-    await emit(state.http, state.events_url, *state.last_event, source="shop")
+    await emit(state.http, state.events_url, *state.last_event, "shop", state.secret)
 
 
 async def place(request: Request, sku: str, qty: int) -> Order:
@@ -135,7 +135,7 @@ async def health() -> dict:
 async def chaos(request: Request, body: Chaos) -> dict:
     state = request.app.state
     if body.duplicate_last and state.last_event:
-        await emit(state.http, state.events_url, *state.last_event, source="shop")
+        await emit(state.http, state.events_url, *state.last_event, "shop", state.secret)
     created = []
     for _ in range(body.flash_sale):
         in_stock = [sku for sku, qty in state.stock.items() if qty > 0]
@@ -155,6 +155,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="Electronic Market", lifespan=lifespan)
     app.state.events_url = os.environ.get("GLUE_URL", "http://glue:8000") + "/events"
+    app.state.secret = os.environ.get("SHOP_WEBHOOK_SECRET", "")
     app.state.stock = dict.fromkeys(PRODUCTS, 0)
     app.state.orders = {}
     app.state.order_numbers = itertools.count(1001)

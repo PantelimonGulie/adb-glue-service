@@ -1,6 +1,12 @@
+from urllib.parse import quote
+
 import httpx
 
 from common.models import Order
+
+
+def segment(value: str) -> str:
+    return quote(value, safe="")
 
 
 class ShopClient:
@@ -9,14 +15,14 @@ class ShopClient:
         self.base_url = base_url
 
     async def set_stock(self, sku: str, qty: int) -> httpx.Response:
-        url = f"{self.base_url}/V1/products/{sku}/stockItems"
+        url = f"{self.base_url}/V1/products/{segment(sku)}/stockItems"
         return await self.http.put(url, json={"qty": qty})
 
     async def mark_shipped(self, order_id: str) -> httpx.Response:
-        return await self.http.post(f"{self.base_url}/V1/order/{order_id}/ship")
+        return await self.http.post(f"{self.base_url}/V1/order/{segment(order_id)}/ship")
 
     async def cancel(self, order_id: str) -> httpx.Response:
-        return await self.http.post(f"{self.base_url}/V1/orders/{order_id}/cancel")
+        return await self.http.post(f"{self.base_url}/V1/orders/{segment(order_id)}/cancel")
 
     async def health(self) -> httpx.Response:
         return await self.http.get(f"{self.base_url}/health")
@@ -61,7 +67,7 @@ class WarehouseClient:
         )
 
     async def cancel_order(self, order_id: str) -> httpx.Response:
-        return await self.http.post(f"{self.base_url}/orders/{order_id}/cancel")
+        return await self.http.post(f"{self.base_url}/orders/{segment(order_id)}/cancel")
 
     async def stock(self) -> httpx.Response:
         return await self.http.get(f"{self.base_url}/stock")
