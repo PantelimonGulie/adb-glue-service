@@ -1,8 +1,8 @@
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from common import signing
 from common.models import EmagNotification, Event, Order, OrderRef, StockAdjusted
@@ -11,9 +11,21 @@ from glue.context import Context
 
 router = APIRouter()
 EVENT_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
+
+# The shop's signature only vouches for shop orders. eMAG orders enter through
+# /emag/notifications alone; the warehouse ships orders from either channel.
+class ShopOrder(Order):
+    channel: Literal["shop"]
+
+
+class ShopOrderRef(BaseModel):
+    order_id: str = Field(pattern=r"^shop-\d+$")
+
+
 # Which event types each signed source may post to /events. eMAG has its own endpoint.
 SOURCES = {
-    "shop": {"order.placed": Order, "order.cancelled": OrderRef},
+    "shop": {"order.placed": ShopOrder, "order.cancelled": ShopOrderRef},
     "warehouse": {"order.shipped": OrderRef, "stock.adjusted": StockAdjusted},
     "emag": {},
 }

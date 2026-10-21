@@ -61,9 +61,14 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
     except RetryExhausted as exc:
         return fail(ctx, order.id, correlation_id, "order_failed", str(exc), "place")
     if response.status_code == 201:
+        # A cancel handled while the warehouse call was in flight already marked the order
+        # cancelled; the reservation it just got must be released again.
+        cancelled_meanwhile = ctx.db.get_order(order.id)["status"] == "cancelled"
         ctx.db.set_order(order.id, status="allocated", last_error=None)
         lines = [line.model_dump() for line in order.lines]
         record(ctx.db, correlation_id, "order", order.id, "order_allocated", lines=lines)
+        if cancelled_meanwhile:
+            return await cancel_order(ctx, order.id, correlation_id)
         skus = [line.sku for line in order.lines]
         return await reconciler.reconcile_skus(ctx, skus, correlation_id)
     if response.status_code == 409:

@@ -52,7 +52,7 @@ All three inbound arrows are signed webhooks. Every other arrow is a call the gl
 
 | Module | Job |
 |---|---|
-| `inbox.py` | Checks the signature and the schema, saves the event if its id is new, answers 202. Does no other work. |
+| `inbox.py` | Checks the signature and the schema (each source has its own set of event types, and the shop may only refer to `shop-` orders), saves the event if its id is new, answers 202. Does no other work. |
 | `worker.py` | Claims pending events and runs one task per event, at most 10 at a time. Any unexpected error marks the event failed and opens a review item, so no order disappears silently. |
 | `router.py` | The only code that changes an order's status: place, import from eMAG, cancel, mark shipped. |
 | `reconciler.py` | Reads warehouse stock, pushes the sellable figure (`max(0, on_hand − reserved)`) to both channels, records what each channel accepted, and opens review items when a recount leaves less than is reserved. |
@@ -196,6 +196,7 @@ stateDiagram-v2
     [*] --> received: order event or eMAG notification
     [*] --> cancelled: cancel arrived before the order
     received --> allocated: warehouse 201
+    received --> cancelled: cancel arrived while the warehouse call was in flight
     received --> failed: warehouse 409, or retries exhausted
     failed --> allocated: operator retry, warehouse 201
     failed --> cancelled: operator cancel
@@ -209,7 +210,7 @@ stateDiagram-v2
     end note
 ```
 
-When a cancel overtakes the order it cancels (events are not ordered), the glue stores a cancelled stub. When the order arrives later it is recorded as `placed_after_cancel` and never reserved.
+When a cancel overtakes the order it cancels (events are not ordered), the glue stores a cancelled stub. When the order arrives later it is recorded as `placed_after_cancel` and never reserved. When the cancel lands while the warehouse call for that order is still in flight, the router notices the cancelled status after the 201 and releases the reservation straight away.
 
 ## Retries and partial failures
 

@@ -38,6 +38,19 @@ async def test_signed_but_invalid_event_is_rejected(systems):
     assert "event_received" not in systems.ctx.db.counters()
 
 
+async def test_shop_signature_cannot_carry_an_emag_order(systems):
+    order = {"id": "emag-500123", "channel": "emag", "channel_order_id": "500123"}
+    order |= {"lines": [{"sku": "MBA-M4", "qty": 1}], "customer": "Guest"}
+
+    placed = await systems.send_event("shop", "order.placed", order)
+    cancelled = await systems.send_event("shop", "order.cancelled", {"order_id": "emag-500123"})
+    await systems.run_worker()
+
+    assert [r.status_code for r in (placed, cancelled)] == [422, 422]
+    assert systems.ctx.db.list_orders() == []
+    assert systems.ctx.db.counters()["event_rejected"] == 2
+
+
 async def test_dashboard_actions_need_the_htmx_header_from_same_origin(systems):
     no_header = await systems.http.post("http://glue/review/1/dismiss")
     demo = await systems.http.post("http://glue/demo/warehouse-down")

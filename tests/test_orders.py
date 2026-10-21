@@ -54,6 +54,19 @@ async def test_warehouse_down_queues_order_until_operator_retries(systems, sleep
     assert systems.open_reviews() == []
 
 
+async def test_cancel_arriving_with_the_order_releases_the_reservation(systems):
+    order_id = await systems.buy_on_shop("WATCH-S10")
+    response = await systems.http.post(f"http://shop/orders/{order_id}/cancel")
+    assert response.status_code == 303
+    # Both events are pending, so the worker handles them in the same batch.
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
+    assert systems.warehouse.state.stock["WATCH-S10"]["reserved"] == 0
+    assert systems.shop.state.stock["WATCH-S10"] == 8
+    assert systems.open_reviews() == []
+
+
 async def test_oversell_is_queued_and_operator_cancels_on_emag(systems):
     await systems.chaos("emag", freeze_stock=True)
     shop_order = await systems.buy_on_shop("MBA-M4")

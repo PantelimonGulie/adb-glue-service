@@ -63,7 +63,11 @@ async def run_forever(ctx: Context) -> None:
     tasks: set[asyncio.Task] = set()
     while True:
         free = ctx.settings.worker_concurrency - len(tasks)
-        events = ctx.db.claim_pending_events(free) if free > 0 else []
+        try:
+            events = ctx.db.claim_pending_events(free) if free > 0 else []
+        except Exception:
+            log.exception("claiming events failed")
+            events = []
         for event in events:
             task = asyncio.create_task(handle(ctx, event))
             tasks.add(task)

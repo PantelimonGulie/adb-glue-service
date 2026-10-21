@@ -49,7 +49,7 @@ The assistant page needs a free Gemini API key in `.env` (copy `.env.example`). 
 Keep the dashboard open in one tab and the mock you are using in another. Faults are under **Demo controls** at the top right of the dashboard. **Reset all faults** turns them all off.
 
 1. **Stock is filled.** Open the shop (:8001). Every product shows stock: the glue read the warehouse at startup and pushed the figures to both channels. Click **Buy now** on an iPhone 16 128GB. On the dashboard, **Orders** shows it as allocated and **Stock** shows the same lower figure for the warehouse, the shop and eMAG.
-2. **eMAG and duplicates.** On eMAG (:8002), click **Buy** on AirPods Pro 3. The glue receives a notification with only the order id, reads the order, reserves it and acknowledges it (eMAG status goes from new to in progress). In **Demo controls**, eMAG **Notifications: Re-send now** and Electronic Market **Last event: Send again**. The **Audit log** shows `duplicate_dropped`; no second order appears.
+2. **eMAG and duplicates.** On eMAG (:8002), click **Buy** on AirPods Pro 3. The glue receives a notification with only the order id, reads the order, reserves it and acknowledges it (eMAG status goes from new to in progress). In **Demo controls**, Electronic Market **Last event: Send again** re-sends the shop's last event with the same event id: the **Audit log** shows `duplicate_dropped` and no second order appears. eMAG **Notifications: Re-send now** re-sends every order not yet acknowledged, so after the acknowledge above it has nothing to send; that is the point of acknowledging. To see eMAG's own duplicate dropped, click it while an eMAG order is still being retried (step 3 with an eMAG purchase).
 3. **Warehouse down.** Warehouse **Availability: Down**, then buy anything on the shop. The **Audit log** shows `retry_scheduled` lines honouring the warehouse's `Retry-After`, then `order_failed`. The order appears in **Review queue**. Set the warehouse **Up** and click **Retry allocation**: the order is allocated.
 4. **Oversell.** eMAG **Freeze stock: On** (eMAG now ignores stock updates, which makes the race repeatable). Buy the only MacBook Air M4 on the shop. eMAG still shows 1, so buy it there too. The warehouse refuses the second order; it lands in **Review queue** as unfulfillable with the reason "sold on another channel first". Click **Cancel on eMAG**: the eMAG order goes to status cancelled and the decision is in the audit log. Turn **Freeze stock** off.
 5. **eMAG rate limit and partial rejection.** eMAG **Rate limit: On**, then buy something on the shop. Stock pushes to eMAG retry after one second each time (`Retry-After: 1`), then mark the eMAG rows dirty on **Stock**. Turn **Rate limit** off; the next reconcile run (every 10 s) clears them. eMAG **Reject MBA-M4: On**: the batch push applies every other SKU and flags only MBA-M4 as dirty. Turn it off and it clears on the next run.
@@ -120,7 +120,7 @@ docker compose run --rm --build glue sh -c "ruff check . && ruff format --check 
 
 `--build` puts the current code in the image; drop it if the image is already up to date.
 
-The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file and zero retry back-off. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (14 tests) runs in under a second.
+The tests start all four apps in one process and connect them with a single `httpx.AsyncClient` whose `mounts` route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly, with no network and no ports. Each test gets a fresh SQLite file and zero retry back-off. The background loops never start: tests call the worker and the reconciler step by step, so each test reads like a demo step. The suite (16 tests) runs in under a second.
 
 Covered:
 
@@ -128,13 +128,14 @@ Covered:
 - eMAG re-notifications do not allocate twice, and stop once the order is acknowledged.
 - Warehouse 503, 503, 201: the order is allocated on the third attempt.
 - Warehouse down: the order fails after retries (honouring `Retry-After`), is queued, and an operator retry allocates it.
+- A customer cancel that arrives in the same batch as the order: the order ends cancelled, the reservation is released and both channels get the stock back.
 - Oversell: the second order is unfulfillable, and the operator's cancel sets the eMAG order to status 0.
 - eMAG rejects one SKU in a batch: the others apply, the rejected one is dirty, and the next run fixes it.
 - A recount below reserved caps both channels at 0, queues each affected order once, and refuses retry with 409.
 - The retry policy itself: `Retry-After` honoured, exponential back-off, 4xx returned without retrying, exhaustion raises.
-- Unsigned, forged and wrong-source webhooks get 401; a signed but invalid event gets 422; dashboard actions without the HTMX header or from another origin get 403.
+- Unsigned, forged and wrong-source webhooks get 401; a signed but invalid event, or a shop-signed event about an eMAG order, gets 422; dashboard actions without the HTMX header or from another origin get 403.
 
-Not covered: the HTML pages, the assistant (it needs a live model), the background loops' timing, shipping and customer cancellations, timeouts (the in-process transport does not enforce them), and recovery after a crash. These were checked by hand in the browser.
+Not covered: the HTML pages, the assistant (it needs a live model), the background loops' timing, shipping, timeouts (the in-process transport does not enforce them), and recovery after a crash. These were checked by hand in the browser.
 
 ## Observability
 
@@ -173,7 +174,7 @@ Not covered: the HTML pages, the assistant (it needs a live model), the backgrou
 
 ## Security
 
-- **Signed webhooks.** Every inbound webhook carries `x-signature: sha256=<HMAC of the raw body>`, with a separate secret per source. Signatures are compared in constant time, an empty secret never verifies, and each source may only send its own event types (the warehouse cannot post `order.placed`). Rejections are written to the audit log as `signature_rejected`.
+- **Signed webhooks.** Every inbound webhook carries `x-signature: sha256=<HMAC of the raw body>`, with a separate secret per source. Signatures are compared in constant time, an empty secret never verifies, and each source may only send its own event types about its own orders (the warehouse cannot post `order.placed`, and a shop-signed event cannot place or cancel an `emag-` order). Rejections are written to the audit log as `signature_rejected`.
 - **Strict validation at the edge.** Event ids, order ids, SKUs and quantities have patterns and limits. A payload that fails validation gets 422 and an `event_rejected` audit row; it never reaches the inbox.
 - **Cross-site request guard.** Every state-changing dashboard request (review decisions, demo controls, assistant questions) must carry `HX-Request: true`, and its `Origin`, if present, must match the host. A cross-site form cannot set that header, and a cross-site script would need a CORS preflight the glue never approves.
 - **Read-only assistant.** Its four tools only read; there is no tool that changes anything, so a question (or text hidden in order data) can at worst produce a wrong answer. Arguments are clamped and chat history is sanitised before it is sent to the model.
