@@ -20,22 +20,25 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
+def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
+    return Context(
+        settings=settings,
+        db=Database(settings.db_path),
+        http=http,
+        shop=ShopClient(http, settings.shop_url),
+        emag=EmagClient(http, settings.emag_url),
+        warehouse=WarehouseClient(http, settings.warehouse_url),
+        assistant=assistant.client(settings, http),
+        worker_slots=asyncio.Semaphore(settings.worker_concurrency),
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings: Settings = app.state.settings
-    db = Database(settings.db_path)
     async with httpx.AsyncClient(timeout=settings.http_timeout_seconds) as http:
         app.state.http = http
-        app.state.ctx = Context(
-            settings=settings,
-            db=db,
-            http=http,
-            shop=ShopClient(http, settings.shop_url),
-            emag=EmagClient(http, settings.emag_url),
-            warehouse=WarehouseClient(http, settings.warehouse_url),
-            assistant=assistant.client(settings, http),
-            worker_slots=asyncio.Semaphore(settings.worker_concurrency),
-        )
+        app.state.ctx = build_context(settings, http)
         # Channels start at zero stock; fill them before any order can be processed.
         await reconciler.reconcile_all(app.state.ctx)
         tasks = [
@@ -45,7 +48,7 @@ async def lifespan(app: FastAPI):
         yield
         for task in tasks:
             task.cancel()
-    db.close()
+        app.state.ctx.db.close()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

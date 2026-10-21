@@ -1,0 +1,75 @@
+async def test_duplicate_shop_events_create_one_order(systems):
+    order_id = await systems.buy_on_shop("IPH16-128")
+    await systems.chaos("shop", duplicate_last=True)
+    # Adobe Commerce may also redeliver the same order under a new event id.
+    await systems.send_event("shop", "order.placed", systems.shop.state.orders[order_id])
+    await systems.run_worker()
+
+    assert [order["order_id"] for order in systems.ctx.db.list_orders()] == [order_id]
+    assert systems.warehouse.state.stock["IPH16-128"]["reserved"] == 1
+    counters = systems.ctx.db.counters()
+    assert counters["duplicate_dropped"] == 1
+    assert counters["order_known"] == 1
+
+
+async def test_emag_renotify_does_not_allocate_twice(systems):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.chaos("emag", renotify_now=True)
+    await systems.run_worker()
+    # Acknowledged now, so eMAG has nothing left to re-send.
+    await systems.chaos("emag", renotify_now=True)
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.emag_order(order_id)["status"] == 2
+    assert systems.warehouse.state.stock["APP-3"]["reserved"] == 1
+    assert systems.ctx.db.counters()["duplicate_dropped"] == 1
+
+
+async def test_warehouse_fails_twice_then_allocates(systems):
+    await systems.chaos("warehouse", fail_next=2)
+    order_id = await systems.buy_on_shop("IPAD-A16")
+    await systems.run_worker()
+
+    order = systems.ctx.db.get_order(order_id)
+    assert order["status"] == "allocated"
+    assert order["attempts"] == 3
+    assert systems.ctx.db.counters()["retry_scheduled"] == 2
+
+
+async def test_warehouse_down_queues_order_until_operator_retries(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_shop("IPH16-256")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+    assert sleeps == [2.0] * 4
+    [item] = systems.open_reviews()
+    assert (item["kind"], item["order_id"]) == ("order_failed", order_id)
+
+    await systems.chaos("warehouse", down=False)
+    response = await systems.decide(item["id"], "retry")
+
+    assert response.status_code == 200
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.open_reviews() == []
+
+
+async def test_oversell_is_queued_and_operator_cancels_on_emag(systems):
+    await systems.chaos("emag", freeze_stock=True)
+    shop_order = await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    assert systems.emag.state.stock["MBA-M4"] == 1
+    emag_order = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(shop_order)["status"] == "allocated"
+    assert systems.ctx.db.get_order(emag_order)["status"] == "failed"
+    [item] = systems.open_reviews()
+    assert (item["kind"], item["order_id"]) == ("unfulfillable", emag_order)
+
+    response = await systems.decide(item["id"], "cancel")
+
+    assert response.status_code == 200
+    assert systems.emag_order(emag_order)["status"] == 0
+    assert systems.ctx.db.get_order(emag_order)["status"] == "cancelled"
+    assert systems.warehouse.state.stock["MBA-M4"]["reserved"] == 1
