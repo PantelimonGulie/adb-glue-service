@@ -110,7 +110,7 @@ Diagrams (components, both order flows, the oversell, the order state machine) a
 - **The shop mock sends each event once.** Real Adobe Commerce retries failed deliveries; the mock does not, and the glue does not poll the shop's orders, so an event sent while the glue is down is lost in the demo.
 - **Demo secrets are in `docker-compose.yml`.** Fine for a local demo; in production they come from a secret store.
 - **Mock state lives in memory** and resets on restart, which is why the reset command uses `-v`.
-- **The dashboard loads HTMX and a font from public CDNs**, so the browser needs internet access.
+- **Fonts come from Google Fonts.** Without internet the pages fall back to system fonts; everything else, including HTMX (served from `common/static/`), works offline.
 
 ## Testing
 
