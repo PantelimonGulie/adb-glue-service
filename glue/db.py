@@ -155,6 +155,24 @@ class Database:
             (action, decided_by, now(), item_id),
         )
 
+    def set_suggestion(self, item_id: int, action: str | None, reason: str) -> None:
+        self.conn.execute(
+            "UPDATE review_queue SET suggested_action = ?, suggested_reason = ? WHERE id = ?",
+            (action, reason, item_id),
+        )
+
+    def rules(self) -> list[dict]:
+        return self.rows("SELECT * FROM rules", (), "config")
+
+    def set_rule(self, name: str, enabled: bool, config: dict, updated_by: str) -> None:
+        self.conn.execute(
+            "INSERT INTO rules (name, enabled, config, updated_by, updated_at)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled, config = excluded.config,"
+            " updated_by = excluded.updated_by, updated_at = excluded.updated_at",
+            (name, int(enabled), json.dumps(config), updated_by, now()),
+        )
+
     def audit(
         self, correlation_id: str, entity_type: str, entity_id: str, action: str, detail: dict
     ) -> None:

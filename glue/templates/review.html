@@ -6,7 +6,7 @@
   <h1>Review queue</h1>
   <p>Orders the service would not decide on alone. Each one was accepted and paid on a channel but has not reached the warehouse. You choose what happens next. Every decision is recorded in the audit log under your name.</p>
 </div>
-<div hx-get="/review/items" hx-trigger="every 4s [!document.querySelector('.rcard.htmx-request')]">
+<div hx-get="/review/items" hx-trigger="every 4s [!document.querySelector('.rcard.htmx-request, .triage.htmx-request')]">
 {% include "_review_items.html" %}
 </div>
 {% endblock %}

@@ -1,9 +1,10 @@
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from glue import auth
 from glue.web import fragment, from_dashboard
 
-router = APIRouter(dependencies=[Depends(from_dashboard)])
+router = APIRouter(dependencies=[Depends(from_dashboard), Depends(auth.require("demo"))])
 
 ALL_FAULTS_OFF = [
     ("emag", {"rate_limit": False, "reject_sku": None, "freeze_stock": False, "down": False}),

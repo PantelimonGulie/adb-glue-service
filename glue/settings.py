@@ -19,6 +19,10 @@ class Settings:
     reconcile_interval_seconds: float = 10
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
+    session_secret: str = ""
+    viewer_password: str = ""
+    operator_password: str = ""
+    admin_password: str = ""
 
     def webhook_secret(self, source: str) -> str:
         secrets = {
@@ -27,6 +31,14 @@ class Settings:
             "warehouse": self.warehouse_webhook_secret,
         }
         return secrets.get(source, "")
+
+    def password(self, username: str) -> str:
+        passwords = {
+            "viewer": self.viewer_password,
+            "operator": self.operator_password,
+            "admin": self.admin_password,
+        }
+        return passwords.get(username, "")
 
     @classmethod
     def from_env(cls) -> Self:

@@ -1,15 +1,14 @@
 import logging
 from pathlib import Path
+from typing import Annotated
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from glue import assistant, review, views
+from glue import assistant, auth, review, views
 from glue.context import Context
-
-SOON_PAGES = ("rules", "roles")
 
 log = logging.getLogger(__name__)
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
@@ -24,21 +23,23 @@ def from_dashboard(request: Request) -> None:
         raise HTTPException(403, "only the dashboard may do this")
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(auth.require("view"))])
 actions = APIRouter(dependencies=[Depends(from_dashboard)])
+public = APIRouter()
 
 
 def ctx_of(request: Request) -> Context:
     return request.app.state.ctx
 
 
+def fragment(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
+    context["user"] = request.state.user
+    return templates.TemplateResponse(request, name, context, status_code=status_code)
+
+
 def page(request: Request, name: str, context: dict) -> HTMLResponse:
     context["open_reviews"] = len(ctx_of(request).db.list_review())
-    return templates.TemplateResponse(request, name, context)
-
-
-def fragment(request: Request, name: str, context: dict, status_code: int = 200) -> HTMLResponse:
-    return templates.TemplateResponse(request, name, context, status_code=status_code)
+    return fragment(request, name, context)
 
 
 @router.get("/")
@@ -97,11 +98,16 @@ async def review_count(request: Request) -> HTMLResponse:
 
 
 @actions.post("/review/{item_id}/{action}")
-async def decide(request: Request, item_id: int, action: str):
+async def decide(
+    request: Request,
+    item_id: int,
+    action: str,
+    user: Annotated[auth.User, Depends(auth.require("decide"))],
+):
     ctx = ctx_of(request)
     status, error = 200, None
     try:
-        await review.decide(ctx, item_id, action)
+        await review.decide(ctx, item_id, action, user.name)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from None
     except LookupError as exc:
@@ -132,7 +138,7 @@ async def assistant_page(request: Request):
     return page(request, "assistant.html", {"offline": offline, "turns": []})
 
 
-@actions.post("/assistant")
+@actions.post("/assistant", dependencies=[Depends(auth.require("ask"))])
 async def assistant_ask(request: Request, question: str = Form(""), history: str = Form("[]")):
     ctx = ctx_of(request)
     turns = assistant.parse_history(history)
@@ -149,13 +155,6 @@ async def assistant_ask(request: Request, question: str = Form(""), history: str
     return fragment(request, "_assistant_chat.html", context)
 
 
-@router.get("/soon/{name}")
-async def soon(request: Request, name: str):
-    if name not in SOON_PAGES:
-        raise HTTPException(404, "no such page")
-    return page(request, "soon.html", {"active": name})
-
-
-@router.get("/metrics")
+@public.get("/metrics")
 async def metrics(request: Request) -> dict:
     return views.metrics(ctx_of(request))

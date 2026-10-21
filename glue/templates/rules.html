@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set active = "rules" %}
+{% block title %}Rules{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Rules</h1>
+  <p>Automation the business switches on without a code change. Every effect of a rule is written to the audit log under the rule's name, so it can be checked like any other decision.{% if not user.can("rules") %} Only an admin can change them.{% endif %}</p>
+</div>
+<div class="rules" id="rules">
+{% include "_rules.html" %}
+</div>
+{% endblock %}

@@ -63,6 +63,10 @@ services:
       RECONCILE_INTERVAL_SECONDS: "10"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      SESSION_SECRET: ${SESSION_SECRET:-demo-session-secret}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-operator}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
     volumes:
       - glue-data:/data
     depends_on:

@@ -19,11 +19,17 @@
     <span>Glue</span>
   </a>
   <span class="brand-sub">Orders and stock for Electronic Market</span>
+  {% if user.can("demo") %}
   <details class="demo">
     <summary>Demo controls</summary>
     {% include "_demo_panel.html" %}
   </details>
-  <span class="user">Signed in as operator</span>
+  {% endif %}
+  <form class="user" method="post" action="/sign-out">
+    <span>Signed in as <strong>{{ user.name }}</strong></span>
+    <span class="role">{{ user.role }}</span>
+    <button type="submit" class="btn-quiet">Sign out</button>
+  </form>
 </header>
 {% set nav = [
   ("overview", "/", "Overview"),
@@ -33,7 +39,7 @@
   ("audit", "/audit", "Audit log"),
   ("assistant", "/assistant", "Assistant"),
 ] %}
-{% set later = [("rules", "Rules"), ("roles", "Users and roles")] %}
+{% set platform = [("rules", "/rules", "Rules"), ("roles", "/roles", "Users and roles")] %}
 <nav class="sidebar" aria-label="Main">
   <ul>
     {% for key, href, label in nav %}
@@ -42,10 +48,10 @@
     </a></li>
     {% endfor %}
   </ul>
-  <p class="nav-group">Coming later</p>
-  <ul class="nav-later">
-    {% for key, label in later %}
-    <li><a href="/soon/{{ key }}"{% if active == key %} aria-current="page"{% endif %}>{{ label }}</a></li>
+  <p class="nav-group">Platform</p>
+  <ul>
+    {% for key, href, label in platform %}
+    <li><a href="{{ href }}"{% if active == key %} aria-current="page"{% endif %}>{{ label }}</a></li>
     {% endfor %}
   </ul>
 </nav>

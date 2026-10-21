@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, FastAPI
 
 from common import ui
-from glue import assistant, demo, inbox, reconciler, web, worker
+from glue import assistant, auth, demo, extras, inbox, reconciler, web, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -57,8 +57,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings or Settings.from_env()
     app.mount("/static", ui.static, name="static")
     app.include_router(inbox.router)
+    app.include_router(auth.router)
     app.include_router(web.router)
     app.include_router(web.actions)
+    app.include_router(web.public)
+    app.include_router(extras.router)
+    app.include_router(extras.actions)
     app.include_router(demo.router)
     app.include_router(router)
     return app

@@ -1,0 +1,44 @@
+{% from "_ui.html" import clock %}
+{% macro state(rule) -%}
+<span class="pill tone-{{ 'ok' if rule.enabled else 'quiet' }}">{{ "On" if rule.enabled else "Off" }}</span>
+{%- endmacro %}
+{% macro foot(rule) -%}
+<p class="rule-foot">{% if rule.updated_at %}Changed by {{ rule.updated_by }} at {{ clock(rule.updated_at) }} UTC.{% else %}Never changed; these are the defaults.{% endif %}</p>
+{%- endmacro %}
+{% set buffer, auto = rules["stock-buffer"], rules["auto-retry"] %}
+{% set channels = {"emag": "eMAG", "shop": "Shop"} %}
+<article class="rule panel">
+  <div class="rule-head"><h2>Channel stock buffer</h2>{{ state(buffer) }}</div>
+  <p>Tell one channel it has fewer units than the warehouse really has. The last units then sell on one channel only, which is the usual guard against a cross-channel oversell and against eMAG's cancellation penalty. The Stock page marks the held units.</p>
+  {% if user.can("rules") %}
+  <form class="rule-form" hx-post="/rules/stock-buffer" hx-target="#rules" hx-disabled-elt="find button">
+    <label class="check"><input type="checkbox" name="enabled" value="1"{% if buffer.enabled %} checked{% endif %}>Enabled</label>
+    <label>Channel
+      <select name="channel">
+        {% for key, name in channels.items() %}<option value="{{ key }}"{% if buffer.config.channel == key %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Units held back <input type="number" name="units" min="0" max="99" value="{{ buffer.config.units }}" required></label>
+    <label>SKU <input name="sku" value="{{ buffer.config.sku }}" placeholder="All SKUs" pattern="[A-Z0-9-]{1,32}" maxlength="32"></label>
+    <button type="submit" class="btn-primary">Save</button>
+  </form>
+  {% else %}
+  <dl class="rcard-facts">
+    <div><dt>Channel</dt><dd>{{ channels[buffer.config.channel] }}</dd></div>
+    <div><dt>Units held back</dt><dd>{{ buffer.config.units }}</dd></div>
+    <div><dt>SKU</dt><dd>{{ buffer.config.sku or "All SKUs" }}</dd></div>
+  </dl>
+  {% endif %}
+  {{ foot(buffer) }}
+</article>
+<article class="rule panel">
+  <div class="rule-head"><h2>Auto-retry after a warehouse outage</h2>{{ state(auto) }}</div>
+  <p>When the warehouse answers again after being unreachable, every open technical failure whose allocation never went through is retried at once, as if an operator had clicked Retry allocation. The item then shows it was decided by <code>rule:auto-retry</code>. Out-of-stock items and failed cancels still wait for a person.</p>
+  {% if user.can("rules") %}
+  <form class="rule-form" hx-post="/rules/auto-retry" hx-target="#rules" hx-disabled-elt="find button">
+    <label class="check"><input type="checkbox" name="enabled" value="1"{% if auto.enabled %} checked{% endif %}>Enabled</label>
+    <button type="submit" class="btn-primary">Save</button>
+  </form>
+  {% endif %}
+  {{ foot(auto) }}
+</article>

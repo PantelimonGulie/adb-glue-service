@@ -1,5 +1,7 @@
 {% if offline %}
 <p class="chat-offline">Assistant offline: add GEMINI_API_KEY to .env and restart. Everything else keeps working.</p>
+{% elif not user.can("ask") %}
+<p class="chat-offline">A viewer can read every page but not ask the assistant. Sign in as operator or admin.</p>
 {% else %}
 <ol class="chat-log">
   {% for turn in turns %}

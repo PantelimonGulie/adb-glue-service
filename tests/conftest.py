@@ -68,10 +68,15 @@ class Systems:
         }
         return await self.http.post("http://glue/events", content=body, headers=headers)
 
+    async def sign_in(self, username: str, password: str | None = None) -> httpx.Response:
+        data = {"username": username, "password": password or username}
+        return await self.http.post("http://glue/sign-in", data=data)
+
+    async def act(self, path: str, **form: object) -> httpx.Response:
+        return await self.http.post(f"http://glue{path}", data=form, headers={"HX-Request": "true"})
+
     async def decide(self, item_id: int, action: str) -> httpx.Response:
-        return await self.http.post(
-            f"http://glue/review/{item_id}/{action}", headers={"HX-Request": "true"}
-        )
+        return await self.act(f"/review/{item_id}/{action}")
 
     def open_reviews(self) -> list[dict]:
         return self.ctx.db.list_review()
@@ -91,6 +96,10 @@ async def systems(tmp_path, monkeypatch):
         warehouse_webhook_secret=SECRETS["warehouse"],
         db_path=str(tmp_path / "glue.db"),
         retry_base_seconds=0,
+        session_secret="test-session",
+        viewer_password="viewer",
+        operator_password="operator",
+        admin_password="admin",
     )
     apps = {
         "shop": shop.main.create_app(),
@@ -107,7 +116,10 @@ async def systems(tmp_path, monkeypatch):
         ctx = glue.main.build_context(settings, http)
         apps["glue"].state.ctx = ctx
         await reconciler.reconcile_all(ctx)
-        yield Systems(apps["shop"], apps["emag"], apps["warehouse"], ctx, http)
+        systems = Systems(apps["shop"], apps["emag"], apps["warehouse"], ctx, http)
+        # Most tests act as the operator; role tests sign in again as someone else.
+        await systems.sign_in("operator")
+        yield systems
         ctx.db.close()
 
 

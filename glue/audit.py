@@ -27,6 +27,11 @@ ACTIONS = frozenset(
         "warehouse_unreachable",
         "review_opened",
         "review_decided",
+        "rule_changed",
+        "rule_applied",
+        "triage_suggested",
+        "signed_in",
+        "sign_in_rejected",
     }
 )
 

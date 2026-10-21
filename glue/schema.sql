@@ -47,7 +47,17 @@ CREATE TABLE IF NOT EXISTS review_queue (
     action     TEXT,
     decided_by TEXT,
     decided_at TEXT,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    suggested_action TEXT,
+    suggested_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS rules (
+    name       TEXT PRIMARY KEY,
+    enabled    INTEGER NOT NULL DEFAULT 0,
+    config     TEXT NOT NULL DEFAULT '{}',
+    updated_by TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (

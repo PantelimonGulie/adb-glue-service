@@ -6,6 +6,7 @@ import httpx
 from fastapi import Request
 
 from glue import review as review_queue
+from glue import rules
 from glue.context import Context
 
 COUNTERS = (
@@ -59,15 +60,20 @@ async def overview(ctx: Context, request: Request) -> dict:
 
 
 def stock(ctx: Context) -> dict:
-    told = {ch: {row["sku"]: row for row in ctx.db.channel_stock(ch)} for ch in ("shop", "emag")}
+    warehouse = ctx.db.stock()
+    skus = [row["sku"] for row in warehouse]
+    channels = ("shop", "emag")
+    told = {ch: {row["sku"]: row for row in ctx.db.channel_stock(ch)} for ch in channels}
+    held = {ch: rules.held_back(ctx, ch, skus) for ch in channels}
     rows = [
         {
             **row,
             "sellable": max(0, row["available"]),
             "shop": told["shop"].get(row["sku"]),
             "emag": told["emag"].get(row["sku"]),
+            "held": {ch: held[ch][row["sku"]] for ch in channels},
         }
-        for row in ctx.db.stock()
+        for row in warehouse
     ]
     return {"rows": rows}
 
@@ -76,7 +82,8 @@ def review_card(ctx: Context, item_id: int, error: str | None = None) -> dict:
     item = ctx.db.get_review(item_id)
     order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
     allowed = review_queue.allowed_actions(item, order)
-    return {"item": item, "order": order, "allowed": allowed, "error": error}
+    offline = ctx.assistant is None
+    return {"item": item, "order": order, "allowed": allowed, "error": error, "offline": offline}
 
 
 def review(ctx: Context) -> dict:
