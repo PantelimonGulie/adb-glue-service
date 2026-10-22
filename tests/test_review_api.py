@@ -1,3 +1,8 @@
+import pytest
+
+from glue import review
+
+
 async def oversell_then_outage(systems) -> list[str]:
     await systems.chaos("emag", freeze_stock=True)
     await systems.buy_on_shop("MBA-M4")
@@ -80,3 +85,19 @@ async def test_viewer_cannot_decide(systems, sleeps):
     assert response.status_code == 403
     assert response.json() == {"detail": "a viewer may not do this"}
     assert len(systems.open_reviews()) == 3
+
+
+@pytest.mark.parametrize(
+    "reason, cause",
+    [
+        ("HTTP 503 after 5 attempts", "outage"),
+        ("ReadTimeout: timed out after 5 attempts", "outage"),
+        ("ConnectError: All connection attempts failed after 3 attempts", "outage"),
+        ("ReadError: connection reset after 5 attempts", "outage"),
+        ("RemoteProtocolError: Server disconnected after 5 attempts", "outage"),
+        ("KeyError: 'sku'", "other"),
+        ("warehouse rejected: HTTP 400 bad request", "other"),
+    ],
+)
+def test_failed_order_cause(reason, cause):
+    assert review.cause_of({"kind": "order_failed", "reason": reason}) == cause

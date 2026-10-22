@@ -9,7 +9,15 @@ log = logging.getLogger(__name__)
 
 ACTIONS = ("retry", "cancel", "dismiss")
 CAUSES = ("outage", "soldout", "recount", "other")
-OUTAGE_SIGNS = ("http 5", "timeout", "unreachable", "not answering")
+OUTAGE_SIGNS = (
+    "http 5",
+    "timeout",
+    "unreachable",
+    "not answering",
+    "connecterror",
+    "readerror",
+    "remoteprotocolerror",
+)
 # A retry repeats the operation that failed, which only makes sense from the state it left.
 RETRY_FROM = {"place": "failed", "cancel": "allocated"}
 
