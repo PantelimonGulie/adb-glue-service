@@ -33,6 +33,22 @@ async def test_shutdown_lets_the_background_loops_stop_before_closing_the_db(sys
     assert len(stopped) == 4
 
 
+async def test_an_event_claimed_when_glue_stopped_is_handled_once_after_a_restart(systems):
+    order_id = await systems.buy_on_shop("IPH16-128")
+    # The worker took the event, then Glue stopped before finishing it.
+    [claimed] = systems.ctx.db.claim_pending_events(10)
+
+    restarted = glue.main.build_context(systems.ctx.settings, systems.http)
+    assert restarted.db.rows("SELECT status FROM events_inbox") == [{"status": "pending"}]
+    while await worker.process_pending(restarted):
+        pass
+
+    assert restarted.db.get_order(order_id)["status"] == "allocated"
+    assert systems.warehouse.state.stock["IPH16-128"]["reserved"] == 1
+    assert restarted.db.rows("SELECT status FROM events_inbox") == [{"status": "done"}]
+    restarted.db.close()
+
+
 async def test_a_decision_cut_short_is_open_again_after_a_restart(systems, sleeps):
     await systems.chaos("warehouse", down=True)
     order_id = await systems.buy_on_shop("IPH16-256")

@@ -46,6 +46,20 @@ async def test_emag_renotify_does_not_allocate_twice(systems):
     assert systems.ctx.db.counters()["duplicate_dropped"] == 1
 
 
+async def test_a_failed_event_sent_again_goes_back_to_the_queue(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    assert systems.ctx.db.rows("SELECT status FROM events_inbox") == [{"status": "failed"}]
+
+    await systems.chaos("emag", down=False, renotify_now=True)
+
+    [event] = systems.ctx.db.rows("SELECT status, error FROM events_inbox")
+    assert event == {"status": "pending", "error": None}
+    assert systems.ctx.db.counters()["event_received"] == 2
+    assert "duplicate_dropped" not in systems.ctx.db.counters()
+
+
 async def test_warehouse_fails_twice_then_allocates(systems):
     await systems.chaos("warehouse", fail_next=2)
     order_id = await systems.buy_on_shop("IPAD-A16")
