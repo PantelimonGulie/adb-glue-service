@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { SignIn } from './auth/SignIn/SignIn';
 import { EmptyState } from './components/EmptyState/EmptyState';
 import { AppShell } from './layout/AppShell/AppShell';
+import { Flow } from './pages/Flow/Flow';
 import { Overview } from './pages/Overview/Overview';
 import { Placeholder } from './pages/Placeholder/Placeholder';
 
@@ -11,7 +12,7 @@ export function App() {
       <Route path="/sign-in" element={<SignIn />} />
       <Route element={<AppShell />}>
         <Route index element={<Overview />} />
-        <Route path="flow" element={<Placeholder title="Flow" />} />
+        <Route path="flow" element={<Flow />} />
         <Route path="orders" element={<Placeholder title="Orders" />} />
         <Route path="orders/:id" element={<Placeholder title="Order" />} />
         <Route path="stock" element={<Placeholder title="Stock" />} />

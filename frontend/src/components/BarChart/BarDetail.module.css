@@ -1,0 +1,51 @@
+.value {
+  white-space: nowrap;
+}
+
+.value b {
+  font-family: var(--font-mono);
+}
+
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: var(--space-1);
+  border-radius: 2px;
+}
+
+.tip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--map-glue-ink);
+  font-size: var(--text-sm);
+  box-shadow: var(--shadow-menu);
+}
+
+.hint {
+  opacity: 0.7;
+}
+
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin-top: 10px;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--chart-pick-line);
+  border-radius: var(--radius);
+  background: var(--chart-pick-bg);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}

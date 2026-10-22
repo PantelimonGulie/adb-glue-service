@@ -73,7 +73,10 @@ export function change(vs: string, current: number, previous: number, upIsGood: 
   return { text: `${percent > 0 ? '+' : ''}${percent}% vs ${vs}`, good };
 }
 
-export function counterCells(range: RangeQuery, overview: Overview | undefined) {
+export function counterCells(
+  range: RangeQuery,
+  overview: Pick<Overview, 'counters' | 'previous'> | undefined,
+) {
   const vs = comparedWith(range);
   return SPECS.map(({ key, upIsGood, ...spec }) => {
     const current = overview?.counters[key];

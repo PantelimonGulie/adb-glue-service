@@ -1,0 +1,83 @@
+.chart {
+  min-width: 0;
+  padding: var(--space-3) 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-md);
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.legend button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink2);
+  font: 500 var(--text-xs) var(--font-sans);
+  cursor: pointer;
+}
+
+.legend button:hover {
+  background: var(--subtle);
+}
+
+.legend button[aria-pressed='false'] {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.plot {
+  cursor: pointer;
+}
+
+/* Recharts makes its inner layers focusable, so a click would outline the whole plot. */
+.plot :global([tabindex='-1']):focus {
+  outline: none;
+}
+
+.dim {
+  opacity: 0.35;
+}
+
+.picked {
+  stroke: var(--blue);
+  stroke-width: 2px;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--faint);
+}

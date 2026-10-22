@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 import { useOverview, useStock } from '../../api/hooks';
 import type { Analytics } from '../../api/types';
 import { rangeSearch, useRange } from '../../lib/range';
+import { useFrameWidth } from '../../lib/useFrameWidth';
 import styles from './FlowMap.module.css';
 import { BASE_WIDTH, fit, type Part, type Spot } from './layout';
 import { LiveDots } from './LiveDots';
 import { MapNodes } from './MapNodes';
 import { mapView, type Edge, type Mode } from './model';
-import { useFrameWidth } from './useFrameWidth';
 
 interface Props {
   mode: Mode;

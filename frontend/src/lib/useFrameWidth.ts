@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-// The width the map can use; it starts at the drawing's own width until measured.
+// The width an element can use; it is `initial` until measured.
 export function useFrameWidth(initial: number) {
   const frame = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(initial);

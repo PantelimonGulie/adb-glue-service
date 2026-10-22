@@ -180,29 +180,36 @@ const STATUSES: Record<OrderStatus, { label: string; tone: Tone }> = {
   cancelled: { label: 'Cancelled', tone: 'grey' },
 };
 
-const CAUSES: Record<Cause, { label: string; short: string; hint: string; tone: Tone }> = {
+const CAUSES: Record<
+  Cause,
+  { label: string; short: string; hint: string; advice: string; tone: Tone }
+> = {
   outage: {
     label: 'Warehouse outage',
     short: 'Warehouse outage',
     hint: 'the warehouse did not answer; safe to retry once it works',
+    advice: 'retry once the warehouse works',
     tone: 'amber',
   },
   soldout: {
     label: 'Sold on the other channel',
     short: 'Sold out',
     hint: 'the last unit went to another customer',
+    advice: 'usually cancel the later order',
     tone: 'red',
   },
   recount: {
     label: 'Shelf count too low',
     short: 'Shelf count',
     hint: 'the warehouse counted fewer units than were promised',
+    advice: 'cancel the newest orders',
     tone: 'red',
   },
   other: {
     label: 'Other',
     short: 'Other',
     hint: 'check the order history',
+    advice: 'check the order history',
     tone: 'grey',
   },
 };

@@ -1,0 +1,55 @@
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 14px;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 140px;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--text-md);
+  cursor: help;
+}
+
+.track {
+  height: 18px;
+  border-radius: 3px;
+  background: var(--subtle);
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.bar[data-step='received'] { background: var(--tone-blue-dot); }
+.bar[data-step='duplicates'] { background: var(--tone-grey-dot); }
+.bar[data-step='sent'] { background: var(--tone-slate-ink); }
+.bar[data-step='first_try'] { background: var(--tone-green-dot); }
+.bar[data-step='after_retry'] { background: var(--chart-retried); }
+.bar[data-step='failed'] { background: var(--tone-red-dot); }
+
+.count {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  .step {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: 10px;
+  }
+}
