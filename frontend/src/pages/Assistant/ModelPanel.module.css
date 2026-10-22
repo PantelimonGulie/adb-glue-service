@@ -1,0 +1,35 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) 10px;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--bad);
+}

@@ -28,3 +28,30 @@
   background: var(--panel);
   font-size: 13px;
 }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.field input:disabled,
+.field select:disabled {
+  background: var(--subtle);
+  color: var(--muted);
+  opacity: 1;
+}

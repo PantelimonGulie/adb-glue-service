@@ -1,0 +1,15 @@
+.limits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.limits button {
+  align-self: flex-start;
+}
+
+.note {
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}

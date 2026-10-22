@@ -1,0 +1,23 @@
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.chat {
+  flex: 3 1 520px;
+  min-width: 0;
+}
+
+.side {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+/* Side by side, the settings stop growing so the conversation gets the extra width. */
+@media (min-width: 1100px) {
+  .side {
+    max-width: 460px;
+  }
+}

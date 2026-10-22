@@ -1,0 +1,17 @@
+.track {
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--line2);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--good);
+}
+
+.fill[data-warn='true'] {
+  background: var(--tone-amber-dot);
+}

@@ -1,4 +1,13 @@
-import type { Analytics, AuditRow, Counters, Order, Overview, Stock } from '../api/types';
+import type {
+  Analytics,
+  Assistant,
+  AuditRow,
+  Counters,
+  Order,
+  Overview,
+  ReviewItem,
+  Stock,
+} from '../api/types';
 
 const working = { ok: true, state: 'Healthy', latency_ms: 2 };
 const counters: Counters = { received: 110, duplicates: 4, reserved: 99, retries: 6, failed: 1 };
@@ -94,4 +103,36 @@ export const analytics: Analytics = {
   by_product: [],
   failure_causes: [],
   sample: false,
+};
+
+export const reviewItem: ReviewItem = {
+  id: 7,
+  kind: 'unfulfillable',
+  cause: 'soldout',
+  order_id: order.order_id,
+  order,
+  reason: 'warehouse has no stock: sold on another channel first',
+  payload: { operation: 'place' },
+  created_at: '2026-10-22T10:41:58.000+00:00',
+  status: 'open',
+  action: null,
+  decided_by: null,
+  decided_at: null,
+  allowed: ['cancel', 'dismiss', 'retry'],
+  suggestion: null,
+};
+
+export const assistant: Assistant = {
+  model: { id: 'local', label: 'Local model (Ollama, Qwen 2.5 3B)', status: 'ready', progress: 1 },
+  models: [
+    { id: 'local', label: 'Local model (Ollama, Qwen 2.5 3B)', available: true },
+    { id: 'claude', label: 'Claude', available: false },
+    { id: 'gpt', label: 'GPT', available: false },
+    { id: 'gemini', label: 'Gemini', available: false },
+  ],
+  effort: 'medium',
+  max_tokens_per_question: 2000,
+  daily_token_budget: 200000,
+  used_today: 7168,
+  questions_today: 5,
 };

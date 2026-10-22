@@ -22,6 +22,10 @@
   --warn-line: #f2d9a4;
   --warn-ink: #8a5300;
   --warn-row: #fffaf0;
+  --good-bg: #f2faf5;
+  --good-line: #cfe8da;
+  --suggest-bg: #f4f7fe;
+  --suggest-line: #9db4f0;
 
   --tone-blue-bg: #e8eefd;
   --tone-blue-ink: #1e3a8a;

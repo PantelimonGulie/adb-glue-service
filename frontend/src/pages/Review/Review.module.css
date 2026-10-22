@@ -1,0 +1,11 @@
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 760px), 1fr));
+  gap: var(--space-3);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
