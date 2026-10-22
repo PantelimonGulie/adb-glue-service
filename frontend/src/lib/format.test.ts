@@ -37,3 +37,10 @@ it('adds the day only to times that are not from today', () => {
   expect(formatDay(now.toISOString(), now)).toBe('');
   expect(formatDay('2026-10-01T12:00:00.000Z', now)).toBe('1 Oct');
 });
+
+it('keeps a window that ends at midnight on its own day', () => {
+  const since = new Date(2026, 9, 22, 23, 0).toISOString();
+  const until = new Date(2026, 9, 23, 0, 0).toISOString();
+
+  expect(formatWindow(since, until)).toBe('23:00–00:00, 22 Oct');
+});

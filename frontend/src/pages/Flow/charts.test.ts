@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
 import type { Analytics } from '../../api/types';
-import { bucketEvents } from './charts';
+import { formatWindow } from '../../lib/format';
+import { analytics } from '../../test/fixtures';
+import { bucketEvents, flowCharts } from './charts';
 
 const range = (unit: Analytics['range']['unit'], since: string): Analytics['range'] => ({
   since,
@@ -34,4 +36,12 @@ it('opens exactly the time of the picked bar', () => {
     since: '2026-10-23T00:00:00.000Z',
     until: '2026-10-23T00:01:00.000Z',
   });
+});
+
+it('names each bar by the start of the activity window it opens', () => {
+  for (const chart of flowCharts(analytics)) {
+    const link = new URL(chart.eventsLink(1), 'http://glue').searchParams;
+    const window = formatWindow(link.get('since')!, link.get('until')!);
+    expect(window).toMatch(new RegExp(`^${chart.labels[1]}–`));
+  }
 });

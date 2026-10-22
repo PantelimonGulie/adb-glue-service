@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Link } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { order } from '../../test/fixtures';
 import { Address, address, lastQuery, renderPage, stubApi } from '../../test/render';
@@ -33,6 +34,39 @@ it('searching keeps the search in the address and starts again from page 1', asy
   expect(address().get('status')).toBe('failed');
   await waitFor(() => expect(lastQuery(fetch, '/api/orders')?.get('q')).toBe('mac'));
   expect(lastQuery(fetch, '/api/orders')?.get('page')).toBe('1');
+});
+
+it('keeps every key when typing faster than the address updates', () => {
+  stubApi(api);
+  renderOrders('/orders');
+  const search = screen.getByRole('searchbox', { name: 'Search order or product' });
+
+  // One act holds back the router's update, as a fast typist does in the browser.
+  act(() => {
+    for (const key of 'macbook') {
+      fireEvent.change(search, { target: { value: (search as HTMLInputElement).value + key } });
+    }
+  });
+
+  expect(search).toHaveValue('macbook');
+  expect(address().get('q')).toBe('macbook');
+});
+
+it('the search box follows the address when it changes from outside', async () => {
+  stubApi(api);
+  renderPage(
+    <>
+      <Orders />
+      <Link to="/orders?q=ipad">iPad orders</Link>
+    </>,
+    { route: '/orders?q=mac' },
+  );
+  const search = screen.getByRole('searchbox', { name: 'Search order or product' });
+  expect(search).toHaveValue('mac');
+
+  await userEvent.click(screen.getByRole('link', { name: 'iPad orders' }));
+
+  expect(search).toHaveValue('ipad');
 });
 
 it('filters by status in plain words', async () => {

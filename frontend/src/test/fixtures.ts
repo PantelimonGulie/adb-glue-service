@@ -57,7 +57,12 @@ export const stock: Stock = {
 const zeros = (n: number) => Array.from({ length: n }, () => 0);
 
 export const analytics: Analytics = {
-  range: { since: '', until: '', unit: 'hour', labels: ['00:00', '01:00'] },
+  range: {
+    since: '2026-10-22T00:00:00.000+00:00',
+    until: '2026-10-22T02:00:00.000+00:00',
+    unit: 'hour',
+    labels: ['00:00', '01:00'],
+  },
   totals: { received: 3406, duplicates: 126, reserved: 3246, retries: 123, failed: 20 },
   previous: null,
   funnel: {

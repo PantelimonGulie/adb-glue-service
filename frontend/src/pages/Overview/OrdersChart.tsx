@@ -1,4 +1,5 @@
 import type { Analytics } from '../../api/types';
+import { bucketLabels } from '../../lib/buckets';
 import { formatNumber } from '../../lib/format';
 import styles from './OrdersChart.module.css';
 
@@ -9,7 +10,7 @@ function bars({ range, series }: Analytics) {
   const { orders, problems } = series;
   const totals = orders.shop.map((count, i) => count + orders.emag[i]);
   const max = Math.max(1, ...totals);
-  return range.labels.map((label, i) => {
+  return bucketLabels(range).map((label, i) => {
     const trouble = problems.retried[i] + problems.failed[i];
     // Retries count tries, not orders, so the red part never outgrows the bar.
     const bad = Math.min(totals[i], trouble);

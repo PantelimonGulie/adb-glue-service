@@ -1,5 +1,6 @@
 import type { ActivityKind, Analytics, Channel } from '../../api/types';
 import type { Series } from '../../components/BarChart/BarChart';
+import { bucketBounds, bucketLabels } from '../../lib/buckets';
 import { formatSeconds } from '../../lib/format';
 
 type Range = Analytics['range'];
@@ -15,17 +16,8 @@ interface Chart {
   format?: (value: number) => string;
 }
 
-const STEP_MS = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
-
-// Like the backend, buckets start at the range start cut down to a whole minute, hour or UTC day.
 export function bucketEvents(range: Range, index: number, kind?: ActivityKind): string {
-  const step = STEP_MS[range.unit];
-  const since = Date.parse(range.since);
-  const start = since - (since % step) + index * step;
-  const params = new URLSearchParams({
-    since: new Date(start).toISOString(),
-    until: new Date(start + step).toISOString(),
-  });
+  const params = new URLSearchParams(bucketBounds(range, index));
   if (kind) params.set('kind', kind);
   return `/activity?${params}`;
 }
@@ -101,7 +93,7 @@ export function flowCharts({ range, series }: Analytics) {
   ];
   return charts.map(({ kind, ...chart }) => ({
     ...chart,
-    labels: range.labels,
+    labels: bucketLabels(range),
     eventsLink: (index: number) => bucketEvents(range, index, kind),
   }));
 }

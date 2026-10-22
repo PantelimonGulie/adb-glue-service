@@ -5,8 +5,8 @@ export const formatSeconds = (value: number) =>
 
 export const formatTime = (ts: string) => new Date(ts).toLocaleTimeString('en-GB');
 
-const hours = (date: Date) =>
-  date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+export const formatHours = (ts: string) =>
+  new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const day = (date: Date) => date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 // Empty for today, so a time of day is enough on its own.
@@ -18,7 +18,8 @@ export function formatDay(ts: string, now = new Date()): string {
 export function formatWindow(since: string, until: string): string {
   const start = new Date(since);
   const end = new Date(until);
-  const sameDay = start.toDateString() === end.toDateString();
-  if (sameDay) return `${hours(start)}–${hours(end)}, ${day(start)}`;
-  return `${hours(start)}, ${day(start)} – ${hours(end)}, ${day(end)}`;
+  // The end is exclusive, so a window that ends at midnight still belongs to its first day.
+  const sameDay = start.toDateString() === new Date(end.getTime() - 1).toDateString();
+  if (sameDay) return `${formatHours(since)}–${formatHours(until)}, ${day(start)}`;
+  return `${formatHours(since)}, ${day(start)} – ${formatHours(until)}, ${day(end)}`;
 }

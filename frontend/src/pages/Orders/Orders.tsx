@@ -8,10 +8,10 @@ import { Tag } from '../../components/Tag/Tag';
 import { oneOf, useFilters } from '../../lib/filters';
 import { channel as channelLabel, status as statusLabel } from '../../lib/labels';
 import { useRange } from '../../lib/range';
-import controls from '../../styles/controls.module.css';
 import table from '../../styles/table.module.css';
 import styles from './Orders.module.css';
 import { OrdersTable } from './OrdersTable';
+import { SearchBox } from './SearchBox';
 
 const CHANNELS: { value: Channel | ''; label: string }[] = [
   { value: '', label: 'All channels' },
@@ -44,15 +44,7 @@ export function Orders() {
       </div>
       <RangePicker value={range} onChange={setRange} />
       <div className={styles.toolbar}>
-        <input
-          type="search"
-          className={`${controls.input} ${styles.search}`}
-          aria-label="Search order or product"
-          placeholder="Search order or product"
-          maxLength={64}
-          value={q}
-          onChange={(event) => change({ q: event.target.value }, { replace: true })}
-        />
+        <SearchBox value={q} onChange={(text) => change({ q: text }, { replace: true })} />
         <Segmented
           label="Channel"
           options={CHANNELS}
