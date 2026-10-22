@@ -1,0 +1,28 @@
+.shell {
+  --sticky-top: var(--header-height);
+  min-height: 100dvh;
+}
+
+.body {
+  display: flex;
+  min-height: calc(100dvh - var(--sticky-top));
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 18px 22px 48px;
+}
+
+@media (max-width: 899px) {
+  .shell {
+    --sticky-top: 0px;
+  }
+
+  .main {
+    padding: var(--space-4) var(--space-4) 40px;
+  }
+}

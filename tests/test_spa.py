@@ -31,3 +31,22 @@ def test_spa_is_skipped_without_a_build(tmp_path):
     mount_spa(app, tmp_path / "dist")
 
     assert app.routes == routes
+
+
+async def test_spa_needs_index_html_and_survives_missing_assets(tmp_path):
+    (tmp_path / "assets").mkdir()
+    without_index = FastAPI()
+    routes = list(without_index.routes)
+    mount_spa(without_index, tmp_path)
+
+    only_index = tmp_path / "only-index"
+    only_index.mkdir()
+    (only_index / "index.html").write_text("<div id=root></div>")
+    app = FastAPI()
+    mount_spa(app, only_index)
+    transport = httpx.ASGITransport(app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://glue") as http:
+        page = await http.get("/orders")
+
+    assert without_index.routes == routes
+    assert page.text == "<div id=root></div>"

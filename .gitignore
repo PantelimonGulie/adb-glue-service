@@ -9,3 +9,5 @@ __pycache__/
 .venv/
 .DS_Store
 .claude/worktrees/
+frontend/node_modules/
+frontend/dist/

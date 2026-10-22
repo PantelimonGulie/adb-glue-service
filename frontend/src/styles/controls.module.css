@@ -1,0 +1,29 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--control-line-hover);
+}
+
+.input {
+  min-height: 34px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  font-size: 13px;
+}

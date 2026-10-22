@@ -1,0 +1,73 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --line: #e3e6eb;
+  --line2: #eef0f3;
+  --line3: #f0f2f5;
+  --control-line: #cdd2da;
+  --control-line-hover: #8a93a1;
+  --ink: #0f1115;
+  --ink2: #3d4552;
+  --muted: #5b6472;
+  --faint: #8a93a1;
+  --blue: #1d4ed8;
+  --hover: #eef0f3;
+  --selected: #e8ecf2;
+  --subtle: #f1f3f6;
+  --good: #127a4b;
+  --bad: #b42318;
+  --alert-bg: #fff4f2;
+  --alert-line: #f2b8ae;
+  --warn-bg: #fff4db;
+  --warn-line: #f2d9a4;
+  --warn-ink: #8a5300;
+
+  --tone-blue-bg: #e8eefd;
+  --tone-blue-ink: #1e3a8a;
+  --tone-blue-dot: #1d4ed8;
+  --tone-green-bg: #e6f4ec;
+  --tone-green-ink: #127a4b;
+  --tone-green-dot: #16a34a;
+  --tone-amber-bg: #fff3d6;
+  --tone-amber-ink: #8a5300;
+  --tone-amber-dot: #d97706;
+  --tone-red-bg: #fde3de;
+  --tone-red-ink: #9f1d10;
+  --tone-red-dot: #dc2626;
+  --tone-grey-bg: #f1f3f6;
+  --tone-grey-ink: #5b6472;
+  --tone-grey-dot: #9ca3af;
+  --tone-slate-bg: #eef1f5;
+  --tone-slate-ink: #334155;
+  --tone-slate-dot: #64748b;
+  --tone-plum-bg: #f3e8f7;
+  --tone-plum-ink: #5b2569;
+  --tone-plum-dot: #7e3a94;
+  --tone-gold-bg: #fbf1df;
+  --tone-gold-ink: #7a4e10;
+  --tone-gold-dot: #b7791f;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-md: 13.5px;
+  --text-lg: 15px;
+  --text-h1: 19px;
+  --text-number: 24px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 8px;
+  --shadow-menu: 0 12px 32px rgba(15, 17, 21, 0.12);
+
+  --header-height: 56px;
+  --sidebar-width: 228px;
+  --sidebar-mini-width: 64px;
+}

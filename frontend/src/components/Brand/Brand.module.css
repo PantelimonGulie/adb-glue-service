@@ -1,0 +1,22 @@
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.chip {
+  padding: 2px 7px;
+  border: 1px solid var(--warn-line);
+  border-radius: 3px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}

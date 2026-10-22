@@ -10,3 +10,5 @@ docs/
 .venv/
 *.db
 *.pdf
+frontend/node_modules
+frontend/dist
