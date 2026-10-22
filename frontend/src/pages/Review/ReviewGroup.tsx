@@ -5,6 +5,8 @@ import { useDenied } from '../../auth/useDenied';
 import { formatNumber } from '../../lib/format';
 import { cause } from '../../lib/labels';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
+import cards from './cards.module.css';
 import styles from './ReviewGroup.module.css';
 import { ReviewCard } from './ReviewCard';
 
@@ -34,18 +36,18 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
     <section className={styles.group} aria-labelledby={id}>
       <div className={styles.head}>
         <h2 id={id}>{label}</h2>
-        <span className={styles.note}>
+        <span className={text.note}>
           {orders} · {hint}
         </span>
         {name === 'outage' && (
           <span className={styles.retry}>
             {retryAll.error && (
-              <span className={styles.error} role="alert">
+              <span className={text.error} role="alert">
                 {retryAll.error.message}
               </span>
             )}
             {retried !== undefined && (
-              <span className={styles.note} role="status">
+              <span className={text.note} role="status">
                 Sent {formatNumber(retried)} again
               </span>
             )}
@@ -61,13 +63,13 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
           </span>
         )}
       </div>
-      <div className={styles.cards}>
+      <div className={`${cards.cards} ${styles.cards}`}>
         {items.map((item) => (
           <ReviewCard key={item.id} item={item} />
         ))}
       </div>
       {more > 0 && (
-        <p className={styles.more}>
+        <p className={`${text.note} ${styles.more}`}>
           and {formatNumber(more)} more with the same cause.{' '}
           <button type="button" className={styles.link} onClick={onShowAll}>
             Show all {formatNumber(count)}

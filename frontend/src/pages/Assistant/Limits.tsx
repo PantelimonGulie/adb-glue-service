@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { Assistant, AssistantLimits } from '../../api/types';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
 import styles from './Limits.module.css';
 
 type TokenLimits = Pick<AssistantLimits, 'max_tokens_per_question' | 'daily_token_budget'>;
@@ -54,7 +55,7 @@ export function Limits({ assistant, denied, saving, onSave }: Props) {
           onChange={(event) => setDaily(event.target.value)}
         />
       </label>
-      <span className={styles.note}>
+      <span className={text.note}>
         The longest answer caps each reply of the model. The daily budget is the real ceiling.
       </span>
       {!denied && (

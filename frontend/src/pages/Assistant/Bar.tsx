@@ -17,9 +17,9 @@ export function Bar({ role, label, value, max, warn }: Props) {
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={max}
-      aria-valuenow={value}
+      aria-valuenow={Math.min(value, max)}
     >
-      <i className={styles.fill} data-warn={warn} style={{ width }} />
+      <span className={styles.fill} data-warn={warn} style={{ width }} />
     </div>
   );
 }

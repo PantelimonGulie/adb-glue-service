@@ -20,16 +20,3 @@
   align-items: center;
   gap: var(--space-2) 10px;
 }
-
-.note {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--muted);
-}
-
-.error {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--bad);
-}

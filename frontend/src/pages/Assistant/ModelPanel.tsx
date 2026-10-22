@@ -6,6 +6,7 @@ import { Tag } from '../../components/Tag/Tag';
 import { formatNumber } from '../../lib/format';
 import { modelState } from '../../lib/model';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
 import { Bar } from './Bar';
 import { Limits } from './Limits';
 import styles from './ModelPanel.module.css';
@@ -62,7 +63,7 @@ export function ModelPanel({ assistant }: { assistant: Assistant }) {
             onChange={(effort) => save.mutate({ effort })}
           />
         </span>
-        <span className={styles.note}>
+        <span className={text.note}>
           How much it looks up before answering. Higher is more thorough, slower and uses more
           tokens.
         </span>
@@ -72,16 +73,16 @@ export function ModelPanel({ assistant }: { assistant: Assistant }) {
       <div className={controls.field}>
         Used today
         <Bar role="meter" label="Used today" value={used} max={budget} warn={nearlySpent} />
-        <span className={styles.note}>
+        <span className={text.note}>
           {usage} · local model: no money spent. Cloud models will show cost in euros here.
         </span>
       </div>
       {save.error && (
-        <p className={styles.error} role="alert">
+        <p className={text.error} role="alert">
           {save.error.message}
         </p>
       )}
-      {denied && <p className={styles.note}>Only admins can change these.</p>}
+      {denied && <p className={text.note}>Only admins can change these.</p>}
     </section>
   );
 }

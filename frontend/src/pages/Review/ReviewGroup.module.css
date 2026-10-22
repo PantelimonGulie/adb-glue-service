@@ -20,12 +20,6 @@
   font-weight: 600;
 }
 
-.note {
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--muted);
-}
-
 .retry {
   display: flex;
   flex-wrap: wrap;
@@ -35,24 +29,12 @@
   margin-left: auto;
 }
 
-.error {
-  font-size: var(--text-sm);
-  color: var(--bad);
-}
-
-/* Two cards side by side once each can be about 760 px wide. */
 .cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 760px), 1fr));
-  gap: var(--space-3);
   padding: var(--space-3);
 }
 
 .more {
-  margin: 0;
   padding: 0 var(--space-4) var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--muted);
 }
 
 .link {

@@ -8,9 +8,10 @@ import { formatNumber } from '../../lib/format';
 import { cause } from '../../lib/labels';
 import page from '../../styles/page.module.css';
 import table from '../../styles/table.module.css';
+import text from '../../styles/text.module.css';
+import cards from './cards.module.css';
 import { ReviewCard } from './ReviewCard';
 import { ReviewGroup } from './ReviewGroup';
-import styles from './Review.module.css';
 
 type Show = 'open' | Cause | 'decided';
 
@@ -76,14 +77,14 @@ export function Review() {
         />
       ))}
       {latest.length > 0 && (
-        <div className={styles.cards}>
+        <div className={cards.cards}>
           {latest.map((item) => (
             <ReviewCard key={item.id} item={item} />
           ))}
         </div>
       )}
       {decided && items.length > latest.length && (
-        <p className={styles.note}>Showing the latest {DECIDED_SHOWN} decisions.</p>
+        <p className={text.note}>Showing the latest {DECIDED_SHOWN} decisions.</p>
       )}
     </>
   );

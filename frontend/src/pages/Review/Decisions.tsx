@@ -3,6 +3,7 @@ import { useDecide } from '../../api/hooks';
 import type { ReviewItem } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
 import styles from './Decisions.module.css';
 import { choice, consequence, DECISIONS, unavailable } from './explain';
 
@@ -34,12 +35,12 @@ export function Decisions({ item }: { item: ReviewItem }) {
             >
               {row.label}
             </button>
-            <span className={styles.note}>{row.note}</span>
+            <span className={text.note}>{row.note}</span>
           </Fragment>
         ))}
       </div>
       {decide.error && (
-        <p className={styles.error} role="alert">
+        <p className={text.error} role="alert">
           {decide.error.message}
         </p>
       )}

@@ -8,7 +8,7 @@ const SOURCES: Record<string, string> = {
 };
 
 export function lookedAt(tools: string[], tokens: number): string {
-  const sources = new Set(tools.map((tool) => SOURCES[tool] ?? tool.replaceAll('_', ' ')));
+  const sources = new Set(tools.map((tool) => SOURCES[tool] ?? 'other records'));
   const used = `${formatNumber(tokens)} tokens`;
   if (sources.size === 0) return `Answered without looking anything up · ${used}`;
   return `Looked at: ${[...sources].join(', ')} · ${used}`;

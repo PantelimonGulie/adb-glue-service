@@ -3,6 +3,7 @@ import type { ReviewItem } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 import { modelState } from '../../lib/model';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
 import { suggested } from './explain';
 import styles from './Triage.module.css';
 
@@ -36,11 +37,11 @@ export function Triage({ item }: { item: ReviewItem }) {
         Ask the triage agent
       </button>
       {triage.isPending && (
-        <span className={styles.note}>Thinking… a local model can take a minute.</span>
+        <span className={text.note}>Thinking… a local model can take a minute.</span>
       )}
-      {notice && <span className={styles.note}>{notice}</span>}
+      {notice && <span className={text.note}>{notice}</span>}
       {triage.error && (
-        <span className={styles.error} role="alert">
+        <span className={text.error} role="alert">
           {triage.error.message}
         </span>
       )}

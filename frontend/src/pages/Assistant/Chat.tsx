@@ -5,6 +5,7 @@ import type { Assistant, Turn } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 import { modelState } from '../../lib/model';
 import controls from '../../styles/controls.module.css';
+import text from '../../styles/text.module.css';
 import styles from './Chat.module.css';
 import { lookedAt } from './lookedAt';
 
@@ -19,6 +20,8 @@ const QUESTIONS = [
   'Is the warehouse working?',
 ];
 const PLACEHOLDER = 'Ask a question, e.g. what happened to shop-1042?';
+// The API reads only the latest 12 turns, so sending more is wasted.
+const HISTORY_TURNS = 12;
 
 export function Chat({ model }: { model?: Assistant['model'] }) {
   const [params] = useSearchParams();
@@ -30,12 +33,12 @@ export function Chat({ model }: { model?: Assistant['model'] }) {
   const blocked = denied ?? notice;
   const busy = Boolean(blocked) || ask.isPending;
 
-  function send(text: string) {
-    const history = said.map(({ role, content }) => ({ role, content }));
-    setSaid([...said, { role: 'user', content: text }]);
+  function send(asked: string) {
+    const history = said.slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content }));
+    setSaid([...said, { role: 'user', content: asked }]);
     setQuestion('');
     ask.mutate(
-      { question: text, history },
+      { question: asked, history },
       {
         onSuccess: ({ answer, tools, tokens }) => {
           const meta = lookedAt(tools, tokens);
@@ -44,7 +47,7 @@ export function Chat({ model }: { model?: Assistant['model'] }) {
         // The question goes back in the box, so it can be asked again once the cause is fixed.
         onError: () => {
           setSaid(said);
-          setQuestion(text);
+          setQuestion(asked);
         },
       },
     );
@@ -52,8 +55,8 @@ export function Chat({ model }: { model?: Assistant['model'] }) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const text = question.trim();
-    if (text) send(text);
+    const asked = question.trim();
+    if (asked) send(asked);
   }
 
   return (
@@ -78,16 +81,16 @@ export function Chat({ model }: { model?: Assistant['model'] }) {
         )}
       </div>
       <div className={styles.quick}>
-        {QUESTIONS.map((text) => (
+        {QUESTIONS.map((quick) => (
           <button
-            key={text}
+            key={quick}
             type="button"
             className={controls.button}
             disabled={busy}
             title={blocked}
-            onClick={() => send(text)}
+            onClick={() => send(quick)}
           >
-            {text}
+            {quick}
           </button>
         ))}
       </div>
@@ -106,7 +109,7 @@ export function Chat({ model }: { model?: Assistant['model'] }) {
         </button>
       </form>
       {ask.error && (
-        <p className={styles.error} role="alert">
+        <p className={`${text.error} ${styles.error}`} role="alert">
           {ask.error.message}
         </p>
       )}

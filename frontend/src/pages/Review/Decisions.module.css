@@ -20,25 +20,9 @@
   color: var(--ink2);
 }
 
-.note {
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-.error {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--bad);
-}
-
 /* A narrow card stacks each choice above what it does. */
 @container (max-width: 399px) {
   .choices {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .note {
-    margin-bottom: var(--space-1);
   }
 }

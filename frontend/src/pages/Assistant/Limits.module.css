@@ -7,9 +7,3 @@
 .limits button {
   align-self: flex-start;
 }
-
-.note {
-  font-size: var(--text-sm);
-  line-height: 1.45;
-  color: var(--muted);
-}

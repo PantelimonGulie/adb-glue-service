@@ -103,3 +103,11 @@ it('shows the tokens used today against the daily budget', () => {
   expect(used).toHaveAttribute('aria-valuemax', '200000');
   expect(screen.getByText(/7,168 of 200,000 tokens · 5 questions/)).toBeInTheDocument();
 });
+
+it('never reports more used than the budget to screen readers', () => {
+  stubApi({});
+  renderPanel({ ...assistant, used_today: 250000 });
+
+  const used = screen.getByRole('meter', { name: 'Used today' });
+  expect(used).toHaveAttribute('aria-valuenow', '200000');
+});
