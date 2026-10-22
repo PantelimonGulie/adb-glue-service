@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { useRetryAll } from '../../api/hooks';
+import { useOverview, useRetryAll } from '../../api/hooks';
 import type { Cause, ReviewItem } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 import { formatNumber } from '../../lib/format';
@@ -9,6 +9,7 @@ import styles from './ReviewGroup.module.css';
 import { ReviewCard } from './ReviewCard';
 
 const RETRY_ALL_HINT = 'Send every order of this outage to the warehouse again';
+const WAREHOUSE_DOWN = 'Bucharest warehouse is not answering';
 
 interface Props {
   name: Cause;
@@ -21,6 +22,9 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
   const id = useId();
   const denied = useDenied('decide');
   const retryAll = useRetryAll();
+  const { data: overview } = useOverview({ range: 'live' });
+  const down = overview?.systems.warehouse.ok === false ? WAREHOUSE_DOWN : undefined;
+  const blocked = denied ?? down;
   const { label, hint } = cause(name);
   const orders = `${formatNumber(count)} order${count === 1 ? '' : 's'}`;
   const more = count - items.length;
@@ -48,8 +52,8 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
             <button
               type="button"
               className={controls.button}
-              disabled={Boolean(denied) || retryAll.isPending}
-              title={denied ?? RETRY_ALL_HINT}
+              disabled={Boolean(blocked) || retryAll.isPending}
+              title={blocked ?? RETRY_ALL_HINT}
               onClick={() => retryAll.mutate()}
             >
               Retry all {formatNumber(count)}

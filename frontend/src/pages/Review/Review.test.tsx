@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ReviewItem } from '../../api/types';
@@ -84,6 +84,16 @@ it('shows why the warehouse outage could not be retried', async () => {
 
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('The warehouse is still not answering');
+});
+
+it('cannot retry the outage while the warehouse is not answering', async () => {
+  const down = { ok: false, state: 'Not responding', latency_ms: null };
+  const systems = { ...overview.systems, warehouse: down };
+  renderReview('/review', { ...api, '/api/overview': { ...overview, systems } });
+
+  const retryAll = await screen.findByRole('button', { name: 'Retry all 4' });
+  await waitFor(() => expect(retryAll).toBeDisabled());
+  expect(retryAll).toHaveAttribute('title', 'Bucharest warehouse is not answering');
 });
 
 it('lists decided items, newest first as the API sends them', async () => {
