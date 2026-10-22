@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 
 from common import signing
-from common.models import EmagNotification, Event, Order, OrderRef, StockAdjusted
+from common.models import EmagNotification, Event, Order, OrderLine, OrderRef, StockAdjusted
 from glue.audit import record
 from glue.context import Context
 
@@ -17,6 +17,7 @@ EVENT_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 # /emag/notifications alone; the warehouse ships orders from either channel.
 class ShopOrder(Order):
     channel: Literal["shop"]
+    lines: list[OrderLine] = Field(min_length=1)
 
 
 class ShopOrderRef(BaseModel):

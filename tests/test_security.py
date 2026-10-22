@@ -61,6 +61,28 @@ async def test_warehouse_signature_cannot_place_an_order(systems):
     assert systems.ctx.db.list_orders() == ([], 0)
 
 
+async def test_a_shop_order_without_lines_is_rejected(systems):
+    order = {"id": "shop-1", "channel": "shop", "channel_order_id": "1", "customer": "Guest"}
+
+    response = await systems.send_event("shop", "order.placed", order | {"lines": []})
+
+    assert response.status_code == 422
+    assert systems.ctx.db.counters()["event_rejected"] == 1
+    assert "event_received" not in systems.ctx.db.counters()
+
+
+async def test_an_emag_order_without_products_is_not_reserved(systems):
+    order_id = await systems.buy_on_emag("APP-3")
+    systems.emag_order(order_id)["products"] = []
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id) is None
+    assert systems.warehouse.state.stock["APP-3"]["reserved"] == 0
+    [item] = systems.open_reviews()
+    assert (item["order_id"], item["payload"]["status"]) == (order_id, "processing")
+    assert "List should have at least 1 item" in item["reason"]
+
+
 def test_an_empty_secret_verifies_nothing():
     body = b'{"type": "order.cancelled"}'
 

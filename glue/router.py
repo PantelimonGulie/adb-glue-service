@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from common.models import Order, OrderLine
 from glue import reconciler, review
@@ -15,7 +15,7 @@ class EmagProduct(BaseModel):
 class EmagOrder(BaseModel):
     id: int
     status: int
-    products: list[EmagProduct]
+    products: list[EmagProduct] = Field(min_length=1)
     customer: str
 
 
