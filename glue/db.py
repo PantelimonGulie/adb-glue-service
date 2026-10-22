@@ -19,6 +19,9 @@ AUDIT_FILTER = (
     " AND (:kinds IS NULL OR action IN (SELECT value FROM json_each(:kinds)))"
     " AND (:entity = '' OR entity_id = :entity OR correlation_id = :entity)"
 )
+SAMPLE = "correlation_id LIKE 'sample-%' AND json_extract(detail, '$.sample') = 1"
+# Real order ids are <channel>-<digits>, so this marker can never match one.
+SAMPLE_ORDER = "order_id LIKE '%-sample-%'"
 
 
 def now() -> str:
@@ -269,7 +272,9 @@ class Database:
         )
 
     def audit_tail(self, limit: int = 100) -> list[dict]:
-        return self.rows("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,), "detail")
+        return self.rows(
+            "SELECT * FROM audit_log ORDER BY ts DESC, id DESC LIMIT ?", (limit,), "detail"
+        )
 
     def audit_page(
         self,
@@ -288,7 +293,7 @@ class Database:
             "limit": limit,
             "offset": offset,
         }
-        return self.page("audit_log", AUDIT_FILTER, "id DESC", params, "detail")
+        return self.page("audit_log", AUDIT_FILTER, "ts DESC, id DESC", params, "detail")
 
     def audit_between(self, since: str, until: str) -> list[dict]:
         # By time first: loaded sample history has later ids than live rows but older times.
@@ -299,9 +304,38 @@ class Database:
         )
 
     def audit_after(self, after_id: int, limit: int) -> list[dict]:
+        # The live feed shows what happens now; loaded sample history is weeks old.
         return self.rows(
-            "SELECT * FROM audit_log WHERE id > ? ORDER BY id LIMIT ?", (after_id, limit), "detail"
+            f"SELECT * FROM audit_log WHERE id > ? AND NOT ({SAMPLE}) ORDER BY id LIMIT ?",
+            (after_id, limit),
+            "detail",
         )
+
+    def insert_sample(self, orders: list[dict], audit: list[dict]) -> None:
+        with self.conn:
+            self.conn.execute("BEGIN")
+            self.conn.executemany(
+                "INSERT INTO orders (order_id, channel, channel_order_id, lines, customer, status,"
+                " attempts, last_error, updated_at) VALUES (:order_id, :channel, :channel_order_id,"
+                " :lines, :customer, :status, :attempts, :last_error, :updated_at)",
+                [order | {"lines": json.dumps(order["lines"])} for order in orders],
+            )
+            self.conn.executemany(
+                "INSERT INTO audit_log (ts, correlation_id, entity_type, entity_id, action, detail)"
+                " VALUES (:ts, :correlation_id, :entity_type, :entity_id, :action, :detail)",
+                [row | {"detail": json.dumps(row["detail"])} for row in audit],
+            )
+
+    def delete_sample(self) -> int:
+        with self.conn:
+            self.conn.execute("BEGIN")
+            removed = self.conn.execute(f"DELETE FROM orders WHERE {SAMPLE_ORDER}").rowcount
+            self.conn.execute(f"DELETE FROM audit_log WHERE {SAMPLE}")
+        return removed
+
+    def has_sample(self) -> bool:
+        query = f"SELECT EXISTS (SELECT 1 FROM audit_log WHERE {SAMPLE})"
+        return bool(self.conn.execute(query).fetchone()[0])
 
     def timeline(self, order_id: str) -> list[dict]:
         # Pulls in rows that share a correlation id with the order, e.g. the inbound event

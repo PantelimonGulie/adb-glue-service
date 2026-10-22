@@ -67,6 +67,7 @@ services:
       VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
       OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-operator}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      DEMO_TRAFFIC: slow
     volumes:
       - glue-data:/data
     depends_on:

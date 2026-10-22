@@ -179,6 +179,11 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
+@router.get("/chaos")
+async def current_chaos(request: Request) -> dict:
+    return request.app.state.chaos.model_dump(exclude={"renotify_now"})
+
+
 @router.post("/chaos")
 async def chaos(request: Request, body: Chaos) -> Chaos:
     state = request.app.state

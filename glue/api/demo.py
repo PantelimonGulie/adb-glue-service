@@ -1,9 +1,16 @@
+import asyncio
+from dataclasses import replace
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 
-from glue import auth
+from common.models import SKU
+from glue import auth, sample, traffic
+from glue.context import Context
 
-router = APIRouter(dependencies=[Depends(auth.require("demo"))])
+router = APIRouter()
+can_demo = [Depends(auth.require("demo"))]
 
 ALL_FAULTS_OFF = [
     ("emag", {"rate_limit": False, "reject_sku": None, "freeze_stock": False, "down": False}),
@@ -54,14 +61,85 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
     ),
     "reset": ("All faults are off.", ALL_FAULTS_OFF),
 }
+TRAFFIC = {
+    "traffic-start": {"running": True},
+    "traffic-stop": {"running": False},
+    "speed-slow": {"speed": "slow"},
+    "speed-normal": {"speed": "normal"},
+    "speed-fast": {"speed": "fast"},
+}
+OUTSIDE = {"ship-oldest": traffic.ship_oldest, "customer-cancel": traffic.customer_cancel}
 
 
-@router.post("/demo/{action}")
+class Recount(BaseModel):
+    sku: str = Field(pattern=SKU)
+    on_hand: int = Field(ge=0, le=100_000)
+
+
+def pace(ctx: Context) -> str:
+    seconds = traffic.INTERVALS[ctx.traffic.speed]
+    if ctx.traffic.running:
+        return f"New orders arrive every {seconds:g} seconds."
+    return f"New orders are paused. Once resumed they arrive every {seconds:g} seconds."
+
+
+async def faults_of(ctx: Context, system: str) -> dict | None:
+    try:
+        response = await ctx.http.get(f"{ctx.settings.channel_urls()[system]}/chaos")
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return None
+    return response.json()
+
+
+@router.get("/demo", dependencies=[Depends(auth.require("view"))])
+async def state(request: Request) -> dict:
+    ctx = request.app.state.ctx
+    emag, warehouse = await asyncio.gather(faults_of(ctx, "emag"), faults_of(ctx, "warehouse"))
+    return {
+        "traffic": {"running": ctx.traffic.running, "speed": ctx.traffic.speed},
+        "faults": {"emag": emag, "warehouse": warehouse},
+        "sample_history": ctx.db.has_sample(),
+    }
+
+
+@router.post("/demo/recount", dependencies=can_demo)
+async def recount(request: Request, body: Recount) -> dict:
+    ok, message = await traffic.recount(request.app.state.ctx, body.sku, body.on_hand)
+    return {"ok": ok, "message": message}
+
+
+@router.post("/demo/fake-signature", dependencies=can_demo)
+async def fake_signature(request: Request) -> dict:
+    # Through the app itself, so the message takes the same path as a real webhook.
+    transport = httpx.ASGITransport(app=request.app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://glue") as client:
+        body = {"type": "order.placed", "data": {}}
+        response = await client.post("/events", json=body, headers={"x-source": "shop"})
+    if response.status_code == 401:
+        return {"ok": True, "message": "Glue refused an unsigned message (HTTP 401) and logged it."}
+    message = f"Glue did not refuse the unsigned message: HTTP {response.status_code}."
+    return {"ok": False, "message": message}
+
+
+@router.post("/demo/{action}", dependencies=can_demo)
 async def run(request: Request, action: str) -> dict:
+    ctx = request.app.state.ctx
+    if action in TRAFFIC:
+        ctx.traffic = replace(ctx.traffic, **TRAFFIC[action])
+        return {"ok": True, "message": pace(ctx)}
+    if action in OUTSIDE:
+        ok, message = await OUTSIDE[action](ctx)
+        return {"ok": ok, "message": message}
+    if action == "history-load":
+        message = f"Loaded sample history for the last 30 days: {sample.load(ctx):,} orders."
+        return {"ok": True, "message": message}
+    if action == "history-clear":
+        message = f"Removed the sample history ({sample.clear(ctx):,} orders). Real orders stay."
+        return {"ok": True, "message": message}
     if action not in ACTIONS:
         raise HTTPException(404, f"unknown demo action {action!r}")
     message, calls = ACTIONS[action]
-    ctx = request.app.state.ctx
     urls = ctx.settings.channel_urls()
     for system, body in calls:
         try:

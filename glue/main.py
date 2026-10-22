@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, FastAPI, Request
 
-from glue import api, inbox, llm, queries, reconciler, tuning, worker
+from glue import api, inbox, llm, queries, reconciler, traffic, tuning, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -39,6 +39,7 @@ def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
         warehouse=WarehouseClient(http, settings.warehouse_url),
         assistant=llm.client(settings, http),
         worker_slots=asyncio.Semaphore(settings.worker_concurrency),
+        traffic=traffic.initial(settings.demo_traffic),
     )
 
 
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
             asyncio.create_task(worker.run_forever(app.state.ctx)),
             asyncio.create_task(reconciler.run_forever(app.state.ctx)),
             asyncio.create_task(llm.ensure_model(app.state.ctx)),
+            asyncio.create_task(traffic.run_forever(app.state.ctx)),
         ]
         yield
         for task in tasks:

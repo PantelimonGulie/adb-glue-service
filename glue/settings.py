@@ -23,6 +23,7 @@ class Settings:
     viewer_password: str = ""
     operator_password: str = ""
     admin_password: str = ""
+    demo_traffic: str = "off"
 
     def webhook_secret(self, source: str) -> str:
         secrets = {

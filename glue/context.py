@@ -7,6 +7,7 @@ from openai import AsyncOpenAI
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.db import Database
 from glue.settings import Settings
+from glue.traffic import Traffic
 from glue.tuning import Tuning
 
 
@@ -26,5 +27,6 @@ class Context:
     worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
     sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
+    traffic: Traffic = field(default_factory=Traffic)
     model_status: str = "offline"
     model_progress: float = 0.0

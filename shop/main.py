@@ -102,6 +102,11 @@ async def cancel_by_customer(request: Request, order_id: str):
     return RedirectResponse("/orders", status_code=303)
 
 
+@router.get("/V1/orders")
+async def list_orders(request: Request) -> list[dict]:
+    return list(request.app.state.orders.values())
+
+
 @router.put("/V1/products/{sku}/stockItems")
 async def set_stock(request: Request, sku: str, item: StockItem) -> dict:
     if sku not in PRODUCTS:

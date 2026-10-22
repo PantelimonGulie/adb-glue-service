@@ -109,6 +109,11 @@ async def create_order(request: Request, order: Order, idempotency_key: Annotate
     return state.accepted[idempotency_key]
 
 
+@router.get("/orders")
+async def list_orders(request: Request) -> list[dict]:
+    return list(request.app.state.orders.values())
+
+
 @router.post("/orders/{order_id}/cancel")
 async def cancel_order(request: Request, order_id: str):
     order = find_order(request, order_id)
@@ -152,6 +157,11 @@ async def get_stock(request: Request) -> list[StockLevel]:
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/chaos")
+async def current_chaos(request: Request) -> Chaos:
+    return request.app.state.chaos
 
 
 @router.post("/chaos")

@@ -83,3 +83,4 @@ CREATE TABLE IF NOT EXISTS audit_log (
     detail         TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS audit_log_entity ON audit_log(entity_id);
+CREATE INDEX IF NOT EXISTS audit_log_ts ON audit_log(ts);
