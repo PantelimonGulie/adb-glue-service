@@ -30,6 +30,7 @@ async def test_settings_validation(systems):
     response = await systems.put("/api/settings", retry_attempts=0)
 
     assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "retry_attempts"]
     assert systems.ctx.tuning.retry_attempts == 5
 
 

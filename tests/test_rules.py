@@ -58,6 +58,8 @@ async def test_admin_saves_stock_buffer_and_channels_follow(systems):
     listed = await systems.http.get("http://glue/api/rules")
 
     assert saved.status_code == 200
-    assert (saved.json()["enabled"], saved.json()["config"]) == (1, config)
+    assert saved.json()["enabled"] is True
+    assert saved.json()["config"] == config
     assert systems.emag.state.stock["IPH16-128"] == 23
     assert [rule["name"] for rule in listed.json()] == ["stock-buffer", "auto-retry"]
+    assert listed.json()[1]["enabled"] is False

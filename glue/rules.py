@@ -14,9 +14,15 @@ DEFAULTS = {
 
 
 def all_rules(ctx: Context) -> dict[str, dict]:
-    stored = {row["name"]: row for row in ctx.db.rules()}
+    stored = {row["name"]: row | {"enabled": bool(row["enabled"])} for row in ctx.db.rules()}
     return {
-        name: {"name": name, "enabled": 0, "config": config, "updated_by": None, "updated_at": None}
+        name: {
+            "name": name,
+            "enabled": False,
+            "config": config,
+            "updated_by": None,
+            "updated_at": None,
+        }
         | stored.get(name, {})
         for name, config in DEFAULTS.items()
     }

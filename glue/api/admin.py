@@ -1,8 +1,8 @@
 import asyncio
 from dataclasses import asdict
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from glue import auth, reconciler, rules, tuning, views
@@ -14,11 +14,16 @@ router = APIRouter()
 can_view = Depends(auth.require("view"))
 
 
+def bounded(key: str) -> Any:
+    low, high = tuning.LIMITS[key]
+    return Field(None, ge=low, le=high)
+
+
 class TuningChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    retry_attempts: int | None = None
-    retry_base_seconds: float | None = None
-    reconcile_interval_seconds: float | None = None
+    retry_attempts: int | None = bounded("retry_attempts")
+    retry_base_seconds: float | None = bounded("retry_base_seconds")
+    reconcile_interval_seconds: float | None = bounded("reconcile_interval_seconds")
 
 
 class StockBuffer(BaseModel):
@@ -61,10 +66,7 @@ async def save_settings(
     user: Annotated[auth.User, Depends(auth.require("settings"))],
 ) -> dict:
     ctx = request.app.state.ctx
-    try:
-        tuning.save(ctx, change.model_dump(exclude_none=True), user.name)
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from None
+    tuning.save(ctx, change.model_dump(exclude_none=True), user.name)
     return await settings_view(ctx)
 
 
