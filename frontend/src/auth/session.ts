@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { User } from '../api/types';
 
-export const meKey = ['/api/me'];
+export const meKey = ['me'];
 
 export const useMe = () =>
   useQuery({ queryKey: meKey, queryFn: () => api<User>('/api/me'), staleTime: Infinity });

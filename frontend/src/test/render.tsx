@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { vi } from 'vitest';
 import type { User } from '../api/types';
 import { meKey } from '../auth/session';
 
@@ -37,4 +38,15 @@ export function renderPage(
       <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </Wrapper>,
   );
+}
+
+// React reports a caught render error twice: on the console and as a window error event.
+export function silenceRenderErrors() {
+  const swallow = (event: ErrorEvent) => event.preventDefault();
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  window.addEventListener('error', swallow);
+  return () => {
+    window.removeEventListener('error', swallow);
+    consoleError.mockRestore();
+  };
 }

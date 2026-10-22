@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { testClient, withClient } from '../test/render';
-import { useEvents } from './hooks';
+import { useEvents } from './events';
 
 const row = (id: number) => ({
   id,

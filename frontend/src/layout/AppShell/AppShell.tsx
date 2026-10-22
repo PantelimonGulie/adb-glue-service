@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/session';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
+import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Header } from '../Header/Header';
 import { Sidebar } from '../Sidebar/Sidebar';
 import styles from './AppShell.module.css';
@@ -29,7 +30,9 @@ export function AppShell() {
       <div className={styles.body}>
         <Sidebar />
         <main className={styles.main}>
-          <Outlet />
+          <ErrorBoundary resetKey={pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
