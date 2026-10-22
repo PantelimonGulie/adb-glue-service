@@ -31,7 +31,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <QueryClientProvider client={client}>
         <AutoRefreshProvider>
-          <BrowserRouter>
+          {/* Filters typed into inputs live in the address; inside a transition the input
+              would fall a render behind and fast typing would drop keys. */}
+          <BrowserRouter useTransitions={false}>
             <App />
           </BrowserRouter>
         </AutoRefreshProvider>

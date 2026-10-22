@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { User } from '../api/types';
 import { meKey } from '../auth/session';
@@ -53,6 +53,21 @@ export function stubApi(answers: Record<string, unknown>) {
   vi.stubGlobal('fetch', fetch);
   return fetch;
 }
+
+// The query string of the newest request to `path`.
+export function lastQuery(fetch: ReturnType<typeof stubApi>, path: string) {
+  const urls = fetch.mock.calls.map(([url]) => new URL(url, 'http://glue'));
+  return urls.filter((url) => url.pathname === path).at(-1)?.searchParams;
+}
+
+// Shows the page's address, so a test can read the filters a page keeps in it.
+export function Address() {
+  const { search } = useLocation();
+  return <output aria-label="Address">{search}</output>;
+}
+
+export const address = () =>
+  new URLSearchParams(screen.getByLabelText('Address').textContent ?? '');
 
 // React reports a caught render error twice: on the console and as a window error event.
 export function silenceRenderErrors() {

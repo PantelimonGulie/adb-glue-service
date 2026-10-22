@@ -3,8 +3,12 @@ import { Route, Routes } from 'react-router-dom';
 import { SignIn } from './auth/SignIn/SignIn';
 import { EmptyState } from './components/EmptyState/EmptyState';
 import { AppShell } from './layout/AppShell/AppShell';
+import { Activity } from './pages/Activity/Activity';
+import { OrderDetail } from './pages/OrderDetail/OrderDetail';
+import { Orders } from './pages/Orders/Orders';
 import { Overview } from './pages/Overview/Overview';
 import { Placeholder } from './pages/Placeholder/Placeholder';
+import { Stock } from './pages/Stock/Stock';
 
 // The charts library is large and only the Flow page uses it, so it loads with that page.
 const Flow = lazy(() => import('./pages/Flow/Flow').then((page) => ({ default: page.Flow })));
@@ -23,11 +27,11 @@ export function App() {
             </Suspense>
           }
         />
-        <Route path="orders" element={<Placeholder title="Orders" />} />
-        <Route path="orders/:id" element={<Placeholder title="Order" />} />
-        <Route path="stock" element={<Placeholder title="Stock" />} />
+        <Route path="orders" element={<Orders />} />
+        <Route path="orders/:id" element={<OrderDetail />} />
+        <Route path="stock" element={<Stock />} />
         <Route path="review" element={<Placeholder title="Review queue" />} />
-        <Route path="activity" element={<Placeholder title="Activity log" />} />
+        <Route path="activity" element={<Activity />} />
         <Route path="assistant" element={<Placeholder title="Assistant" />} />
         <Route path="demo" element={<Placeholder title="Demo controls" />} />
         <Route path="rules" element={<Placeholder title="Rules" />} />

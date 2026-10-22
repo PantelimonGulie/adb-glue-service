@@ -34,6 +34,9 @@ export interface OrdersQuery {
 
 export interface ActivityQuery {
   range?: RangeQuery;
+  // An exact window, e.g. one chart bar; the API uses it instead of the range.
+  since?: string;
+  until?: string;
   kind?: ActivityKind;
   entity?: string;
   page?: number;
@@ -76,7 +79,8 @@ export function useOverview(range: RangeQuery) {
 
 export function useOrders({ range, ...filters }: OrdersQuery) {
   const params = { ...(range && rangeParams(range)), ...filters };
-  return usePolled<Page<Order>>(['orders', params], withQuery('/api/orders', params));
+  const path = withQuery('/api/orders', params);
+  return usePolled<Page<Order>>(['orders', params], path, keepPreviousData);
 }
 
 export const useOrder = (id: string) =>
@@ -89,7 +93,8 @@ export function useReview(query: ReviewQuery) {
 
 export function useActivity({ range, ...filters }: ActivityQuery) {
   const params = { ...(range && rangeParams(range)), ...filters };
-  return usePolled<Page<AuditRow>>(['activity', params], withQuery('/api/activity', params));
+  const path = withQuery('/api/activity', params);
+  return usePolled<Page<AuditRow>>(['activity', params], path, keepPreviousData);
 }
 
 export function useAnalytics(range: RangeQuery, compare: boolean) {

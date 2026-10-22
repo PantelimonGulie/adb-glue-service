@@ -1,0 +1,33 @@
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.id {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.lines {
+  font-size: 14px;
+  color: var(--ink2);
+}
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.history {
+  flex: 2 1 520px;
+  min-width: 0;
+}
+
+.side {
+  flex: 1 1 280px;
+  min-width: 0;
+}

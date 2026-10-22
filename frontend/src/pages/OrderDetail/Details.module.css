@@ -1,0 +1,45 @@
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.details h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) 14px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink2);
+}
+
+.facts dt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.facts dd[title] {
+  cursor: help;
+}
+
+.ask {
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--text-md);
+  white-space: normal;
+}

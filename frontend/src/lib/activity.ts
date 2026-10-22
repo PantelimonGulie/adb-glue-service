@@ -75,8 +75,10 @@ function orderLines(lines: unknown, productName: ProductName): string {
   return lines.map((line) => `${line.qty} × ${productName(String(line.sku))}`).join(', ');
 }
 
+// `sample` marks rows from the sample history; the tables show that as a tag instead.
 function plain(detail: AuditRow['detail']): string {
   return Object.entries(detail)
+    .filter(([key]) => key !== 'sample')
     .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
     .map(([key, value]) => `${key.replaceAll('_', ' ')} ${value}`)
     .join(' · ');

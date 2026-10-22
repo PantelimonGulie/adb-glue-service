@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { formatNumber, formatSeconds, formatTime } from './format';
+import { formatDay, formatNumber, formatSeconds, formatTime, formatWindow } from './format';
 
 it('groups thousands', () => {
   expect(formatNumber(12345)).toBe('12,345');
@@ -14,4 +14,26 @@ it('shows seconds to at most two decimals', () => {
 it('shows the time of day of a server timestamp', () => {
   const ts = '2026-10-22T10:41:58.123+00:00';
   expect(formatTime(ts)).toBe(new Date(ts).toLocaleTimeString('en-GB'));
+});
+
+it('names a time window by its hours and day', () => {
+  const hours = (ts: string) =>
+    new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const day = (ts: string) =>
+    new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const since = '2026-10-22T11:00:00.000Z';
+  const until = '2026-10-22T11:05:00.000Z';
+  expect(formatWindow(since, until)).toBe(`${hours(since)}–${hours(until)}, ${day(since)}`);
+
+  const first = '2026-10-01T00:00:00.000Z';
+  const week = '2026-10-08T00:00:00.000Z';
+  expect(formatWindow(first, week)).toBe(
+    `${hours(first)}, ${day(first)} – ${hours(week)}, ${day(week)}`,
+  );
+});
+
+it('adds the day only to times that are not from today', () => {
+  const now = new Date('2026-10-22T12:00:00.000Z');
+  expect(formatDay(now.toISOString(), now)).toBe('');
+  expect(formatDay('2026-10-01T12:00:00.000Z', now)).toBe('1 Oct');
 });

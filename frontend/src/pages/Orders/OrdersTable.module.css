@@ -1,0 +1,15 @@
+.table {
+  min-width: 780px;
+}
+
+.order {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--blue);
+  text-underline-offset: 2px;
+}
+
+.latest {
+  color: var(--ink2);
+  overflow-wrap: anywhere;
+}

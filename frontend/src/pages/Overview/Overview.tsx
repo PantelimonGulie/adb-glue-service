@@ -6,6 +6,7 @@ import { Tag } from '../../components/Tag/Tag';
 import { FlowMap } from '../../features/flowmap/FlowMap';
 import { MapLegend } from '../../features/flowmap/MapLegend';
 import { formatTime } from '../../lib/format';
+import { useProductName } from '../../lib/products';
 import { rangeLabel, rangeSearch, useRange } from '../../lib/range';
 import controls from '../../styles/controls.module.css';
 import { Counters } from './Counters';
@@ -33,8 +34,7 @@ export function Overview() {
   const updated = dataUpdatedAt
     ? ` · updated ${formatTime(new Date(dataUpdatedAt).toISOString())}`
     : '';
-  const products = new Map(stock?.rows.map((row) => [row.sku, row.product]));
-  const productName = (sku: string) => products.get(sku) ?? sku;
+  const productName = useProductName();
 
   return (
     <>

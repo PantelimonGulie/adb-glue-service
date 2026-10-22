@@ -1,0 +1,63 @@
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.push {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.error {
+  font-size: var(--text-sm);
+  color: var(--bad);
+}
+
+.table {
+  min-width: 820px;
+}
+
+.table tr[data-ok='false'] {
+  background: var(--warn-row);
+}
+
+.table td[data-behind='true'] {
+  color: var(--warn-ink);
+  font-weight: 600;
+  cursor: help;
+}
+
+.free {
+  font-weight: 600;
+}
+
+.state {
+  color: var(--good);
+  cursor: help;
+}
+
+tr[data-ok='false'] .state {
+  color: var(--warn-ink);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.note a {
+  color: var(--blue);
+  text-underline-offset: 2px;
+}

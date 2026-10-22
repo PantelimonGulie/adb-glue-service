@@ -1,4 +1,4 @@
-import type { Analytics, AuditRow, Counters, Overview, Stock } from '../api/types';
+import type { Analytics, AuditRow, Counters, Order, Overview, Stock } from '../api/types';
 
 const working = { ok: true, state: 'Healthy', latency_ms: 2 };
 const counters: Counters = { received: 110, duplicates: 4, reserved: 99, retries: 6, failed: 1 };
@@ -23,6 +23,18 @@ export const overview: Overview = {
     { cause: 'soldout', count: 1 },
   ],
   latest: [row(7, 'event_received', { source: 'shop', type: 'order.placed' })],
+};
+
+export const order: Order = {
+  order_id: 'emag-500124',
+  channel: 'emag',
+  sku: 'MBA-M4',
+  product: 'MacBook Air M4',
+  qty: 1,
+  status: 'failed',
+  attempts: 1,
+  last_error: 'sold on the shop first',
+  updated_at: '2026-10-22T10:00:00.000+00:00',
 };
 
 export const stock: Stock = {
