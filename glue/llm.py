@@ -62,9 +62,14 @@ def failure(exc: APIError) -> str:
 
 
 async def ensure_model(ctx: Context) -> None:
-    while (state := await probe(ctx)) != "ready":
-        if state == "missing" and await pull(ctx):
-            break
+    while True:
+        try:
+            state = await probe(ctx)
+            if state == "ready" or (state == "missing" and await pull(ctx)):
+                break
+        except Exception:
+            log.exception("local model check failed")
+            state = "offline"
         ctx.model_status = state
         await asyncio.sleep(RETRY_SECONDS)
     ctx.model_status, ctx.model_progress = "ready", 1.0

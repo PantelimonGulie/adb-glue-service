@@ -25,13 +25,14 @@ class Ollama:
     def __init__(self, models: list[str]):
         self.models = models
         self.up = True
+        self.total: object = 4
 
     def handle(self, request: httpx.Request) -> httpx.Response:
         if not self.up:
             raise httpx.ConnectError("ollama is down", request=request)
         if request.url.path == "/api/pull":
             self.models.append(json.loads(request.content)["model"])
-            steps = [{"digest": "d1", "total": 4, "completed": n} for n in (1, 4)]
+            steps = [{"digest": "d1", "total": self.total, "completed": n} for n in (1, 4)]
             lines = [*steps, {"status": "success"}]
             return httpx.Response(200, text="\n".join(json.dumps(line) for line in lines))
         return httpx.Response(200, json={"models": [{"name": name} for name in self.models]})

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import httpx
 from openai import APITimeoutError
 
@@ -114,18 +116,23 @@ async def test_viewer_cannot_ask(systems):
     assert model.requests == []
 
 
-async def test_model_timeout_returns_503(systems):
-    model = systems.use_model("unused")
+async def test_timeout_returns_503_and_keeps_usage(systems):
+    model = systems.use_model("unused", [("list_review_items", {})])
+    first_round = model.create
 
-    async def time_out(**request: object) -> None:
-        raise APITimeoutError(httpx.Request("POST", "http://ollama/v1/chat/completions"))
+    async def time_out_after_first_round(**request: object) -> object:
+        if model.requests:
+            raise APITimeoutError(httpx.Request("POST", "http://ollama/v1/chat/completions"))
+        return await first_round(**request)
 
-    model.chat.completions.create = time_out
+    model.chat.completions.create = time_out_after_first_round
 
     response = await ask(systems)
 
     assert response.status_code == 503
     assert "took longer" in response.json()["detail"]
+    state = await assistant_state(systems)
+    assert (state["used_today"], state["questions_today"]) == (60, 1)
 
 
 async def test_first_start_downloads_the_model(systems, caplog):
@@ -137,3 +144,20 @@ async def test_first_start_downloads_the_model(systems, caplog):
     assert systems.ollama.models == ["qwen2.5:3b"]
     assert "Downloading local model qwen2.5:3b (about 2 GB, one time)" in caplog.messages
     assert "Local model qwen2.5:3b is ready" in caplog.messages
+
+
+async def test_unexpected_error_does_not_stop_the_model_check(systems, monkeypatch, caplog):
+    statuses_while_waiting: list[str] = []
+
+    async def sleep(seconds: float) -> None:
+        statuses_while_waiting.append(systems.ctx.model_status)
+
+    monkeypatch.setattr(llm, "asyncio", SimpleNamespace(sleep=sleep))
+    systems.ollama.models.clear()
+    systems.ollama.total = "four"
+
+    await llm.ensure_model(systems.ctx)
+
+    assert statuses_while_waiting == ["offline"]
+    assert systems.ctx.model_status == "ready"
+    assert "local model check failed" in caplog.messages

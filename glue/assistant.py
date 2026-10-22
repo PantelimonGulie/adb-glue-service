@@ -97,33 +97,35 @@ async def ask(ctx: Context, turns: list[dict]) -> AskResult:
     answer = "I could not find the answer within the allowed number of lookups."
     tools: list[str] = []
     tokens = 0
-    for _ in range(ROUNDS[limits["effort"]]):
-        response = await ctx.assistant.chat.completions.create(
-            model=ctx.settings.llm_model,
-            messages=messages,
-            tools=TOOL_SPECS,
-            max_tokens=limits["max_tokens_per_question"],
-        )
-        tokens += response.usage.total_tokens if response.usage else 0
-        message = response.choices[0].message
-        if not message.tool_calls:
-            answer = message.content or "I do not know."
-            break
-        calls = [
-            {
-                "id": call.id,
-                "type": "function",
-                "function": {"name": call.function.name, "arguments": call.function.arguments},
-            }
-            for call in message.tool_calls
-        ]
-        messages.append(
-            {"role": "assistant", "content": message.content or "", "tool_calls": calls}
-        )
-        for call in message.tool_calls:
-            if call.function.name not in tools:
-                tools.append(call.function.name)
-            content = run_tool(ctx, call.function.name, call.function.arguments)
-            messages.append({"role": "tool", "tool_call_id": call.id, "content": content})
-    ctx.db.add_usage(tokens)
+    try:
+        for _ in range(ROUNDS[limits["effort"]]):
+            response = await ctx.assistant.chat.completions.create(
+                model=ctx.settings.llm_model,
+                messages=messages,
+                tools=TOOL_SPECS,
+                max_tokens=limits["max_tokens_per_question"],
+            )
+            tokens += response.usage.total_tokens if response.usage else 0
+            message = response.choices[0].message
+            if not message.tool_calls:
+                answer = message.content or "I do not know."
+                break
+            calls = [
+                {
+                    "id": call.id,
+                    "type": "function",
+                    "function": {"name": call.function.name, "arguments": call.function.arguments},
+                }
+                for call in message.tool_calls
+            ]
+            messages.append(
+                {"role": "assistant", "content": message.content or "", "tool_calls": calls}
+            )
+            for call in message.tool_calls:
+                if call.function.name not in tools:
+                    tools.append(call.function.name)
+                content = run_tool(ctx, call.function.name, call.function.arguments)
+                messages.append({"role": "tool", "tool_call_id": call.id, "content": content})
+    finally:
+        ctx.db.add_usage(tokens)
     return AskResult(answer, tools, tokens)
