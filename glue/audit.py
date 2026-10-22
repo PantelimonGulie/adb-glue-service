@@ -27,6 +27,7 @@ ACTIONS = frozenset(
         "warehouse_unreachable",
         "review_opened",
         "review_decided",
+        "review_resolved",
         "rule_changed",
         "rule_applied",
         "settings_changed",

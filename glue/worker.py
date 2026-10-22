@@ -58,6 +58,7 @@ async def handle(ctx: Context, event: dict) -> None:
             review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload=event)
             return
         ctx.db.finish_event(event["source"], event_id, "done")
+        review.settle_event(ctx, order_id, event)
 
 
 async def process_pending(ctx: Context) -> int:

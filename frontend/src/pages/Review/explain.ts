@@ -75,6 +75,7 @@ export function unavailable(action: Decision, item: ReviewItem): string | undefi
 
 export function outcome(item: ReviewItem): string {
   if (item.action === 'retry') return 'Retried';
+  if (item.action === 'resolved') return 'Closed as no longer needed';
   if (item.action !== 'cancel') return 'Closed without changes';
   return item.order ? `Cancelled on ${WHERE[item.order.channel]}` : 'Cancelled';
 }

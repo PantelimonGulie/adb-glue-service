@@ -25,7 +25,13 @@ KINDS = {
     ],
     "duplicates": ["duplicate_dropped", "order_known"],
     "stock": ["stock_pushed", "stock_push_failed"],
-    "decisions": ["review_decided", "rule_changed", "rule_applied", "settings_changed"],
+    "decisions": [
+        "review_decided",
+        "review_resolved",
+        "rule_changed",
+        "rule_applied",
+        "settings_changed",
+    ],
 }
 
 

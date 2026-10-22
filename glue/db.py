@@ -245,6 +245,13 @@ class Database:
             "payload",
         )
 
+    def open_reviews_for(self, order_id: str | None) -> list[dict]:
+        return self.rows(
+            "SELECT * FROM review_queue WHERE order_id = ? AND status = 'open' ORDER BY id",
+            (order_id,),
+            "payload",
+        )
+
     def start_review(self, item_id: int, action: str, decided_by: str) -> None:
         self.conn.execute(
             "UPDATE review_queue SET status = 'acting', action = ?, decided_by = ? WHERE id = ?",

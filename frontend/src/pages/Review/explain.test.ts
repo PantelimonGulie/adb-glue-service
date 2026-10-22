@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { order, reviewItem } from '../../test/fixtures';
-import { consequence, story, suggested, unavailable } from './explain';
+import { consequence, outcome, story, suggested, unavailable } from './explain';
 
 const cancelling = {
   ...reviewItem,
@@ -35,6 +35,13 @@ it('an item whose decision is being carried out says so instead of offering choi
   const acting = { ...reviewItem, status: 'acting' as const, allowed: [] };
 
   expect(unavailable('retry', acting)).toBe('Glue is carrying out a decision on this item');
+});
+
+it('an item Glue closed because the order no longer needs it says so plainly', () => {
+  const resolved = { ...reviewItem, status: 'decided' as const, action: 'resolved' as const };
+
+  expect(outcome(resolved)).toBe('Closed as no longer needed');
+  expect(outcome({ ...resolved, action: 'dismiss' })).toBe('Closed without changes');
 });
 
 it('a suggestion without a usable choice says so', () => {

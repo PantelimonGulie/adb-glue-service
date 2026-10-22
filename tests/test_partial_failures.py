@@ -1,3 +1,5 @@
+import httpx
+
 from glue import review
 
 
@@ -24,3 +26,100 @@ async def test_a_ship_notice_the_channel_missed_is_retried_from_review(systems, 
     assert response.status_code == 200
     assert systems.emag_order(order_id)["status"] == 4
     assert systems.open_reviews() == []
+
+
+def resolved(systems) -> list[tuple[str, str, str]]:
+    decided = systems.ctx.db.list_review("decided")
+    return [(item["order_id"], item["action"], item["decided_by"]) for item in decided]
+
+
+async def test_a_customer_cancel_resolves_the_oversell_item(systems, sleeps):
+    await systems.chaos("emag", freeze_stock=True)
+    await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    emag_order = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+
+    emag_id = emag_order.removeprefix("emag-")
+    await systems.http.post(f"http://emag/orders/{emag_id}/cancel")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(emag_order)["status"] == "cancelled"
+    assert systems.open_reviews() == []
+    assert resolved(systems) == [(emag_order, "resolved", "glue")]
+    assert systems.ctx.db.counters()["review_resolved"] == 1
+
+
+async def test_a_customer_cancel_before_a_failed_import_heals_resolves_its_item(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.chaos("emag", down=False)
+
+    await systems.http.post(f"http://emag/orders/{order_id.removeprefix('emag-')}/cancel")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
+    assert systems.open_reviews() == []
+    assert resolved(systems) == [(order_id, "resolved", "glue")]
+
+
+async def test_an_order_that_ships_resolves_its_recount_item(systems, sleeps):
+    order_id = await systems.buy_on_shop("IPH16-128")
+    await systems.run_worker()
+    await systems.recount("IPH16-128", 0)
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+
+    assert (item["kind"], systems.ctx.db.get_order(order_id)["status"]) == (
+        "unfulfillable",
+        "shipped",
+    )
+    assert systems.open_reviews() == []
+    assert resolved(systems) == [(order_id, "resolved", "glue")]
+
+
+async def test_a_failed_emag_import_healed_on_renotify_resolves_its_item(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    assert systems.ctx.db.get_order(order_id) is None
+
+    await systems.chaos("emag", down=False, renotify_now=True)
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.open_reviews() == []
+    assert resolved(systems) == [(order_id, "resolved", "glue")]
+
+
+async def test_an_acknowledge_that_fails_after_the_reservation_heals_on_renotify(systems, sleeps):
+    acknowledge = systems.ctx.emag.acknowledge
+    calls = []
+
+    async def busy_for_one_round(emag_id: int) -> httpx.Response:
+        calls.append(emag_id)
+        if len(calls) <= systems.ctx.tuning.retry_attempts:
+            return httpx.Response(503, request=httpx.Request("POST", "http://emag/ack"))
+        return await acknowledge(emag_id)
+
+    systems.ctx.emag.acknowledge = busy_for_one_round
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.emag_order(order_id)["status"] == 1
+    [item] = systems.open_reviews()
+
+    await systems.chaos("emag", renotify_now=True)
+    await systems.run_worker()
+
+    assert systems.emag_order(order_id)["status"] == 2
+    assert systems.warehouse.state.stock["APP-3"]["reserved"] == 1
+    assert systems.open_reviews() == []
+    assert resolved(systems) == [(order_id, "resolved", "glue")]
