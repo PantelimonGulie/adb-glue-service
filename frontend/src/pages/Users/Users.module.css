@@ -1,0 +1,11 @@
+.you {
+  color: var(--muted);
+}
+
+.answer {
+  color: var(--faint);
+}
+
+.answer[data-yes='true'] {
+  color: var(--good);
+}

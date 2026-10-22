@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
 import { useAutoRefresh } from '../../api/autoRefresh';
 import type { User } from '../../api/types';
 import { Brand } from '../../components/Brand/Brand';
 import { Switch } from '../../components/Switch/Switch';
+import { CommandPalette } from '../../features/palette/CommandPalette';
 import controls from '../../styles/controls.module.css';
 import { UserMenu } from '../UserMenu/UserMenu';
 import styles from './Header.module.css';
@@ -14,11 +14,7 @@ export function Header({ me }: { me: User }) {
   return (
     <header className={styles.header}>
       <Brand />
-      <button type="button" className={styles.search} aria-label="Search">
-        <Search size={14} />
-        <span className={styles.searchText}>Search orders, products, pages</span>
-        <kbd className={styles.key}>⌘K</kbd>
-      </button>
+      <CommandPalette />
       <div className={styles.controls}>
         <span
           className={styles.auto}

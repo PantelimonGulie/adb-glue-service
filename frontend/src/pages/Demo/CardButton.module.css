@@ -1,0 +1,26 @@
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--control-line-hover);
+}
+
+.button[data-on='true'] {
+  border-color: var(--warn-line);
+  background: var(--warn-row);
+}

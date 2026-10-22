@@ -1,48 +1,13 @@
-import {
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  FileText,
-  LayoutDashboard,
-  MessageSquareMore,
-  Package,
-  Settings,
-  SlidersHorizontal,
-  Users,
-  Workflow,
-  Wrench,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useOverview } from '../../api/hooks';
 import type { SystemName } from '../../api/types';
 import { system } from '../../lib/labels';
+import { MAIN, PLATFORM, type Page } from '../../lib/pages';
 import styles from './Sidebar.module.css';
 import { useNarrow } from './useNarrow';
 
-interface Item {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-const MAIN: Item[] = [
-  { to: '/', label: 'Overview', icon: LayoutDashboard },
-  { to: '/flow', label: 'Flow', icon: Workflow },
-  { to: '/orders', label: 'Orders', icon: FileText },
-  { to: '/stock', label: 'Stock', icon: Package },
-  { to: '/review', label: 'Review queue', icon: CircleAlert },
-  { to: '/activity', label: 'Activity log', icon: Activity },
-  { to: '/assistant', label: 'Assistant', icon: MessageSquareMore },
-  { to: '/demo', label: 'Demo controls', icon: Wrench },
-];
-const PLATFORM: Item[] = [
-  { to: '/rules', label: 'Rules', icon: SlidersHorizontal },
-  { to: '/settings', label: 'Settings', icon: Settings },
-  { to: '/users', label: 'Users and roles', icon: Users },
-];
 const SYSTEMS: { name: SystemName; label: string }[] = [
   { name: 'shop', label: 'Shop' },
   { name: 'emag', label: 'eMAG' },
@@ -62,7 +27,7 @@ export function Sidebar() {
   const toggle = () => (narrow ? setOpenOnNarrow(!openOnNarrow) : setCollapsed(!collapsed));
   const closeOnNarrow = () => setOpenOnNarrow(false);
 
-  const link = ({ to, label, icon: Icon }: Item) => (
+  const link = ({ to, label, icon: Icon }: Page) => (
     <NavLink
       key={to}
       to={to}

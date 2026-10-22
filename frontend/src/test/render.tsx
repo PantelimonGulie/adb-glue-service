@@ -40,11 +40,12 @@ export function renderPage(
   );
 }
 
-// Answers by path, ignoring the query; any other path is a 404. A failure() answers with its error.
+// Answers by path, ignoring the query; any other path is a 404. A failure() answers with its error;
+// any other function answers with the Response it makes from the request.
 export function stubApi(answers: Record<string, unknown>) {
-  const fetch = vi.fn<(path: string, init?: RequestInit) => Promise<Response>>((path) => {
+  const fetch = vi.fn<(path: string, init?: RequestInit) => Promise<Response>>((path, init) => {
     const body = answers[new URL(path, 'http://glue').pathname];
-    if (typeof body === 'function') return Promise.resolve(body() as Response);
+    if (typeof body === 'function') return Promise.resolve(body(init) as Response);
     const response =
       body === undefined
         ? new Response('{"detail":"Not found"}', { status: 404 })
@@ -58,9 +59,9 @@ export function stubApi(answers: Record<string, unknown>) {
 export const failure = (status: number, detail: string) => () =>
   new Response(JSON.stringify({ detail }), { status });
 
-// The JSON body of the newest request to `path`.
+// The JSON body of the newest request to `path` that sent one.
 export function lastBody(fetch: ReturnType<typeof stubApi>, path: string) {
-  const call = fetch.mock.calls.filter(([url]) => url === path).at(-1);
+  const call = fetch.mock.calls.filter(([url, init]) => url === path && init?.body).at(-1);
   return call && JSON.parse(String(call[1]?.body));
 }
 

@@ -26,6 +26,8 @@
   --good-line: #cfe8da;
   --suggest-bg: #f4f7fe;
   --suggest-line: #9db4f0;
+  --pick: #eef2fb;
+  --demo-line: #e3b341;
 
   --tone-blue-bg: #e8eefd;
   --tone-blue-ink: #1e3a8a;
@@ -93,6 +95,7 @@
   --radius: 6px;
   --radius-lg: 8px;
   --shadow-menu: 0 12px 32px rgba(15, 17, 21, 0.12);
+  --shadow-dialog: 0 24px 60px rgba(15, 17, 21, 0.25);
 
   --header-height: 56px;
   --sidebar-width: 228px;

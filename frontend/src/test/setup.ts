@@ -23,3 +23,6 @@ window.ResizeObserver = class {
   unobserve() {}
   disconnect() {}
 };
+
+// jsdom does not lay anything out; the command palette scrolls its selected item into view.
+Element.prototype.scrollIntoView = () => {};

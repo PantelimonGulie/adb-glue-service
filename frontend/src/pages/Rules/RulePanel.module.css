@@ -1,0 +1,13 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--space-3) 14px;
+}
+
+.explanation {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: 1.45;
+  color: var(--ink2);
+}

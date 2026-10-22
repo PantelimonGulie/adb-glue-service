@@ -37,10 +37,13 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
     ),
     "emag-rate-limit-off": ("eMAG stopped rate limiting.", [("emag", {"rate_limit": False})]),
     "emag-reject-on": (
-        "eMAG rejects stock updates for MBA-M4 and accepts the rest.",
+        "eMAG rejects stock updates for MacBook Air M4 and accepts the rest.",
         [("emag", {"reject_sku": "MBA-M4"})],
     ),
-    "emag-reject-off": ("eMAG accepts MBA-M4 again.", [("emag", {"reject_sku": None})]),
+    "emag-reject-off": (
+        "eMAG accepts stock updates for MacBook Air M4 again.",
+        [("emag", {"reject_sku": None})],
+    ),
     "emag-renotify": (
         "eMAG re-sent the notification for every order not yet acknowledged.",
         [("emag", {"renotify_now": True})],

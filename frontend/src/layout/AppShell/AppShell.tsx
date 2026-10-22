@@ -5,6 +5,7 @@ import { useMe } from '../../auth/session';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import { Header } from '../Header/Header';
+import { SampleBanner } from '../SampleBanner/SampleBanner';
 import { Sidebar } from '../Sidebar/Sidebar';
 import styles from './AppShell.module.css';
 
@@ -30,6 +31,7 @@ export function AppShell() {
       <div className={styles.body}>
         <Sidebar />
         <main className={styles.main}>
+          <SampleBanner />
           <ErrorBoundary resetKey={pathname}>
             <Outlet />
           </ErrorBoundary>

@@ -3,9 +3,12 @@ import type {
   Assistant,
   AuditRow,
   Counters,
+  Demo,
   Order,
   Overview,
   ReviewItem,
+  Rule,
+  Settings,
   Stock,
 } from '../api/types';
 
@@ -135,4 +138,42 @@ export const assistant: Assistant = {
   daily_token_budget: 200000,
   used_today: 7168,
   questions_today: 5,
+};
+
+export const settings: Settings = {
+  retry_attempts: 5,
+  retry_base_seconds: 0.5,
+  reconcile_interval_seconds: 10,
+  http_timeout_seconds: 2,
+  connections: [
+    { name: 'shop', url: 'http://shop:8001', ...working },
+    { name: 'emag', url: 'http://emag:8002', ...working },
+    {
+      name: 'warehouse',
+      url: 'http://warehouse:8003',
+      ok: false,
+      state: 'Answering HTTP 503',
+      latency_ms: 4,
+    },
+  ],
+};
+
+export const rules: Rule[] = [
+  {
+    name: 'stock-buffer',
+    enabled: true,
+    config: { channel: 'emag', units: 1, sku: '' },
+    updated_by: 'admin',
+    updated_at: '2026-10-22T10:00:00.000+00:00',
+  },
+  { name: 'auto-retry', enabled: false, config: {}, updated_by: null, updated_at: null },
+];
+
+export const demo: Demo = {
+  traffic: { running: true, speed: 'slow' },
+  faults: {
+    emag: { rate_limit: false, reject_sku: null, freeze_stock: false, down: false },
+    warehouse: { down: false, slow_seconds: 0, fail_next: 0 },
+  },
+  sample_history: false,
 };
