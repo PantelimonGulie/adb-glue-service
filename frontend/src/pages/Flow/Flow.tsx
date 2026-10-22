@@ -17,7 +17,6 @@ import styles from './Flow.module.css';
 import { Funnel } from './Funnel';
 import { PartPanel } from './PartPanel';
 
-const SAMPLE_HINT = 'Some totals come from the sample history loaded on the Demo controls page.';
 const LIVE_NOTE = 'each dot is one real event · click a box to see its numbers';
 const PERIOD_NOTE = 'totals for the period · click a box to see its numbers';
 
@@ -37,11 +36,6 @@ export function Flow() {
         <span className={styles.sub}>
           how orders and stock move between the shop, eMAG and the warehouse
         </span>
-        {analytics?.sample && (
-          <Tag tone="amber" title={SAMPLE_HINT}>
-            Includes sample history
-          </Tag>
-        )}
         <span role="status">{loading && <Tag tone="grey">Loading…</Tag>}</span>
         <span className={styles.tools}>
           <span className={styles.sub}>Compare with previous period</span>

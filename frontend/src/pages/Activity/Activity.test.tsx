@@ -8,11 +8,9 @@ import { Activity } from './Activity';
 
 const retry = { attempt: 1, delay_seconds: 0.5, problem: 'warehouse answered 503' };
 const page = (rows: unknown[]) => ({ rows, total: rows.length, page: 1, per_page: 25 });
-const demo = { traffic: { running: false, speed: 'slow' }, faults: {}, sample_history: false };
 const api = {
   '/api/activity': page([row(1, 'retry_scheduled', retry)]),
   '/api/stock': stock,
-  '/api/demo': demo,
 };
 
 afterEach(() => {
@@ -85,8 +83,7 @@ it('marks rows that come from the sample history', async () => {
   stubApi({ ...api, '/api/activity': page([sample]) });
   renderActivity('/activity?range=month');
 
-  expect(await screen.findByText('Includes sample history')).toBeInTheDocument();
-  expect(screen.getByText('sample')).toBeInTheDocument();
+  expect(await screen.findByText('sample')).toBeInTheDocument();
   expect(screen.getByText('was failed')).toBeInTheDocument();
 });
 

@@ -10,12 +10,15 @@ interface Props {
   onOpen: (to: string) => void;
 }
 
+export const Searching = () => (
+  <Command.Loading label="Searching orders">Searching orders…</Command.Loading>
+);
+
 export function OrderResults({ q, onOpen }: Props) {
-  const { data, error, isPending } = useOrders({ q, per_page: ORDERS_SHOWN });
+  // Rows kept from the previous search would answer the wrong question.
+  const { data, error, isPending, isPlaceholderData } = useOrders({ q, per_page: ORDERS_SHOWN });
   if (error) return <p className={styles.note}>{error.message}</p>;
-  if (isPending) {
-    return <Command.Loading label="Searching orders">Searching orders…</Command.Loading>;
-  }
+  if (isPending || isPlaceholderData) return <Searching />;
   return (
     <>
       {data.rows.map((order) => (

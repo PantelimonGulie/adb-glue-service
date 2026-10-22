@@ -97,3 +97,31 @@ it('closes on Escape and gives focus back to the search button', async () => {
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(trigger).toHaveFocus();
 });
+
+it('while a search is on its way it says so, without old rows or "Nothing found."', async () => {
+  stubApi(api);
+  renderPalette();
+  await userEvent.keyboard('{Control>}k{/Control}');
+  const input = screen.getByRole('combobox');
+
+  await userEvent.type(input, 'shop-10');
+  expect(screen.queryByText('Nothing found.')).toBeNull();
+  expect(screen.getByText('Searching orders…')).toBeInTheDocument();
+  await screen.findByRole('option', { name: /shop-1042/ });
+
+  await userEvent.type(input, '4');
+  expect(screen.queryByRole('option', { name: /shop-1042/ })).toBeNull();
+  expect(screen.getByText('Searching orders…')).toBeInTheDocument();
+  expect(await screen.findByRole('option', { name: /shop-1042/ })).toBeInTheDocument();
+});
+
+it('opens on Ctrl+K but not on Ctrl+Shift+K', async () => {
+  stubApi(api);
+  renderPalette();
+
+  await userEvent.keyboard('{Control>}{Shift>}K{/Shift}{/Control}');
+  expect(screen.queryByRole('dialog')).toBeNull();
+
+  await userEvent.keyboard('{Control>}k{/Control}');
+  expect(screen.getByRole('dialog', { name: 'Search' })).toBeInTheDocument();
+});

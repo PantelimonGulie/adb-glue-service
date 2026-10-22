@@ -13,6 +13,7 @@ const CHANNELS: Record<Channel, { name: string; other: string }> = {
   shop: { name: 'the shop', other: 'eMAG' },
 };
 const UNITS = { min: 0, max: 99, whole: true };
+const FIX_UNITS_FIRST = `Enter units from ${UNITS.min} to ${UNITS.max} first`;
 
 const same = (a: StockBufferConfig, b: StockBufferConfig) =>
   a.channel === b.channel && a.units === b.units && a.sku === b.sku;
@@ -27,6 +28,8 @@ export function BufferRule({ rule }: { rule: Extract<Rule, { name: 'stock-buffer
   const units = numberIn(typedUnits, UNITS);
   const config = units === undefined ? undefined : { channel, units, sku };
   const { name, other } = CHANNELS[rule.config.channel];
+  // The switch saves what is on screen, so it waits until that is valid.
+  const locked = denied ?? (config ? undefined : FIX_UNITS_FIRST);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -38,10 +41,10 @@ export function BufferRule({ rule }: { rule: Extract<Rule, { name: 'stock-buffer
       title={`Keep a safety buffer on ${name}`}
       explanation={`Show ${name} fewer units than are really free, so the last units sell on ${other} first and ${name} oversells less.`}
       rule={rule}
-      denied={denied}
+      locked={locked}
       saving={save.isPending}
       error={save.error}
-      onToggle={(enabled) => save.mutate({ name: 'stock-buffer', enabled, config: rule.config })}
+      onToggle={(enabled) => config && save.mutate({ name: 'stock-buffer', enabled, config })}
     >
       <form className={styles.form} onSubmit={submit}>
         <label className={controls.field}>

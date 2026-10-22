@@ -11,7 +11,7 @@ export function RetryRule({ rule }: { rule: Rule }) {
       title="Retry by itself after the warehouse recovers"
       explanation="When the warehouse answers again after an outage, retry every order that failed because of it, without waiting for a person."
       rule={rule}
-      denied={denied}
+      locked={denied}
       saving={save.isPending}
       error={save.error}
       onToggle={(enabled) => save.mutate({ name: 'auto-retry', enabled })}

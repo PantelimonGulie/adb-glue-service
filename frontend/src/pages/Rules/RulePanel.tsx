@@ -10,7 +10,8 @@ interface Props {
   title: string;
   explanation: string;
   rule: Rule;
-  denied?: string;
+  // Why the switch cannot be used right now, if it cannot.
+  locked?: string;
   saving: boolean;
   error: Error | null;
   onToggle: (enabled: boolean) => void;
@@ -23,13 +24,13 @@ function lastChange({ updated_by: by, updated_at: at }: Rule): string {
 }
 
 export function RulePanel(props: Props) {
-  const { title, explanation, rule, denied, saving, error, onToggle, children } = props;
+  const { title, explanation, rule, locked, saving, error, onToggle, children } = props;
   const toggle = (
     <Switch
       checked={rule.enabled}
       label={title}
-      disabled={Boolean(denied) || saving}
-      title={denied}
+      disabled={Boolean(locked) || saving}
+      title={locked}
       onChange={onToggle}
     />
   );

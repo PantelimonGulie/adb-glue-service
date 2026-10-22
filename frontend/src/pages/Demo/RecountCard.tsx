@@ -66,8 +66,8 @@ export function RecountCard() {
         <CardButton
           type="submit"
           label="Save the count"
+          {...lock}
           disabled={lock.disabled || !product || onHand === undefined}
-          title={lock.title}
         />
       </form>
     </DemoCard>

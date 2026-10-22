@@ -1,4 +1,4 @@
-import { useDemoAction } from '../../api/hooks';
+import { useDemoAction, type DemoCommand } from '../../api/hooks';
 import type { DemoResult } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 
@@ -6,14 +6,20 @@ import { useDenied } from '../../auth/useDenied';
 export function useDemoRun() {
   const action = useDemoAction();
   const denied = useDenied('demo');
+  const busy = action.isPending;
   const result: DemoResult | undefined = action.error
     ? { ok: false, message: action.error.message }
     : action.data;
+
+  function run(command: DemoCommand) {
+    if (!busy) action.mutate(command);
+  }
+
   return {
-    run: action.mutate,
-    busy: action.isPending,
+    run,
+    busy,
     result,
     denied,
-    lock: { disabled: Boolean(denied) || action.isPending, title: denied },
+    lock: { disabled: Boolean(denied), blocked: busy, title: denied },
   };
 }

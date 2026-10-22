@@ -14,7 +14,8 @@ export function CommandPalette() {
 
   useEffect(() => {
     const toggle = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== 'k' || !(event.metaKey || event.ctrlKey)) return;
+      // The key's place, not its letter, so other keyboard layouts work too.
+      if (event.code !== 'KeyK' || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
       event.preventDefault();
       if (!open) opener.current = document.activeElement as HTMLElement | null;
       setOpen(!open);

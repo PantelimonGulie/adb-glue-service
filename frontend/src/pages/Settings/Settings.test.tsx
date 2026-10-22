@@ -103,3 +103,21 @@ it('lists each connection with its address and whether it answers', async () => 
   expect(within(row).getByText('Answering HTTP 503')).toBeInTheDocument();
   expect(screen.getByRole('spinbutton', { name: /Give up on one call after/ })).toBeDisabled();
 });
+
+it('saves any value within the limits, not only whole steps', async () => {
+  const fetch = stubApi({ '/api/settings': settings });
+  renderPage(<Settings />, { user: users.admin });
+  await tries();
+
+  await retype(field('First wait (seconds)'), '0.25');
+  await retype(field(/Send warehouse numbers/), '2.5');
+  await userEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+
+  await waitFor(() =>
+    expect(lastBody(fetch, '/api/settings')).toEqual({
+      retry_attempts: 5,
+      retry_base_seconds: 0.25,
+      reconcile_interval_seconds: 2.5,
+    }),
+  );
+});

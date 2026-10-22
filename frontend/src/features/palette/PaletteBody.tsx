@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useStock } from '../../api/hooks';
 import { MAIN, PLATFORM } from '../../lib/pages';
 import styles from './CommandPalette.module.css';
-import { OrderResults } from './OrderResults';
+import { OrderResults, Searching } from './OrderResults';
 import { useDebounced } from './useDebounced';
 
 const PAGES = [...MAIN, ...PLATFORM];
@@ -20,7 +20,8 @@ export function PaletteBody({ onOpen }: { onOpen: (to: string) => void }) {
   const { data: stock } = useStock();
   const pages = PAGES.filter((page) => matches(page.label, query));
   const products = (stock?.rows ?? []).filter((row) => matches(`${row.product} ${row.sku}`, query));
-  const searchOrders = settled.length >= SHORTEST_ORDER_SEARCH;
+  const searchOrders = query.length >= SHORTEST_ORDER_SEARCH;
+  const typing = settled !== query;
 
   return (
     <>
@@ -49,11 +50,9 @@ export function PaletteBody({ onOpen }: { onOpen: (to: string) => void }) {
             <span className={styles.kind}>product</span>
           </Command.Item>
         ))}
-        {searchOrders ? (
-          <OrderResults q={settled} onOpen={onOpen} />
-        ) : (
-          <Command.Empty>Nothing found.</Command.Empty>
-        )}
+        {!searchOrders && <Command.Empty>Nothing found.</Command.Empty>}
+        {searchOrders && typing && <Searching />}
+        {searchOrders && !typing && <OrderResults q={query} onOpen={onOpen} />}
       </Command.List>
       <p className={styles.keys}>↑ ↓ to move · Enter to open · Esc to close</p>
     </>

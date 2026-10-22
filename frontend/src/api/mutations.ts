@@ -16,7 +16,7 @@ import type {
 } from './types';
 
 type RuleChange = { name: Rule['name']; enabled: boolean; config?: StockBufferConfig };
-type DemoCommand =
+export type DemoCommand =
   | { action: DemoAction }
   | { action: 'recount'; body: { sku: string; on_hand: number } };
 

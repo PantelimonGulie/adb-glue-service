@@ -42,8 +42,9 @@ export function TuningForm({ settings, denied, save }: Props) {
     );
   };
 
+  // The limits are checked above; the browser's own step check would refuse values such as 0.25.
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <form className={styles.form} noValidate onSubmit={submit}>
       <Panel title="Retries" note="what Glue does when the warehouse does not answer">
         <div className={styles.fields}>
           {field('retry_attempts', 'Tries before asking a person')}

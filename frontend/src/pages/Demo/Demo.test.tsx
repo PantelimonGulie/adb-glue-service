@@ -140,3 +140,57 @@ it('says so when a system did not do what was asked', async () => {
     'The warehouse has no reserved order to ship.',
   );
 });
+
+it('a toggle keeps keyboard focus when it flips', async () => {
+  let state: DemoState = demo;
+  const warehouse = { ...demo.faults.warehouse!, down: true };
+  const down: DemoState = { ...demo, faults: { ...demo.faults, warehouse } };
+  stubApi({
+    '/api/demo': () => new Response(JSON.stringify(state)),
+    '/api/stock': stock,
+    '/api/demo/warehouse-down': () => {
+      state = down;
+      return new Response(JSON.stringify(said('The warehouse answers 503 to every call.')));
+    },
+  });
+  renderPage(<Demo />, { user: users.admin });
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Stop answering' }));
+
+  const back = await screen.findByRole('button', { name: /Bring the warehouse back/ });
+  expect(back).toHaveFocus();
+});
+
+it('a button stays focusable while its request runs', async () => {
+  stubApi({
+    '/api/demo': demo,
+    '/api/stock': stock,
+    '/api/demo/warehouse-down': () => new Promise(() => {}),
+  });
+  renderPage(<Demo />, { user: users.admin });
+  const stop = await screen.findByRole('button', { name: 'Stop answering' });
+
+  await userEvent.click(stop);
+
+  expect(stop).toHaveAttribute('aria-disabled', 'true');
+  expect(stop).toBeEnabled();
+  expect(stop).toHaveFocus();
+});
+
+it('focus goes back to Clear sample history when the question closes', async () => {
+  stubApi({
+    '/api/demo': { ...demo, sample_history: true },
+    '/api/stock': stock,
+    '/api/demo/history-clear': said('Removed the sample history (1,985 orders). Real orders stay.'),
+  });
+  renderPage(<Demo />, { user: users.admin });
+  const clear = await screen.findByRole('button', { name: 'Clear sample history' });
+
+  await userEvent.click(clear);
+  await userEvent.click(screen.getByRole('button', { name: 'Keep it' }));
+  expect(screen.getByRole('button', { name: 'Clear sample history' })).toHaveFocus();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Clear sample history' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
+  expect(screen.getByRole('button', { name: 'Clear sample history' })).toHaveFocus();
+});

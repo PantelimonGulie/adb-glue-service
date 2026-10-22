@@ -83,3 +83,35 @@ it('shows why the API refused a rule change', async () => {
     'Input should be less than or equal to 99',
   );
 });
+
+it('the buffer switch saves the units on screen instead of dropping them', async () => {
+  const fetch = stubApi(api);
+  renderPage(<Rules />, { user: users.admin });
+  const units = await screen.findByRole('spinbutton', { name: 'Units to hold back' });
+  const buffer = screen.getByRole('region', { name: 'Keep a safety buffer on eMAG' });
+
+  await userEvent.clear(units);
+  await userEvent.type(units, '3');
+  await userEvent.click(within(buffer).getByRole('switch'));
+
+  await waitFor(() =>
+    expect(lastBody(fetch, BUFFER)).toEqual({
+      enabled: false,
+      config: { channel: 'emag', units: 3, sku: '' },
+    }),
+  );
+});
+
+it('the buffer switch waits for valid units, and says why', async () => {
+  stubApi(api);
+  renderPage(<Rules />, { user: users.admin });
+  const units = await screen.findByRole('spinbutton', { name: 'Units to hold back' });
+  const buffer = screen.getByRole('region', { name: 'Keep a safety buffer on eMAG' });
+
+  await userEvent.clear(units);
+  await userEvent.type(units, '120');
+
+  const toggle = within(buffer).getByRole('switch');
+  expect(toggle).toBeDisabled();
+  expect(toggle).toHaveAttribute('title', 'Enter units from 0 to 99 first');
+});

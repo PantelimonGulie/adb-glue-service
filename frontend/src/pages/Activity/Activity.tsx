@@ -1,4 +1,4 @@
-import { useActivity, useDemo } from '../../api/hooks';
+import { useActivity } from '../../api/hooks';
 import type { ActivityKind } from '../../api/types';
 import { ActivityTable } from '../../components/ActivityTable/ActivityTable';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
@@ -23,7 +23,6 @@ const KINDS: { value: ActivityKind; label: string }[] = [
   { value: 'stock', label: 'Stock' },
   { value: 'decisions', label: 'Decisions' },
 ];
-const SAMPLE_HINT = 'Some rows come from the sample history loaded on the Demo controls page.';
 
 const isTime = (value: string | null): value is string =>
   value !== null && !Number.isNaN(Date.parse(value));
@@ -46,10 +45,8 @@ export function Activity() {
   });
   useBackToFirstPage(data, filters);
   const loading = isPending || isPlaceholderData;
-  const { data: demo } = useDemo();
   const productName = useProductName();
   const rows = data?.rows ?? [];
-  const sample = Boolean(demo?.sample_history) || rows.some((row) => row.detail.sample === true);
 
   return (
     <>
@@ -58,11 +55,6 @@ export function Activity() {
         <span className={page.sub}>
           everything Glue did, newest first · hover a label for its meaning
         </span>
-        {sample && (
-          <Tag tone="amber" title={SAMPLE_HINT}>
-            Includes sample history
-          </Tag>
-        )}
         <span role="status">{loading && <Tag tone="grey">Loading…</Tag>}</span>
       </div>
       {exact ? (

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useAnalytics, useDemo, useOverview, useStock } from '../../api/hooks';
+import { useAnalytics, useOverview, useStock } from '../../api/hooks';
 import { Panel } from '../../components/Panel/Panel';
 import { RangePicker } from '../../components/RangePicker/RangePicker';
 import { Tag } from '../../components/Tag/Tag';
@@ -17,8 +17,6 @@ import { StockWatch } from './StockWatch';
 import { Waiting } from './Waiting';
 
 const LIVE_NOTE = 'each dot is one real event';
-const SAMPLE_HINT =
-  'Some rows and totals come from the sample history loaded on the Demo controls page.';
 const PERIOD_NOTE =
   'totals for the period · lines get thicker with volume · click a label to see those events';
 
@@ -28,9 +26,7 @@ export function Overview() {
   const { data: analytics, isPlaceholderData: oldAnalytics } = useAnalytics(range, false);
   const loading = oldOverview || oldAnalytics;
   const { data: stock } = useStock();
-  const { data: demo } = useDemo();
   const live = range.range === 'live';
-  const sample = Boolean(analytics?.sample || demo?.sample_history);
   const updated = dataUpdatedAt
     ? ` · updated ${formatTime(new Date(dataUpdatedAt).toISOString())}`
     : '';
@@ -43,11 +39,6 @@ export function Overview() {
         <span className={styles.sub}>
           Electronic Market · shop and eMAG, one warehouse{updated}
         </span>
-        {sample && (
-          <Tag tone="amber" title={SAMPLE_HINT}>
-            Includes sample history
-          </Tag>
-        )}
         <span role="status">{loading && <Tag tone="grey">Loading…</Tag>}</span>
       </div>
       <RangePicker value={range} onChange={setRange} />

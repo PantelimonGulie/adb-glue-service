@@ -16,8 +16,13 @@
   cursor: pointer;
 }
 
-.button:hover:not(:disabled) {
+.button:hover:not(:disabled, [aria-disabled='true']) {
   border-color: var(--control-line-hover);
+}
+
+.button[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: progress;
 }
 
 .button[data-on='true'] {
