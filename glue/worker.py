@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from contextlib import nullcontext
 
 from common.models import Order
 from glue import reconciler, review, router
@@ -34,9 +35,17 @@ def order_id_in(event: dict) -> str | None:
     return payload.get("id") or payload.get("order_id")
 
 
+def order_lock(ctx: Context, order_id: str | None) -> asyncio.Lock | nullcontext:
+    # Events for one order run one at a time, so two of them never act on the same state.
+    if order_id is None:
+        return nullcontext()
+    return ctx.order_locks.setdefault(order_id, asyncio.Lock())
+
+
 async def handle(ctx: Context, event: dict) -> None:
     event_id = event["event_id"]
-    async with ctx.worker_slots:
+    order_id = order_id_in(event)
+    async with order_lock(ctx, order_id), ctx.worker_slots:
         try:
             await HANDLERS[event["type"]](ctx, event)
         except Exception as exc:
@@ -46,9 +55,7 @@ async def handle(ctx: Context, event: dict) -> None:
                 ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
             )
             reason = f"unexpected while handling {event['type']}: {error}"
-            review.queue_item(
-                ctx, "order_failed", order_id_in(event), reason, event_id, payload=event
-            )
+            review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload=event)
             return
         ctx.db.finish_event(event["source"], event_id, "done")
 

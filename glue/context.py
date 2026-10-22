@@ -1,4 +1,5 @@
 import asyncio
+import weakref
 from dataclasses import dataclass, field
 
 import httpx
@@ -25,6 +26,10 @@ class Context:
     # overwriting a newer stock figure on the channels.
     reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
+    # One lock per order with events in flight; it goes away once no event holds it.
+    order_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = field(
+        default_factory=weakref.WeakValueDictionary
+    )
     sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
     traffic: Traffic = field(default_factory=Traffic)

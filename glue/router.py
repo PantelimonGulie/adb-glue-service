@@ -119,6 +119,9 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         ctx.db.insert_order_if_new(stub, status="cancelled")
         record(ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed")
         return
+    if order["status"] == "cancelled":
+        record(ctx.db, correlation_id, "order", order_id, "order_known", note="already cancelled")
+        return
     releases_stock = order["status"] == "allocated"
     if releases_stock:
         try:

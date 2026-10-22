@@ -128,3 +128,24 @@ async def test_oversell_is_queued_and_operator_cancels_on_emag(systems):
     assert systems.emag_order(emag_order)["status"] == 0
     assert systems.ctx.db.get_order(emag_order)["status"] == "cancelled"
     assert systems.warehouse.state.stock["MBA-M4"]["reserved"] == 1
+
+
+async def test_two_cancels_for_one_order_in_one_batch_cancel_it_once(systems):
+    order_id = await systems.buy_on_shop("WATCH-S10")
+    await systems.run_worker()
+    sent = []
+    cancel = systems.ctx.warehouse.cancel_order
+
+    async def counted(order_id: str):
+        sent.append(order_id)
+        return await cancel(order_id)
+
+    systems.ctx.warehouse.cancel_order = counted
+    # Adobe Commerce may deliver the same cancellation twice under different event ids.
+    for _ in range(2):
+        await systems.send_event("shop", "order.cancelled", {"order_id": order_id})
+    await systems.run_worker()
+
+    assert sent == [order_id]
+    assert systems.ctx.db.counters()["order_cancelled"] == 1
+    assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
