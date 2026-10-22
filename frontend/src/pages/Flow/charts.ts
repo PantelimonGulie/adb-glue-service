@@ -70,7 +70,12 @@ export function flowCharts({ range, series }: Analytics) {
       title: `Problems ${per}`,
       note: 'retries and failures',
       series: [
-        { key: 'retried', name: 'Retried', color: 'var(--chart-retried)', values: problems.retried },
+        {
+          key: 'retried',
+          name: 'Retried',
+          color: 'var(--chart-retried)',
+          values: problems.retried,
+        },
         { key: 'failed', name: 'Failed', color: 'var(--tone-red-dot)', values: problems.failed },
       ],
     },

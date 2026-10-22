@@ -12,6 +12,7 @@ import {
 import { formatNumber } from '../../lib/format';
 import { useFrameWidth } from '../../lib/useFrameWidth';
 import { BarDetail, BarTip } from './BarDetail';
+import { BarKeys } from './BarKeys';
 import styles from './BarChart.module.css';
 
 export interface Series {
@@ -98,7 +99,14 @@ export function BarChart({
         </div>
       </div>
       <div ref={frame} className={styles.plot}>
-        <Chart width={width} height={HEIGHT} data={rows} margin={MARGIN} barGap={2}>
+        <Chart
+          width={width}
+          height={HEIGHT}
+          data={rows}
+          margin={MARGIN}
+          barGap={2}
+          accessibilityLayer={false}
+        >
           <XAxis dataKey="label" hide />
           <YAxis hide />
           <Tooltip cursor={CURSOR} isAnimationActive={false} content={tip} />
@@ -117,6 +125,13 @@ export function BarChart({
               />
             ))}
         </Chart>
+        <BarKeys
+          labels={labels}
+          series={series}
+          format={format}
+          picked={pickedIndex}
+          onPick={pick}
+        />
       </div>
       <div className={styles.axis}>
         <span>{labels[0]}</span>

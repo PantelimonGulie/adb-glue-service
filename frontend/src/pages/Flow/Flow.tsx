@@ -25,8 +25,7 @@ export function Flow() {
   const [range, setRange] = useRange();
   const [compare, setCompare] = useState(false);
   const [part, setPart] = useState<Part>('glue');
-  // Always fetched with the period before, so turning the comparison on does not blank the page.
-  const { data: analytics } = useAnalytics(range, true);
+  const { data: analytics, isPlaceholderData: loading } = useAnalytics(range, compare);
   const live = range.range === 'live';
   const period = rangeLabel(range);
   const search = rangeSearch(range);
@@ -43,6 +42,7 @@ export function Flow() {
             Includes sample history
           </Tag>
         )}
+        <span role="status">{loading && <Tag tone="grey">Loading…</Tag>}</span>
         <span className={styles.tools}>
           <span className={styles.sub}>Compare with previous period</span>
           <Switch checked={compare} onChange={setCompare} label="Compare with previous period" />

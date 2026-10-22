@@ -1,4 +1,4 @@
-import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, type QueryKey } from '@tanstack/react-query';
 import { rangeParams } from '../lib/range';
 import { useRefreshInterval } from './autoRefresh';
 import { api } from './client';
@@ -58,14 +58,20 @@ function withQuery(path: string, params: Params): string {
 
 // Keys start with the resource name, so a page can refresh one resource:
 // invalidateQueries({ queryKey: ['orders'] }) reaches every orders list and order.
-function usePolled<T>(queryKey: QueryKey, path: string) {
+// keepPreviousData leaves the last range on screen until the new one arrives (isPlaceholderData).
+function usePolled<T>(
+  queryKey: QueryKey,
+  path: string,
+  placeholderData?: typeof keepPreviousData,
+) {
   const refetchInterval = useRefreshInterval();
-  return useQuery({ queryKey, queryFn: () => api<T>(path), refetchInterval });
+  return useQuery({ queryKey, queryFn: () => api<T>(path), refetchInterval, placeholderData });
 }
 
 export function useOverview(range: RangeQuery) {
   const params = { ...rangeParams(range) };
-  return usePolled<Overview>(['overview', params], withQuery('/api/overview', params));
+  const path = withQuery('/api/overview', params);
+  return usePolled<Overview>(['overview', params], path, keepPreviousData);
 }
 
 export function useOrders({ range, ...filters }: OrdersQuery) {
@@ -88,7 +94,8 @@ export function useActivity({ range, ...filters }: ActivityQuery) {
 
 export function useAnalytics(range: RangeQuery, compare: boolean) {
   const params = { ...rangeParams(range), compare: compare ? 1 : 0 };
-  return usePolled<Analytics>(['analytics', params], withQuery('/api/analytics', params));
+  const path = withQuery('/api/analytics', params);
+  return usePolled<Analytics>(['analytics', params], path, keepPreviousData);
 }
 
 export const useStock = () => usePolled<Stock>(['stock'], '/api/stock');

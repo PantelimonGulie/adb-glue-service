@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { FlowMap } from '../../features/flowmap/FlowMap';
@@ -94,4 +95,19 @@ it('groups what waits for a person and links to the review queue', async () => {
   const link = (name: string) => screen.getByRole('link', { name });
   expect(link('Open review queue')).toHaveAttribute('href', '/review');
   expect(link('Open Flow details →')).toHaveAttribute('href', '/flow?range=live');
+});
+
+it('keeps the last counters on screen while a new range loads', async () => {
+  const answer = stubApi(api);
+  vi.stubGlobal('fetch', (path: string) =>
+    path.includes('range=month') ? new Promise(() => {}) : answer(path),
+  );
+  renderPage(<Overview />, { route: '/?range=today' });
+  expect(await screen.findByText('same as yesterday')).toBeInTheDocument();
+
+  const ranges = screen.getByRole('group', { name: 'Time range' });
+  await userEvent.click(within(ranges).getByRole('button', { name: 'This month' }));
+
+  expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+  expect(within(screen.getByLabelText('Counters')).getByText('99')).toBeInTheDocument();
 });

@@ -1,0 +1,19 @@
+/* One column per bar over the plot; the mouse passes through to the chart underneath. */
+.keys {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  pointer-events: none;
+}
+
+.keys button {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.keys button:focus-visible {
+  outline-offset: -2px;
+}

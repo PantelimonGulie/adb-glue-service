@@ -59,3 +59,26 @@ it('clicking a bar opens its detail', async () => {
   expect(screen.queryByRole('group', { name: /Numbers for/ })).not.toBeInTheDocument();
   expect(bars(EMAG)[0]).not.toHaveClass(styles.dim);
 });
+
+it('the bars can be picked with the keyboard', async () => {
+  renderChart();
+  const first = screen.getByRole('button', { name: '00:00: Shop 1, eMAG 3' });
+  expect(screen.getByRole('button', { name: '01:00: Shop 2, eMAG 4' })).toHaveAttribute(
+    'tabindex',
+    '-1',
+  );
+
+  await userEvent.tab();
+  await userEvent.tab();
+  await userEvent.tab();
+  expect(first).toHaveFocus();
+  await userEvent.keyboard('{ArrowRight}');
+  const second = screen.getByRole('button', { name: '01:00: Shop 2, eMAG 4' });
+  expect(second).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
+
+  expect(second).toHaveAttribute('aria-pressed', 'true');
+  const detail = screen.getByRole('group', { name: 'Numbers for 01:00' });
+  await userEvent.tab();
+  expect(within(detail).getByRole('link', { name: 'Open these events' })).toHaveFocus();
+});

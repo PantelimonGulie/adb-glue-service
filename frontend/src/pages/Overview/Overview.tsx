@@ -23,8 +23,9 @@ const PERIOD_NOTE =
 
 export function Overview() {
   const [range, setRange] = useRange();
-  const { data: overview, dataUpdatedAt } = useOverview(range);
-  const { data: analytics } = useAnalytics(range, false);
+  const { data: overview, dataUpdatedAt, isPlaceholderData: oldOverview } = useOverview(range);
+  const { data: analytics, isPlaceholderData: oldAnalytics } = useAnalytics(range, false);
+  const loading = oldOverview || oldAnalytics;
   const { data: stock } = useStock();
   const { data: demo } = useDemo();
   const live = range.range === 'live';
@@ -47,6 +48,7 @@ export function Overview() {
             Includes sample history
           </Tag>
         )}
+        <span role="status">{loading && <Tag tone="grey">Loading…</Tag>}</span>
       </div>
       <RangePicker value={range} onChange={setRange} />
       <Counters range={range} overview={overview} />

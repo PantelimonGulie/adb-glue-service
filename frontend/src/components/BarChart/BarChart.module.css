@@ -57,6 +57,7 @@
 }
 
 .plot {
+  position: relative;
   cursor: pointer;
 }
 
