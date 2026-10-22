@@ -28,10 +28,7 @@ export function History({ rows, productName }: Props) {
           {steps.map((step) => (
             <li key={step.id} className={styles.step}>
               <span className={styles.rail}>
-                <i
-                  className={styles.dot}
-                  style={{ background: `var(--tone-${step.label.tone}-dot)` }}
-                />
+                <i className={styles.dot} data-tone={step.label.tone} />
               </span>
               <span className={styles.time}>
                 {step.time}

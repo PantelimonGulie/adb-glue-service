@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, type QueryKey } from '@tanstack/react-query';
 import { rangeParams } from '../lib/range';
 import { useRefreshInterval } from './autoRefresh';
-import { api } from './client';
+import { api, ApiError } from './client';
 import type {
   ActivityKind,
   Analytics,
@@ -67,9 +67,17 @@ function usePolled<T>(
   path: string,
   placeholderData?: typeof keepPreviousData,
 ) {
-  const refetchInterval = useRefreshInterval();
-  return useQuery({ queryKey, queryFn: () => api<T>(path), refetchInterval, placeholderData });
+  const interval = useRefreshInterval();
+  return useQuery({
+    queryKey,
+    queryFn: () => api<T>(path),
+    // Something that does not exist will not appear by asking again.
+    refetchInterval: (query) => (missing(query.state.error) ? false : interval),
+    placeholderData,
+  });
 }
+
+const missing = (error: unknown) => error instanceof ApiError && error.status === 404;
 
 export function useOverview(range: RangeQuery) {
   const params = { ...rangeParams(range) };

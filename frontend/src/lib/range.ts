@@ -58,9 +58,11 @@ export function thisMonth(now = new Date()): RangeQuery {
   return { range: 'custom', from: `${today.slice(0, 8)}01`, to: today };
 }
 
-export function useRange(): [RangeQuery, (next: RangeQuery) => void] {
+export type SetRange = (next: RangeQuery, options?: { replace?: boolean }) => void;
+
+export function useRange(): [RangeQuery, SetRange] {
   const [params, setParams] = useSearchParams();
-  const setRange = (next: RangeQuery) =>
+  const setRange: SetRange = (next, options) =>
     setParams((current) => {
       const updated = new URLSearchParams(current);
       for (const key of ['range', 'from', 'to', 'page']) updated.delete(key);
@@ -68,6 +70,6 @@ export function useRange(): [RangeQuery, (next: RangeQuery) => void] {
         if (value) updated.set(key, value);
       }
       return updated;
-    });
+    }, options);
   return [readRange(params), setRange];
 }

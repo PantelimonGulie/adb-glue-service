@@ -42,6 +42,15 @@
   border-radius: 50%;
 }
 
+.dot[data-tone='blue'] { background: var(--tone-blue-dot); }
+.dot[data-tone='green'] { background: var(--tone-green-dot); }
+.dot[data-tone='amber'] { background: var(--tone-amber-dot); }
+.dot[data-tone='red'] { background: var(--tone-red-dot); }
+.dot[data-tone='grey'] { background: var(--tone-grey-dot); }
+.dot[data-tone='slate'] { background: var(--tone-slate-dot); }
+.dot[data-tone='plum'] { background: var(--tone-plum-dot); }
+.dot[data-tone='gold'] { background: var(--tone-gold-dot); }
+
 .time {
   display: flex;
   flex-direction: column;

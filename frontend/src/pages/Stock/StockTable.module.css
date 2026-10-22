@@ -1,0 +1,26 @@
+.table {
+  min-width: 820px;
+}
+
+.table tr[data-ok='false'] {
+  background: var(--warn-row);
+}
+
+.table td[data-behind='true'] {
+  color: var(--warn-ink);
+  font-weight: 600;
+  cursor: help;
+}
+
+.free {
+  font-weight: 600;
+}
+
+.state {
+  color: var(--good);
+  cursor: help;
+}
+
+tr[data-ok='false'] .state {
+  color: var(--warn-ink);
+}

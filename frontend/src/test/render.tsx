@@ -63,7 +63,7 @@ export function lastQuery(fetch: ReturnType<typeof stubApi>, path: string) {
 // Shows the page's address, so a test can read the filters a page keeps in it.
 export function Address() {
   const { search } = useLocation();
-  return <output aria-label="Address">{search}</output>;
+  return <p aria-label="Address">{search}</p>;
 }
 
 export const address = () =>

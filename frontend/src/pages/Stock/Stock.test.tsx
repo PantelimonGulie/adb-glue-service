@@ -42,3 +42,24 @@ it('a viewer sees why they cannot update the channels', () => {
   expect(button).toBeDisabled();
   expect(button).toHaveAttribute('title', 'Your role (viewer) cannot do this');
 });
+
+it('shows why the stock list could not be loaded', async () => {
+  vi.stubGlobal('fetch', () =>
+    Promise.resolve(new Response('{"detail":"The database is busy"}', { status: 503 })),
+  );
+  renderPage(<Stock />, { user: users.operator });
+
+  expect(await screen.findByText('The stock list could not be loaded')).toBeInTheDocument();
+  expect(screen.getByText('The database is busy')).toBeInTheDocument();
+});
+
+it('says it is loading and checking the role before the first answers', () => {
+  vi.stubGlobal('fetch', () => new Promise(() => {}));
+  renderPage(<Stock />);
+
+  expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+  expect(screen.queryByRole('table')).toBeNull();
+  const button = screen.getByRole('button', { name: 'Update channels now' });
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute('title', 'Checking your role…');
+});

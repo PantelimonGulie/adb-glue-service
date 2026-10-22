@@ -106,3 +106,31 @@ it('lists each order with its channel, product, status and latest step', async (
   expect(within(row).getByText(/^sold on the shop first/)).toBeInTheDocument();
   expect(screen.getByText('51–60 of 60')).toBeInTheDocument();
 });
+
+it('shows why the orders could not be loaded', async () => {
+  const detail = 'String should have at most 64 characters';
+  vi.stubGlobal('fetch', () =>
+    Promise.resolve(new Response(JSON.stringify({ detail }), { status: 422 })),
+  );
+  renderOrders('/orders');
+
+  expect(await screen.findByText('The orders could not be loaded')).toBeInTheDocument();
+  expect(screen.getByText(detail)).toBeInTheDocument();
+});
+
+it('says it is loading before the first answer instead of showing an empty table', () => {
+  vi.stubGlobal('fetch', () => new Promise(() => {}));
+  renderOrders('/orders');
+
+  expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+  expect(screen.queryByRole('table')).toBeNull();
+});
+
+it('a page past the end of the list goes back to page 1', async () => {
+  const fetch = stubApi({ '/api/orders': { rows: [], total: 5, page: 4, per_page: 25 } });
+  renderOrders('/orders?status=failed&page=4');
+
+  await waitFor(() => expect(address().get('page')).toBeNull());
+  expect(address().get('status')).toBe('failed');
+  await waitFor(() => expect(lastQuery(fetch, '/api/orders')?.get('page')).toBe('1'));
+});

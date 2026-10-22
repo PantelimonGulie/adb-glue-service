@@ -18,3 +18,6 @@ export function bucketLabels(range: Range): string[] {
   if (range.unit === 'day') return range.labels;
   return range.labels.map((_, index) => formatHours(bucketBounds(range, index).since));
 }
+
+export const bucketIds = (range: Range): string[] =>
+  range.labels.map((_, index) => bucketBounds(range, index).since);

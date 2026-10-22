@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigationType } from 'react-router-dom';
+import { useAddressText } from '../../lib/useAddressText';
 import controls from '../../styles/controls.module.css';
 import styles from './SearchBox.module.css';
 
@@ -8,17 +7,8 @@ interface Props {
   onChange: (value: string) => void;
 }
 
-// The router applies address changes a render late, so an input showing the address drops keys
-// typed in between. Typing replaces the address; any other change (Back, a link) resets the text.
 export function SearchBox({ value, onChange }: Props) {
-  const [text, setText] = useState(value);
-  const [seen, setSeen] = useState(value);
-  const navigation = useNavigationType();
-  if (value !== seen) {
-    setSeen(value);
-    if (navigation !== 'REPLACE') setText(value);
-  }
-
+  const [text, setText] = useAddressText(value);
   return (
     <input
       type="search"

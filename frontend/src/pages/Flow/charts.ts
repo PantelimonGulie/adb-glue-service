@@ -1,6 +1,6 @@
 import type { ActivityKind, Analytics, Channel } from '../../api/types';
 import type { Series } from '../../components/BarChart/BarChart';
-import { bucketBounds, bucketLabels } from '../../lib/buckets';
+import { bucketBounds, bucketIds, bucketLabels } from '../../lib/buckets';
 import { formatSeconds } from '../../lib/format';
 
 type Range = Analytics['range'];
@@ -93,6 +93,7 @@ export function flowCharts({ range, series }: Analytics) {
   ];
   return charts.map(({ kind, ...chart }) => ({
     ...chart,
+    ids: bucketIds(range),
     labels: bucketLabels(range),
     eventsLink: (index: number) => bucketEvents(range, index, kind),
   }));

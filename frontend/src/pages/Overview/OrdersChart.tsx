@@ -1,5 +1,5 @@
 import type { Analytics } from '../../api/types';
-import { bucketLabels } from '../../lib/buckets';
+import { bucketIds, bucketLabels } from '../../lib/buckets';
 import { formatNumber } from '../../lib/format';
 import styles from './OrdersChart.module.css';
 
@@ -10,12 +10,14 @@ function bars({ range, series }: Analytics) {
   const { orders, problems } = series;
   const totals = orders.shop.map((count, i) => count + orders.emag[i]);
   const max = Math.max(1, ...totals);
+  const ids = bucketIds(range);
   return bucketLabels(range).map((label, i) => {
     const trouble = problems.retried[i] + problems.failed[i];
     // Retries count tries, not orders, so the red part never outgrows the bar.
     const bad = Math.min(totals[i], trouble);
     const note = trouble ? `, ${formatNumber(trouble)} retries or failures` : '';
     return {
+      id: ids[i],
       label,
       fine: `${((totals[i] - bad) / max) * 100}%`,
       bad: `${(bad / max) * 100}%`,
@@ -36,7 +38,7 @@ export function OrdersChart({ analytics }: { analytics: Analytics }) {
       </div>
       <div className={styles.bars} data-dense={items.length > DENSE}>
         {items.map((bar) => (
-          <div key={bar.label} className={styles.bar} title={bar.title}>
+          <div key={bar.id} className={styles.bar} title={bar.title}>
             <i className={styles.bad} style={{ height: bar.bad }} />
             <i className={styles.fine} style={{ height: bar.fine }} />
           </div>

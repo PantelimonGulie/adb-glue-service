@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { order, row, stock } from '../../test/fixtures';
@@ -26,6 +26,7 @@ const api = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 function renderOrder(user = users.operator, id = order.order_id) {
@@ -79,4 +80,17 @@ it('says when an order does not exist', async () => {
 
   expect(await screen.findByText('This order does not exist')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '← Orders' })).toHaveAttribute('href', '/orders');
+});
+
+it('stops asking for an order that does not exist', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetch = stubApi(api);
+  renderOrder(users.operator, 'shop-404');
+  expect(await screen.findByText('This order does not exist')).toBeInTheDocument();
+  const asked = () => fetch.mock.calls.filter(([path]) => path === '/api/orders/shop-404').length;
+  const before = asked();
+
+  await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+  expect(asked()).toBe(before);
 });

@@ -6,6 +6,7 @@ import { Tag } from '../../components/Tag/Tag';
 import { channel, status } from '../../lib/labels';
 import { useProductName } from '../../lib/products';
 import controls from '../../styles/controls.module.css';
+import page from '../../styles/page.module.css';
 import { Details } from './Details';
 import { History } from './History';
 import styles from './OrderDetail.module.css';
@@ -28,7 +29,7 @@ export function OrderDetail() {
     const missing = error instanceof ApiError && error.status === 404;
     return (
       <>
-        <div className={styles.top}>{backLink}</div>
+        <div className={page.top}>{backLink}</div>
         {missing && (
           <EmptyState title="This order does not exist">
             Check the order number, or find the order on the Orders page.
@@ -46,7 +47,7 @@ export function OrderDetail() {
   const now = status(order.status);
   return (
     <>
-      <div className={styles.top}>
+      <div className={page.top}>
         {backLink}
         <h1 className={styles.id}>{order.order_id}</h1>
         <Tag tone={from.tone}>{from.label}</Tag>

@@ -12,12 +12,13 @@ const series: Series[] = [
   { key: 'emag', name: 'eMAG', color: EMAG, values: [3, 4] },
 ];
 
-function renderChart() {
+function renderChart(labels = ['00:00', '01:00']) {
   const { container } = renderPage(
     <BarChart
       title="Orders per hour"
       note="by channel"
-      labels={['00:00', '01:00']}
+      ids={['2026-10-25T00:00:00.000Z', '2026-10-25T01:00:00.000Z']}
+      labels={labels}
       series={series}
       eventsLink={(index) => `/activity?bucket=${index}`}
     />,
@@ -81,4 +82,25 @@ it('the bars can be picked with the keyboard', async () => {
   const detail = screen.getByRole('group', { name: 'Numbers for 01:00' });
   await userEvent.tab();
   expect(within(detail).getByRole('link', { name: 'Open these events' })).toHaveFocus();
+});
+
+it('keeps two bars with the same label apart, as on the day clocks go back', async () => {
+  const bars = renderChart(['03:00', '03:00']);
+
+  await userEvent.click(bars(EMAG)[1]);
+
+  const detail = screen.getByRole('group', { name: 'Numbers for 03:00' });
+  expect(detail).toHaveTextContent('Shop 2');
+  const open = within(detail).getByRole('link', { name: 'Open these events' });
+  expect(open).toHaveAttribute('href', '/activity?bucket=1');
+  expect(bars(EMAG)[1]).toHaveClass(styles.picked);
+  expect(bars(EMAG)[0]).toHaveClass(styles.dim);
+  expect(screen.getByRole('button', { name: '03:00: Shop 2, eMAG 4' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(screen.getByRole('button', { name: '03:00: Shop 1, eMAG 3' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });

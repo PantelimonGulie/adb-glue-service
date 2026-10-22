@@ -25,6 +25,8 @@ export interface Series {
 interface Props {
   title: string;
   note: string;
+  // One per bar; labels can repeat (two 03:00 hours on the day clocks go back), ids cannot.
+  ids: string[];
   labels: string[];
   series: Series[];
   grouped?: boolean;
@@ -41,6 +43,7 @@ const CURSOR = { fill: 'var(--hover)' };
 export function BarChart({
   title,
   note,
+  ids,
   labels,
   series,
   grouped,
@@ -49,18 +52,18 @@ export function BarChart({
 }: Props) {
   const [frame, width] = useFrameWidth(480);
   const [hidden, setHidden] = useState<string[]>([]);
-  // Kept by label: in the live range the same minute moves left as new minutes arrive.
+  // Kept by id: in the live range the same minute moves left as new minutes arrive.
   const [picked, setPicked] = useState<string | null>(null);
-  const pickedIndex = picked === null ? -1 : labels.indexOf(picked);
-  const rows = labels.map((label, i) => ({
-    label,
+  const pickedIndex = picked === null ? -1 : ids.indexOf(picked);
+  const rows = ids.map((id, i) => ({
+    id,
     ...Object.fromEntries(series.map((one) => [one.key, one.values[i]])),
   }));
 
   const toggle = (key: string) =>
     setHidden((keys) => (keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]));
   const pick = (index: number) =>
-    setPicked((current) => (current === labels[index] ? null : labels[index]));
+    setPicked((current) => (current === ids[index] ? null : ids[index]));
   const barClass = (index: number) => {
     if (pickedIndex < 0) return undefined;
     return index === pickedIndex ? styles.picked : styles.dim;
@@ -68,15 +71,12 @@ export function BarChart({
   const drawBar = (props: BarShapeProps) => (
     <Rectangle {...props} className={barClass(props.index)} />
   );
-  const tip = ({ active, label }: TooltipContentProps) =>
-    active && (
-      <BarTip
-        label={String(label)}
-        index={labels.indexOf(String(label))}
-        series={series}
-        format={format}
-      />
+  const tip = ({ active, label: id }: TooltipContentProps) => {
+    const index = ids.indexOf(String(id));
+    return (
+      active && <BarTip label={labels[index]} index={index} series={series} format={format} />
     );
+  };
 
   return (
     <section className={styles.chart} aria-label={`${title}, ${note}`}>
@@ -107,7 +107,7 @@ export function BarChart({
           barGap={2}
           accessibilityLayer={false}
         >
-          <XAxis dataKey="label" hide />
+          <XAxis dataKey="id" hide />
           <YAxis hide />
           <Tooltip cursor={CURSOR} isAnimationActive={false} content={tip} />
           {series

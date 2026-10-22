@@ -89,3 +89,11 @@ it('marks rows that come from the sample history', async () => {
   expect(screen.getByText('sample')).toBeInTheDocument();
   expect(screen.getByText('was failed')).toBeInTheDocument();
 });
+
+it('says it is loading before the first answer instead of showing an empty box', () => {
+  vi.stubGlobal('fetch', () => new Promise(() => {}));
+  renderActivity();
+
+  expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+  expect(screen.queryByRole('region', { name: 'Activity' })).toBeNull();
+});
