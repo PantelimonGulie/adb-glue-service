@@ -5,15 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
 <title>{% block title %}{% endblock %}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{% block fonts %}{% endblock %}
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/{% block stylesheet %}{% endblock %}">
 </head>
-<body class="mock {% block skin %}{% endblock %}">
+<body>
 <div class="mockbar">
-  <span>Mock system for demo</span>
-  <a href="{{ request.url.replace(port=8000, path='/', query='') }}">Open the glue dashboard</a>
+  <span>{% block notice %}Mock system for the demo.{% endblock %}</span>
+  <a href="{{ dashboard_url }}">Open the Glue dashboard</a>
 </div>
 {% block body %}{% endblock %}
 </body>

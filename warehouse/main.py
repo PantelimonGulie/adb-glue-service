@@ -1,19 +1,17 @@
 import asyncio
 import os
-import uuid
+from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, FastAPI, Form, Header, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from common import ui
-from common.events import emit
-from common.models import Order, StockLevel
+from warehouse import api, pages
+from warehouse.api import record
 
 SEED_ON_HAND = {
     "IPH16-128": 25,
@@ -24,7 +22,6 @@ SEED_ON_HAND = {
     "WATCH-S10": 8,
 }
 
-templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
 
@@ -45,113 +42,17 @@ async def apply_chaos(request: Request, call_next):
     chaos = request.app.state.chaos
     if chaos.slow_seconds:
         await asyncio.sleep(chaos.slow_seconds)
+    placing = request.method == "POST" and request.url.path == "/orders"
+    key = request.headers.get("idempotency-key", "missing")
     if chaos.down:
+        if placing:
+            record(request.app, f"503 order refused, API offline · key {key}", problem=True)
         return unavailable(retry_after=True)
-    if chaos.fail_next and request.method == "POST" and request.url.path == "/orders":
+    if chaos.fail_next and placing:
         chaos.fail_next -= 1
+        record(request.app, f"503 order refused, forced failure · key {key}", problem=True)
         return unavailable(retry_after=False)
     return await call_next(request)
-
-
-def find_order(request: Request, order_id: str) -> dict:
-    order = request.app.state.orders.get(order_id)
-    if order is None:
-        raise HTTPException(404, "order not found")
-    return order
-
-
-def stock_levels(stock: dict) -> list[StockLevel]:
-    return [
-        StockLevel(
-            sku=sku,
-            on_hand=s["on_hand"],
-            reserved=s["reserved"],
-            available=s["on_hand"] - s["reserved"],
-        )
-        for sku, s in stock.items()
-    ]
-
-
-async def send(request: Request, event_type: str, data: dict) -> None:
-    state = request.app.state
-    event_id = str(uuid.uuid4())
-    await emit(state.http, state.events_url, event_type, data, event_id, "warehouse", state.secret)
-
-
-@router.get("/")
-async def index(request: Request):
-    state = request.app.state
-    context = {
-        "stock": stock_levels(state.stock),
-        "orders": state.orders.values(),
-        "chaos": state.chaos,
-    }
-    return templates.TemplateResponse(request, "index.html", context)
-
-
-@router.post("/orders", status_code=201)
-async def create_order(request: Request, order: Order, idempotency_key: Annotated[str, Header()]):
-    state = request.app.state
-    # Only accepted orders are replayed, so a refused one can be retried once stock is back.
-    if idempotency_key in state.accepted:
-        return state.accepted[idempotency_key]
-    if any(line.sku not in state.stock or line.qty < 1 for line in order.lines):
-        return JSONResponse({"reason": "invalid_lines"}, 422)
-    if any(
-        state.stock[line.sku]["on_hand"] - state.stock[line.sku]["reserved"] < line.qty
-        for line in order.lines
-    ):
-        return JSONResponse({"reason": "insufficient_stock"}, 409)
-    for line in order.lines:
-        state.stock[line.sku]["reserved"] += line.qty
-    state.orders[order.id] = {"id": order.id, "lines": order.lines, "status": "reserved"}
-    state.accepted[idempotency_key] = {"id": order.id, "status": "reserved"}
-    return state.accepted[idempotency_key]
-
-
-@router.get("/orders")
-async def list_orders(request: Request) -> list[dict]:
-    return list(request.app.state.orders.values())
-
-
-@router.post("/orders/{order_id}/cancel")
-async def cancel_order(request: Request, order_id: str):
-    order = find_order(request, order_id)
-    if order["status"] == "shipped":
-        return JSONResponse({"reason": "already_shipped"}, 409)
-    if order["status"] == "reserved":
-        for line in order["lines"]:
-            request.app.state.stock[line.sku]["reserved"] -= line.qty
-        order["status"] = "cancelled"
-    return {"id": order_id, "status": order["status"]}
-
-
-@router.post("/orders/{order_id}/ship")
-async def ship(request: Request, order_id: str):
-    order = find_order(request, order_id)
-    if order["status"] != "reserved":
-        raise HTTPException(409, f"order is {order['status']}")
-    for line in order["lines"]:
-        request.app.state.stock[line.sku]["on_hand"] -= line.qty
-        request.app.state.stock[line.sku]["reserved"] -= line.qty
-    order["status"] = "shipped"
-    await send(request, "order.shipped", {"order_id": order_id})
-    return RedirectResponse("/", status_code=303)
-
-
-@router.post("/stock/{sku}/recount")
-async def recount(request: Request, sku: str, on_hand: Annotated[int, Form(ge=0)]):
-    stock = request.app.state.stock
-    if sku not in stock:
-        raise HTTPException(404, "unknown sku")
-    stock[sku]["on_hand"] = on_hand
-    await send(request, "stock.adjusted", {"sku": sku, **stock[sku]})
-    return RedirectResponse("/", status_code=303)
-
-
-@router.get("/stock")
-async def get_stock(request: Request) -> list[StockLevel]:
-    return stock_levels(request.app.state.stock)
 
 
 @router.get("/health")
@@ -186,8 +87,11 @@ def create_app() -> FastAPI:
     app.state.orders = {}
     app.state.accepted = {}
     app.state.chaos = Chaos()
+    app.state.outbox = deque(maxlen=20)
     app.middleware("http")(apply_chaos)
-    app.mount("/static", ui.static, name="static")
+    ui.mount_static(app, Path(__file__).parent)
+    app.include_router(pages.router)
+    app.include_router(api.router)
     app.include_router(router)
     return app
 

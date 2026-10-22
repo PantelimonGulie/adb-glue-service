@@ -1,0 +1,93 @@
+{% extends "mock_base.html" %}
+{% block title %}Electronic Market{% endblock %}
+{% block stylesheet %}shop.css{% endblock %}
+{% block body %}
+<div class="perks">
+  <span>Next-day delivery in Bucharest, Cluj and Iași</span>
+  <span>Free returns for 30 days</span>
+  <span class="perks-end">Shipped from our Bucharest warehouse</span>
+</div>
+<header class="header">
+  <a class="brand" href="/"><img src="/static/logo.svg" alt="" width="38" height="38"><span>electronic<br>market</span></a>
+  <form class="search" role="search" action="/" method="get">
+    <label class="search-box">
+      <img src="/static/search.svg" alt="" width="18" height="18">
+      <span class="visually-hidden">Search products</span>
+      <input type="search" name="q" value="{{ query }}" placeholder="Search iPhone, MacBook, AirPods">
+    </label>
+  </form>
+  <nav class="account" aria-label="Account">
+    <a href="#orders">My orders{% if open_orders %} <span class="count">{{ open_orders }}<span class="visually-hidden"> open</span></span>{% endif %}</a>
+  </nav>
+</header>
+<main class="main">
+  <div class="intro">
+    <div>
+      <p class="eyebrow">Apple · in stock now</p>
+      <h1>Ready to ship today</h1>
+    </div>
+    <p class="intro-note">Stock is live from our Bucharest warehouse. If it says in stock, it is on the shelf.</p>
+  </div>
+  <nav class="chips" aria-label="Categories">
+    {% for chip in chips %}
+    <a href="{{ chip.href }}"{% if chip.current %} aria-current="page"{% endif %}>{{ chip.label }}</a>
+    {% endfor %}
+  </nav>
+  {% if cards %}
+  <section class="products" aria-label="Products">
+    {% for card in cards %}
+    <article class="card is-{{ card.tone }}">
+      <div class="pic">
+        <img src="/static/common/products/{{ card.sku }}.svg" alt="">
+        {% if card.tone == "last" %}<span class="flag">Last one</span>{% endif %}
+      </div>
+      <div class="card-body">
+        <h2>{{ card.name }}</h2>
+        <p class="code">Code {{ card.sku }}</p>
+        <p class="price">{{ card.price }} <span>RON</span></p>
+        <p class="avail">{{ card.note }}</p>
+        <form class="buy" method="post" action="/orders">
+          <input type="hidden" name="sku" value="{{ card.sku }}">
+          {% if card.left %}
+          <label><span class="visually-hidden">Quantity of {{ card.name }}</span><input type="number" name="qty" value="1" min="1" max="{{ card.left }}"></label>
+          {% endif %}
+          <button type="submit"{% if not card.left %} disabled{% endif %}>Buy now<span class="visually-hidden"> {{ card.name }}</span></button>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <p class="empty">Nothing matches “{{ query }}”. <a href="/">Show all products</a></p>
+  {% endif %}
+  <section class="orders" id="orders" aria-labelledby="orders-title">
+    <div class="orders-head">
+      <h2 id="orders-title">My orders</h2>
+      <p>You can cancel an order until it leaves the warehouse.</p>
+    </div>
+    {% if orders %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th scope="col">Order</th><th scope="col">Item</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td class="order-no">#{{ order.number }}</td>
+            <td>{{ order.item }}</td>
+            <td><span class="status is-{{ order.tone }}">{{ order.label }}</span></td>
+            <td class="actions">
+              {% if order.cancellable %}
+              <form method="post" action="/orders/{{ order.id }}/cancel"><button type="submit" class="cancel">Cancel order<span class="visually-hidden"> #{{ order.number }}</span></button></form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty">No orders yet. Buy something above and it shows up here.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

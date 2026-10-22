@@ -1,0 +1,102 @@
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 400; font-display: swap; src: url("/static/common/fonts/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 600; font-display: swap; src: url("/static/common/fonts/schibsted-grotesk-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 700; font-display: swap; src: url("/static/common/fonts/schibsted-grotesk-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Schibsted Grotesk"; font-weight: 800; font-display: swap; src: url("/static/common/fonts/schibsted-grotesk-latin-800-normal.woff2") format("woff2"); }
+
+:root {
+  --ink: #171612;
+  --muted: #55524a;
+  --faint: #6a665c;
+  --ground: #f3f1ec;
+  --line: #e4e0d6;
+  --line-strong: #d6d1c4;
+  --pic: #edeae2;
+  --green: #0b4f3f;
+  --green-dark: #06352a;
+  --lime: #d9f26b;
+  --ok: #0b6b3a;
+  --ok-soft: #e3f2e8;
+  --warn: #8a5a00;
+  --warn-soft: #fdf1d8;
+  --amber: #e3b341;
+  --gutter: clamp(16px, 3vw, 56px);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font: 400 15px/1.45 "Schibsted Grotesk", system-ui, sans-serif; color: var(--ink); background: var(--ground); }
+h1, h2, p { margin: 0; }
+a { color: var(--green); }
+a:hover { color: var(--green-dark); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.mockbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding: 6px var(--gutter); font-size: 12.5px; color: #5c4400; background: #fff4d6; border-bottom: 1px solid #f0dfa8; }
+.mockbar a { font-weight: 600; color: #5c4400; }
+
+.perks { display: flex; flex-wrap: wrap; gap: 4px 24px; padding: 8px var(--gutter); font-size: 13px; color: #e9e6dd; background: var(--ink); }
+.perks-end { margin-left: auto; }
+
+.header { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding: 16px var(--gutter); background: #fff; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; }
+.brand:hover { color: var(--ink); }
+.search { flex: 1 1 320px; max-width: 760px; }
+.search-box { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 12px; background: #fff; border: 2px solid var(--ink); border-radius: 3px; }
+.search-box:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
+.search-box input { flex: 1; min-width: 0; font-size: 16px; background: transparent; border: 0; outline: 0; }
+.account { display: flex; margin-left: auto; gap: 18px; font-size: 15px; font-weight: 600; }
+.account a { color: var(--ink); text-decoration: none; }
+.account a:hover { text-decoration: underline; }
+.count { padding: 1px 8px; font-size: 12.5px; background: var(--lime); border-radius: 999px; }
+
+.main { display: flex; flex-direction: column; gap: 24px; padding: 28px var(--gutter) 64px; }
+.intro { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
+h1 { margin-top: 4px; font-size: clamp(30px, 4vw, 40px); font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; }
+.intro-note { max-width: 360px; margin: 0 0 4px auto; color: var(--muted); }
+
+.chips { display: flex; gap: 10px; padding-bottom: 4px; overflow-x: auto; }
+.chips a { padding: 8px 14px; font-size: 14px; white-space: nowrap; color: #2b2a26; text-decoration: none; background: #fff; border: 1px solid var(--line-strong); border-radius: 999px; }
+.chips a:hover { border-color: var(--ink); }
+.chips a[aria-current="page"] { color: #fff; background: var(--ink); border-color: var(--ink); }
+
+/* Column counts divide six, so the six products never leave a lone card on the last row. */
+.products { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+@media (min-width: 600px) { .products { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .products { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1600px) { .products { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.card { display: flex; flex-direction: column; overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.card.is-last { border-color: var(--amber); }
+.pic { position: relative; display: flex; align-items: center; justify-content: center; height: 190px; background: var(--pic); }
+.flag { position: absolute; top: 12px; left: 12px; padding: 4px 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: var(--amber); border-radius: 2px; }
+.card-body { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 16px; }
+.card h2 { font-size: 17px; font-weight: 700; }
+.code { font-size: 13px; color: var(--faint); }
+.price { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.price span { font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.avail { font-size: 14px; font-weight: 600; color: var(--ok); }
+.is-last .avail { color: var(--warn); }
+.is-out .avail { color: var(--faint); }
+.buy { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+.buy input[type="number"] { width: 56px; min-height: 46px; font-weight: 600; text-align: center; background: #fff; border: 1px solid var(--line-strong); border-radius: 3px; }
+.buy button { flex: 1; min-height: 46px; padding: 0 16px; font-weight: 700; color: #fff; background: var(--green); border: 0; border-radius: 3px; cursor: pointer; }
+.buy button:hover { background: var(--green-dark); }
+.buy button:disabled { color: var(--muted); background: var(--line-strong); cursor: not-allowed; }
+
+.orders { padding: 20px 22px; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.orders-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 6px; }
+.orders h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.orders-head p { font-size: 14px; color: var(--muted); }
+.table-scroll { position: relative; overflow-x: auto; }
+table { width: 100%; min-width: 560px; font-size: 15px; border-collapse: collapse; }
+th { padding: 10px 16px 10px 0; font-size: 13px; font-weight: 600; text-align: left; color: var(--faint); }
+td { padding: 12px 16px 12px 0; vertical-align: middle; border-top: 1px solid var(--pic); }
+.order-no { font-weight: 700; white-space: nowrap; }
+.status { display: inline-block; padding: 4px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; border-radius: 999px; }
+.status.is-open { color: var(--warn); background: var(--warn-soft); }
+.status.is-shipped { color: var(--ok); background: var(--ok-soft); }
+.status.is-cancelled { color: #3a3730; background: var(--pic); }
+.actions { padding-right: 0; text-align: right; }
+.cancel { min-height: 40px; padding: 0 14px; font-weight: 600; background: transparent; border: 1px solid var(--line-strong); border-radius: 3px; cursor: pointer; }
+.cancel:hover { border-color: var(--ink); }
+.empty { color: var(--muted); }

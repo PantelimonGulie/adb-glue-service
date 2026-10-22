@@ -1,0 +1,84 @@
+{% extends "mock_base.html" %}
+{% block title %}Bucharest warehouse (mock){% endblock %}
+{% block stylesheet %}warehouse.css{% endblock %}
+{% block body %}
+<header class="header">
+  <span class="site">Bucharest warehouse</span>
+  <span class="sub">Warehouse management</span>
+</header>
+{% if faults %}
+<div class="hazard" role="status">
+  <div class="hazard-inner">
+    {% for title, text in faults %}
+    <p><strong>{{ title }}</strong> <span>{{ text }}</span></p>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+<main class="main">
+  <section class="box" aria-labelledby="pick-title">
+    <div class="box-head"><h1 id="pick-title">Pick &amp; ship</h1><span>{{ pick_note }}</span></div>
+    {% if picks %}
+    <div class="table-scroll">
+      <table class="picks">
+        <thead><tr><th scope="col">Order</th><th scope="col">Channel</th><th scope="col">Lines</th><th scope="col">Bin</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+        <tbody>
+          {% for pick in picks %}
+          <tr>
+            <td class="order">{{ pick.id }}</td>
+            <td class="channel">{{ pick.channel }}</td>
+            <td>{% for line in pick.lines %}<span class="line">{{ line.text }} <span class="name">{{ line.name }}</span></span>{% endfor %}</td>
+            <td class="bin">{% for line in pick.lines %}<span class="line">{{ line.bin }}</span>{% endfor %}</td>
+            <td class="action">
+              <form method="post" action="/orders/{{ pick.id }}/ship"><button type="submit" class="ship"{% if down %} disabled{% endif %}>Ship<span class="visually-hidden"> {{ pick.id }}</span></button></form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty">Nothing to pick. Orders appear here once Glue reserves them.</p>
+    {% endif %}
+  </section>
+  <div class="split">
+    <section class="box stock" aria-labelledby="stock-title">
+      <div class="box-head"><h2 id="stock-title">Stock by bin</h2><span>Free is on hand minus reserved. A recount replaces on hand with what is on the shelf.</span></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col">Product</th><th scope="col">Bin</th><th scope="col" class="num">On hand</th><th scope="col" class="num">Reserved</th><th scope="col" class="num">Free</th><th scope="col">Recount</th></tr></thead>
+          <tbody>
+            {% for row in stock %}
+            <tr class="{{ row.tone }}">
+              <td><span class="sku">{{ row.sku }}</span> <span class="name">{{ row.name }}</span></td>
+              <td class="nowrap">{{ row.bin }}</td>
+              <td class="num">{{ row.on_hand }}</td>
+              <td class="num">{{ row.reserved }}</td>
+              <td class="num free">{{ row.free }}</td>
+              <td>
+                <form class="recount" method="post" action="/stock/{{ row.sku }}/recount">
+                  <label><span class="visually-hidden">Counted on hand for {{ row.sku }} {{ row.name }}</span><input type="number" name="on_hand" value="{{ row.on_hand }}" min="0"{% if down %} disabled{% endif %}></label>
+                  <button type="submit"{% if down %} disabled{% endif %}>Save<span class="visually-hidden"> count for {{ row.sku }}</span></button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="box outbox" aria-labelledby="outbox-title">
+      <div class="box-head"><h2 id="outbox-title">Outbox</h2><span>answers and signed events to Glue</span></div>
+      {% if outbox %}
+      <ol class="log">
+        {% for entry in outbox %}
+        <li{% if entry.problem %} class="is-problem"{% endif %}><time>{{ entry.time }}</time> {{ entry.text }}</li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="log">Nothing sent yet.</p>
+      {% endif %}
+    </section>
+  </div>
+</main>
+{% endblock %}

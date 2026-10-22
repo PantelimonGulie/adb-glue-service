@@ -16,7 +16,7 @@ async def emit(
     event_id: str,
     source: str,
     secret: str,
-) -> None:
+) -> bool:
     body = json.dumps({"type": event_type, "data": data}).encode()
     headers = {"x-adobe-event-id": event_id, "x-source": source, **signing.headers(secret, body)}
     try:
@@ -24,3 +24,5 @@ async def emit(
         response.raise_for_status()
     except httpx.HTTPError as exc:
         log.warning("%s event %s not delivered to %s: %s", event_type, event_id, url, exc)
+        return False
+    return True

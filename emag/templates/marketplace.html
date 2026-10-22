@@ -1,0 +1,100 @@
+{% extends "mock_base.html" %}
+{% block title %}Seller Center | Marketplace (mock){% endblock %}
+{% block stylesheet %}marketplace.css{% endblock %}
+{% block notice %}Mock system for the demo. It stands in for the eMAG Marketplace seller API and is not affiliated with it.{% endblock %}
+{% block body %}
+<header class="header">
+  <span class="brand"><span class="mark" aria-hidden="true">M</span>Marketplace · Seller Center</span>
+  <span class="seller">Seller: Electronic Market</span>
+  <span class="api">API v4 · callbacks on</span>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Seller menu">
+    <a href="#orders">Orders{% if stats.awaiting %} <span class="badge">{{ stats.awaiting }} new</span>{% endif %}</a>
+    <a href="#offers">Offers</a>
+    <a href="#activity">API activity</a>
+  </nav>
+  <main class="main">
+    {% if faults %}
+    <ul class="faults" aria-label="Active demo faults">
+      {% for fault in faults %}<li>{{ fault }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <dl class="stats">
+      <div class="stat"><dt>Orders</dt><dd>{{ stats.orders }}</dd></div>
+      <div class="stat"><dt>Awaiting acknowledge</dt><dd class="is-accent">{{ stats.awaiting }}</dd></div>
+      <div class="stat"><dt>Seller cancellation rate</dt><dd>{{ stats.seller_rate }} <span>{{ stats.seller_note }}</span></dd></div>
+      <div class="stat"><dt>Offers with last update not applied</dt><dd>{{ stats.not_applied }}</dd></div>
+    </dl>
+    <section class="panel" id="orders" aria-labelledby="orders-title">
+      <div class="panel-head"><h1 id="orders-title">Orders</h1><span>status codes as in API v4</span></div>
+      <div class="table-scroll">
+        <table class="orders">
+          <thead><tr><th scope="col">Order</th><th scope="col">Product</th><th scope="col">Status</th><th scope="col">Callbacks</th><th scope="col">Acknowledged</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody>
+            {% for order in orders %}
+            <tr{% if order.is_new %} class="is-new"{% endif %}>
+              <td class="strong">{{ order.id }}</td>
+              <td>{% for line in order.lines %}<span class="code">{{ line.code }}</span> <span class="name">{{ line.name }}</span>{% endfor %}</td>
+              <td><span class="st {{ order.tone }}">{{ order.label }}</span></td>
+              <td class="nowrap">{{ order.callbacks }}</td>
+              <td class="nowrap {{ order.ack_tone }}">{{ order.ack }}</td>
+              <td class="actions">
+                {% if order.cancellable %}
+                <form method="post" action="/orders/{{ order.id }}/cancel"><button type="submit" class="secondary">Cancel (customer)<span class="visually-hidden"> order {{ order.id }}</span></button></form>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="empty">No orders yet. Buy an offer below to create one.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <div class="split">
+      <section class="panel offers" id="offers" aria-labelledby="offers-title">
+        <div class="panel-head"><h2 id="offers-title">Offers · stock customers see</h2><span>Buy plays the customer and notifies the seller</span></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">Part number</th><th scope="col">Offer</th><th scope="col" class="num">Price</th><th scope="col" class="num">Stock shown</th><th scope="col">Last product_offer/save</th><th scope="col">State</th><th scope="col">Customer purchase</th></tr></thead>
+            <tbody>
+              {% for offer in offers %}
+              <tr class="is-{{ offer.tone }}">
+                <td class="strong nowrap">{{ offer.sku }}</td>
+                <td>{{ offer.name }}</td>
+                <td class="num nowrap">{{ offer.price }} RON</td>
+                <td class="num">{{ offer.stock }}</td>
+                <td class="nowrap">{{ offer.saved }}</td>
+                <td class="state">{{ offer.state }}</td>
+                <td>
+                  <form class="buy" method="post" action="/buy">
+                    <input type="hidden" name="sku" value="{{ offer.sku }}">
+                    {% if offer.stock %}
+                    <label><span class="visually-hidden">Quantity of {{ offer.sku }}</span><input type="number" name="qty" value="1" min="1" max="{{ offer.stock }}"></label>
+                    {% endif %}
+                    <button type="submit"{% if not offer.stock %} disabled{% endif %}>Buy<span class="visually-hidden"> {{ offer.sku }}</span></button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="activity" id="activity" aria-labelledby="activity-title">
+        <h2 id="activity-title">API activity</h2>
+        {% if activity %}
+        <ol class="log">
+          {% for entry in activity %}
+          <li{% if entry.problem %} class="is-problem"{% endif %}><time>{{ entry.time }}</time> {{ entry.text }}</li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="log">No API calls yet.</p>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+</div>
+{% endblock %}
