@@ -18,6 +18,19 @@ it('a failed customer cancellation is told as one, and retry asks to cancel agai
   expect(consequence('retry', reviewItem)).toMatch(/^Sends the order to the Bucharest warehouse/);
 });
 
+it('a missed ship notice is told as one, and retry tells the channel again', () => {
+  const shipping = {
+    ...cancelling,
+    order: { ...order, status: 'shipped' as const },
+    payload: { operation: 'ship' },
+  };
+
+  expect(story(shipping)).toBe(
+    'The Bucharest warehouse shipped this order, but Glue could not tell eMAG, so the customer does not see it as shipped yet.',
+  );
+  expect(consequence('retry', shipping)).toBe('Tells eMAG again that the order shipped.');
+});
+
 it('an item whose decision is being carried out says so instead of offering choices', () => {
   const acting = { ...reviewItem, status: 'acting' as const, allowed: [] };
 

@@ -19,7 +19,7 @@ OUTAGE_SIGNS = (
     "remoteprotocolerror",
 )
 # A retry repeats the operation that failed, which only makes sense from the state it left.
-RETRY_FROM = {"place": "failed", "cancel": "allocated"}
+RETRY_FROM = {"place": "failed", "cancel": "allocated", "ship": "shipped"}
 
 
 class Conflict(Exception):
@@ -99,9 +99,12 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         decision=action,
         decided_by=decided_by,
     )
+    operation = item["payload"].get("operation")
     try:
-        if action == "retry" and item["payload"].get("operation") == "cancel":
+        if action == "retry" and operation == "cancel":
             await router.cancel_order(ctx, order_id, correlation_id)
+        elif action == "retry" and operation == "ship":
+            await router.notify_shipped(ctx, order_id, correlation_id)
         elif action == "retry":
             placed = Order(
                 id=order_id,

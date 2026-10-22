@@ -148,6 +148,23 @@ async def test_triage_explains_a_failed_cancellation(systems, sleeps):
     assert "the warehouse is answering again, so suggest retry" in prompt
 
 
+async def test_triage_explains_a_failed_ship_notice(systems, sleeps):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.chaos("emag", down=True)
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    model = systems.use_model("ACTION: retry\nREASON: Only eMAG still needs telling.")
+
+    await triage.suggest(systems.ctx, item["id"])
+
+    prompt = model.requests[0]["messages"][-1]["content"]
+    assert "the order shipped, but its sales channel did not answer when Glue told it" in prompt
+    assert "- retry: tells eMAG again that the order shipped" in prompt
+    assert "the order has shipped and only eMAG still needs telling, so suggest retry" in prompt
+
+
 def test_prompt_keeps_upstream_text_on_one_short_line():
     item = {
         "id": 1,

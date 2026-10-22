@@ -22,7 +22,8 @@ class EmagOrder(BaseModel):
 def fail(
     ctx: Context, order_id: str, correlation_id: str, kind: str, reason: str, operation: str
 ) -> None:
-    # A failed cancel leaves the warehouse reservation in place, so the order stays allocated.
+    # Only a failed placement changes the status: a failed cancel leaves the reservation in
+    # place (still allocated), and a failed ship notice leaves the order shipped.
     if operation == "place":
         ctx.db.set_order(order_id, status="failed", last_error=reason)
     else:
@@ -152,18 +153,26 @@ async def cancel_on_channel(ctx: Context, order_id: str, correlation_id: str) ->
 
 async def mark_shipped(ctx: Context, event: dict) -> None:
     order_id = event["payload"]["order_id"]
-    order = ctx.db.get_order(order_id)
-    if order is None:
+    if ctx.db.get_order(order_id) is None:
         raise LookupError(f"warehouse shipped unknown order {order_id}")
     ctx.db.set_order(order_id, status="shipped")
-    if order["channel"] == "shop":
-        response = await with_retries(ctx, lambda: ctx.shop.mark_shipped(order_id))
-    else:
-        emag_id = int(order["channel_order_id"])
-        response = await with_retries(ctx, lambda: ctx.emag.set_status(emag_id, 4))
+    await notify_shipped(ctx, order_id, event["event_id"])
+
+
+async def notify_shipped(ctx: Context, order_id: str, correlation_id: str) -> None:
+    order = ctx.db.get_order(order_id)
+    try:
+        if order["channel"] == "shop":
+            response = await with_retries(ctx, lambda: ctx.shop.mark_shipped(order_id))
+        else:
+            emag_id = int(order["channel_order_id"])
+            response = await with_retries(ctx, lambda: ctx.emag.set_status(emag_id, 4))
+    except RetryExhausted as exc:
+        reason = f"channel not told it shipped: {exc}"
+        return fail(ctx, order_id, correlation_id, "order_failed", reason, "ship")
     record(
         ctx.db,
-        event["event_id"],
+        correlation_id,
         "order",
         order_id,
         "order_shipped",

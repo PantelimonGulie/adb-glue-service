@@ -11,6 +11,11 @@ CANCELLING = {
     "outage": "the customer cancelled, but the warehouse did not answer the cancellation",
     "other": "the customer cancelled, but Glue could not cancel the order at the warehouse",
 }
+# A failed ship notice leaves the order shipped; retrying tells its sales channel again.
+SHIPPING = {
+    "outage": "the order shipped, but its sales channel did not answer when Glue told it",
+    "other": "the order shipped, but Glue could not tell its sales channel",
+}
 CHANNELS = {"shop": "the shop", "emag": "eMAG"}
 PROMPT = (
     "Review item {id} needs a decision. The facts:\n{facts}\n"
@@ -36,14 +41,16 @@ def clean(text: object) -> str:
     return " ".join(str(text).split())[:300]
 
 
-def cancelling(item: dict) -> bool:
-    return item["payload"].get("operation") == "cancel"
+def operation(item: dict) -> str:
+    return item["payload"].get("operation", "place")
 
 
 def facts(item: dict, order: dict | None, stock: dict[str, dict], answering: bool) -> str:
     cause = CAUSES[item["cause"]]
-    if cancelling(item):
+    if operation(item) == "cancel":
         cause = CANCELLING.get(item["cause"], cause)
+    elif operation(item) == "ship":
+        cause = SHIPPING.get(item["cause"], cause)
     lines = [f"- Cause: {cause}.", f"- What Glue saw: {clean(item['reason'])}."]
     if order:
         channel = CHANNELS[order["channel"]]
@@ -80,6 +87,9 @@ def covered(order: dict, stock: dict[str, dict]) -> bool:
 # choices in `allowed`.
 def playbook(item: dict, order: dict | None, stock: dict[str, dict], answering: bool) -> str:
     allowed = item["allowed"]
+    if operation(item) == "ship" and order and "retry" in allowed:
+        channel = CHANNELS[order["channel"]]
+        return f"the order has shipped and only {channel} still needs telling, so suggest retry"
     if item["cause"] == "outage" and "retry" in allowed:
         if answering:
             return "the warehouse is answering again, so suggest retry"
@@ -104,6 +114,8 @@ def choices(item: dict, order: dict | None) -> str:
         "cancel": f"cancels the order on the customer's channel ({channel})",
         "dismiss": "closes this item without changing anything",
     }
-    if cancelling(item):
+    if operation(item) == "cancel":
         what["retry"] = "asks the Bucharest warehouse again to cancel it"
+    elif operation(item) == "ship":
+        what["retry"] = f"tells {channel} again that the order shipped"
     return "\n".join(f"- {action}: {what[action]}" for action in item["allowed"])

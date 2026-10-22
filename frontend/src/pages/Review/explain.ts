@@ -21,6 +21,10 @@ export function story({ cause, order, payload }: ReviewItem): string {
   if (payload.operation === 'cancel') {
     return 'The customer cancelled, but Glue could not cancel the order at the Bucharest warehouse.';
   }
+  if (payload.operation === 'ship') {
+    const channel = order ? WHERE[order.channel] : 'its sales channel';
+    return `The Bucharest warehouse shipped this order, but Glue could not tell ${channel}, so the customer does not see it as shipped yet.`;
+  }
   if (cause === 'outage') {
     return 'The Bucharest warehouse did not answer, so this order is not reserved yet. Retrying is safe once the warehouse works again.';
   }
@@ -56,6 +60,9 @@ export function consequence(action: Decision, { order, payload }: ReviewItem): s
   if (action === 'dismiss') return 'Closes this item and leaves the order as it is.';
   if (action === 'cancel') return order ? CANCELLING[order.channel] : 'Cancels the order.';
   if (payload.operation === 'cancel') return 'Asks the Bucharest warehouse again to cancel it.';
+  if (payload.operation === 'ship') {
+    return `Tells ${order ? WHERE[order.channel] : 'its sales channel'} again that the order shipped.`;
+  }
   return 'Sends the order to the Bucharest warehouse again. It never reserves twice.';
 }
 
