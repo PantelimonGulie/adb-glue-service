@@ -116,8 +116,13 @@ async def test_activity_kinds(systems):
 
 
 async def test_overview_counts_the_range(systems):
-    await systems.buy_on_shop("IPH16-128")
+    order_id = await systems.buy_on_shop("IPH16-128")
     await systems.chaos("shop", duplicate_last=True)
+    await systems.run_worker()
+    # Shipments and shelf counts arrive as events too, but they are not orders.
+    shipped = await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    assert shipped.status_code == 303
+    await systems.recount("APP-3", 5)
     await systems.run_worker()
 
     overview = await get(systems, "/api/overview", range="today")

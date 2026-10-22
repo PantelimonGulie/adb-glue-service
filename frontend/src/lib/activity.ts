@@ -1,4 +1,5 @@
 import type { AuditRow } from '../api/types';
+import { action, message, type Label, type Message } from './labels';
 
 export type ProductName = (sku: string) => string;
 
@@ -13,13 +14,13 @@ const SYSTEMS = new Map([
   ['warehouse', 'Warehouse'],
   ['unknown', 'Unknown sender'],
 ]);
-const MESSAGES = new Map([
-  ['order.placed', 'new order'],
-  ['order.cancelled', 'cancellation'],
-  ['emag.notification', 'order notification'],
-  ['order.shipped', 'shipment'],
-  ['stock.adjusted', 'stock change'],
-]);
+const MESSAGE_DETAILS: Record<Message, string> = {
+  order: 'signature checked and saved',
+  'emag-order': 'Glue fetched the full order from eMAG',
+  cancellation: 'the customer cancelled',
+  shipment: 'the warehouse shipped an order',
+  'shelf-count': 'the warehouse counted a shelf again',
+};
 const DECISIONS = new Map([
   ['retry', 'Retried'],
   ['cancel', 'Cancelled'],
@@ -27,6 +28,34 @@ const DECISIONS = new Map([
 ]);
 
 const systemName = (name: string) => SYSTEMS.get(name) ?? name;
+
+// Same rule as the backend's db.PLACEMENT: eMAG event ids end with -new or -cancelled.
+export function messageOf(row: AuditRow): Message | null {
+  switch (row.detail.type) {
+    case 'order.placed':
+      return 'order';
+    case 'order.cancelled':
+      return 'cancellation';
+    case 'order.shipped':
+      return 'shipment';
+    case 'stock.adjusted':
+      return 'shelf-count';
+    case 'emag.notification':
+      return row.entity_id.endsWith('-new') ? 'emag-order' : 'cancellation';
+    default:
+      return null;
+  }
+}
+
+export function isPlacement(row: AuditRow): boolean {
+  const kind = messageOf(row);
+  return kind === 'order' || kind === 'emag-order';
+}
+
+export function labelOf(row: AuditRow): Label {
+  const kind = row.action === 'event_received' ? messageOf(row) : null;
+  return kind ? message(kind) : action(row.action);
+}
 
 export function entityOf(row: AuditRow, productName: ProductName): Entity {
   const id = row.entity_id;
@@ -57,8 +86,10 @@ export function describe(row: AuditRow, productName: ProductName): string {
   const detail = row.detail;
   const text = (key: string) => String(detail[key] ?? '');
   switch (row.action) {
-    case 'event_received':
-      return MESSAGES.get(text('type')) ?? text('type');
+    case 'event_received': {
+      const kind = messageOf(row);
+      return kind ? MESSAGE_DETAILS[kind] : text('type');
+    }
     case 'duplicate_dropped':
       return 'the same message arrived again';
     case 'order_known':

@@ -144,6 +144,34 @@ const ACTIONS: Record<string, Label> = {
   },
 };
 
+export type Message = 'order' | 'emag-order' | 'cancellation' | 'shipment' | 'shelf-count';
+
+// Incoming messages are all logged as event_received; these say what each one was about.
+const MESSAGES: Record<Message, Label> = {
+  order: ACTIONS.event_received,
+  'emag-order': {
+    label: 'Order received from eMAG',
+    tone: 'blue',
+    explanation:
+      'eMAG sent only the order number. Glue fetched the full order and saved it before anything else happened.',
+  },
+  cancellation: {
+    label: 'Cancellation received',
+    tone: 'slate',
+    explanation: 'A channel said the customer cancelled. Glue cancels the order at the warehouse.',
+  },
+  shipment: {
+    label: 'Shipment reported',
+    tone: 'slate',
+    explanation: 'The warehouse said it shipped an order. Glue tells the channel it is on its way.',
+  },
+  'shelf-count': {
+    label: 'Shelf count changed',
+    tone: 'slate',
+    explanation: 'The warehouse counted a shelf again. Glue sends the new stock to the shop and eMAG.',
+  },
+};
+
 const STATUSES: Record<OrderStatus, { label: string; tone: Tone }> = {
   received: { label: 'Received', tone: 'blue' },
   allocated: { label: 'Reserved', tone: 'green' },
@@ -194,6 +222,7 @@ export function action(name: string): Label {
   };
 }
 
+export const message = (name: Message) => MESSAGES[name];
 export const status = (name: OrderStatus) => STATUSES[name];
 export const cause = (name: Cause) => CAUSES[name];
 export const channel = (name: Channel) => CHANNELS[name];

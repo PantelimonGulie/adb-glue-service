@@ -1,4 +1,5 @@
 import type { AuditRow } from '../../api/types';
+import { isPlacement } from '../../lib/activity';
 import type { Tone } from '../../lib/labels';
 import type { Route } from './layout';
 
@@ -45,9 +46,9 @@ function dotFor(row: AuditRow): Omit<Dot, 'id' | 'delay'> | null {
   const outbound = TO_CHANNEL.get(String(row.detail.channel ?? row.entity_id));
   switch (row.action) {
     case 'event_received':
-      // The warehouse sends Glue only stock changes and shipments.
+      // Only a new order is an "order in"; cancellations, shipments and shelf counts are not.
       if (!inbound) return null;
-      return { route: inbound, tone: source === 'warehouse' ? 'slate' : 'blue', motion: 'travel' };
+      return { route: inbound, tone: isPlacement(row) ? 'blue' : 'slate', motion: 'travel' };
     case 'duplicate_dropped':
     case 'order_known':
       return inbound ? { route: inbound, tone: 'grey', motion: 'drop' } : null;

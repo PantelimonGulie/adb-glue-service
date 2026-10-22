@@ -1,8 +1,8 @@
+import type { Route } from './layout';
 import styles from './LiveDots.module.css';
-import { PATHS } from './layout';
 import { useLiveDots } from './useLiveDots';
 
-export function LiveDots() {
+export function LiveDots({ paths }: { paths: Record<Route, string> }) {
   const { dots, summary, finish } = useLiveDots();
   return (
     <>
@@ -13,7 +13,7 @@ export function LiveDots() {
           data-motion={dot.motion}
           style={{
             background: `var(--tone-${dot.tone}-dot)`,
-            offsetPath: `path('${PATHS[dot.route]}')`,
+            offsetPath: `path('${paths[dot.route]}')`,
             animationDelay: `${dot.delay}s`,
           }}
           onAnimationEnd={() => finish(dot.id)}

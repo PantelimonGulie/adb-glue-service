@@ -13,7 +13,7 @@ const SPECS: Spec[] = [
   {
     key: 'received',
     label: 'Orders in',
-    hint: 'Order messages received from both channels',
+    hint: 'Orders placed on the shop and on eMAG',
     upIsGood: true,
   },
   {

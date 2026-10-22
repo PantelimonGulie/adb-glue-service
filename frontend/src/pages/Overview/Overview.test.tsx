@@ -15,7 +15,7 @@ const api = {
   '/api/demo': { traffic: { running: true, speed: 'slow' }, faults: {}, sample_history: false },
   '/api/activity': page([row(40, 'signed_in')]),
   '/api/events': {
-    rows: [row(41, 'event_received', { source: 'shop' })],
+    rows: [row(41, 'event_received', { source: 'shop', type: 'order.placed' })],
     last_id: 41,
     more: false,
   },

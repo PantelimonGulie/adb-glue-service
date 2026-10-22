@@ -1,6 +1,10 @@
 .frame {
-  overflow-x: auto;
+  overflow: hidden;
   padding: var(--space-3) 14px;
+}
+
+.sizer {
+  margin: 0 auto;
 }
 
 .stage {
@@ -49,4 +53,10 @@ a.label:hover {
 
 .label[data-bad='true'] {
   color: var(--bad);
+}
+
+@media (max-width: 600px) {
+  .frame {
+    padding: var(--space-2);
+  }
 }

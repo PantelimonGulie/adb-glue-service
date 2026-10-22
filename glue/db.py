@@ -19,6 +19,9 @@ AUDIT_FILTER = (
     " AND (:kinds IS NULL OR action IN (SELECT value FROM json_each(:kinds)))"
     " AND (:entity = '' OR entity_id = :entity OR correlation_id = :entity)"
 )
+# An inbound order placement: eMAG uses one event type for new and cancelled orders, and its
+# event id ends with which one. Mirrored in Python by analytics_series.placement().
+PLACEMENT = "(json_extract(detail, '$.type') = 'order.placed' OR entity_id LIKE '%-new')"
 SAMPLE = "correlation_id LIKE 'sample-%' AND json_extract(detail, '$.sample') = 1"
 # Real order ids are <channel>-<digits>, so this marker can never match one.
 SAMPLE_ORDER = "order_id LIKE '%-sample-%'"
@@ -346,6 +349,13 @@ class Database:
             (order_id, order_id),
             "detail",
         )
+
+    def placements(self, since: str = "", until: str = "") -> int:
+        query = (
+            f"SELECT COUNT(*) FROM audit_log WHERE action = 'event_received' AND {PLACEMENT}"
+            " AND ts >= :since AND (:until = '' OR ts < :until)"
+        )
+        return self.conn.execute(query, {"since": since, "until": until}).fetchone()[0]
 
     def counters(self, since: str = "", until: str = "") -> dict[str, int]:
         rows = self.rows(

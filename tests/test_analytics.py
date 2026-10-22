@@ -66,6 +66,19 @@ async def test_funnel_counts(systems):
     }
 
 
+async def test_totals_count_order_placements_only(systems):
+    shop_order = await systems.buy_on_shop("IPH16-128")
+    await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.http.post(f"http://warehouse/orders/{shop_order}/ship")
+    await systems.recount("WATCH-S10", 4)
+    await systems.run_worker()
+
+    report = await get(systems, range="today")
+
+    assert report["totals"]["received"] == report["funnel"]["received"] == 2
+
+
 async def test_series_by_channel(systems):
     await systems.buy_on_shop("IPH16-128")
     await systems.buy_on_shop("APP-3")
@@ -131,7 +144,8 @@ async def test_latency_percentiles(systems):
 
 async def test_compare_returns_previous(systems):
     yesterday = datetime.now(UTC).date() - timedelta(days=1)
-    log(systems, f"{yesterday}T12:00:00.000+00:00", "old", "old", "event_received", source="shop")
+    old = f"{yesterday}T12:00:00.000+00:00"
+    log(systems, old, "old", "old", "event_received", source="shop", type="order.placed")
 
     compared = await get(systems, range="today", compare=1)
     plain = await get(systems, range="today", compare=0)

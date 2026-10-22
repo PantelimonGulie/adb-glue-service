@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { row } from '../test/fixtures';
-import { describe, entityOf } from './activity';
+import { describe, entityOf, labelOf } from './activity';
 
 const names: Record<string, string> = { 'MBA-M4': 'MacBook Air M4' };
 const productName = (sku: string) => names[sku] ?? sku;
@@ -39,9 +39,34 @@ it('describes the details in plain words', () => {
     'eMAG now shows 3 · 1 held back by a rule',
   );
   expect(describe(row(3, 'event_received', { type: 'order.placed' }), productName)).toBe(
-    'new order',
+    'signature checked and saved',
   );
   expect(describe(row(4, 'rule_changed', { enabled: true, by: 'admin' }), productName)).toBe(
     'enabled true · by admin',
   );
+});
+
+it('labels an incoming message by what it is about', () => {
+  const event = (type: string, entity_id = 'evt-1') => ({
+    ...row(5, 'event_received', { type }),
+    entity_id,
+  });
+  const labels = [
+    event('order.placed'),
+    event('emag.notification', 'emag-notify-7-new'),
+    event('emag.notification', 'emag-notify-7-cancelled'),
+    event('order.cancelled'),
+    event('order.shipped'),
+    event('stock.adjusted'),
+  ].map((received) => [labelOf(received).label, labelOf(received).tone]);
+
+  expect(labels).toEqual([
+    ['Order received', 'blue'],
+    ['Order received from eMAG', 'blue'],
+    ['Cancellation received', 'slate'],
+    ['Cancellation received', 'slate'],
+    ['Shipment reported', 'slate'],
+    ['Shelf count changed', 'slate'],
+  ]);
+  expect(labelOf(row(6, 'order_allocated')).label).toBe('Reserved at warehouse');
 });

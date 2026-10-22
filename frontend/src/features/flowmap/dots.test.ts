@@ -33,7 +33,9 @@ describe('dotsForRows', () => {
 
   it('maps each action to the line and colour of the legend', () => {
     const rows = [
-      row(1, 'event_received', { source: 'shop' }),
+      row(1, 'event_received', { source: 'shop', type: 'order.placed' }),
+      row(7, 'event_received', { source: 'shop', type: 'order.cancelled' }),
+      row(8, 'event_received', { source: 'warehouse', type: 'order.shipped' }),
       order(2, 'order_allocated'),
       order(3, 'retry_scheduled'),
       stock(4, 'stock_pushed', 'emag'),
@@ -43,6 +45,8 @@ describe('dotsForRows', () => {
 
     expect(dotsForRows(rows).dots.map(({ route, tone, motion }) => [route, tone, motion])).toEqual([
       ['shopIn', 'blue', 'travel'],
+      ['shopIn', 'slate', 'travel'],
+      ['whBack', 'slate', 'travel'],
       ['whOut', 'green', 'travel'],
       ['whOut', 'amber', 'knock'],
       ['mktOut', 'slate', 'travel'],

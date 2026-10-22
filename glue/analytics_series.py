@@ -33,7 +33,7 @@ class Trip:
 
 
 def placement(row: dict) -> bool:
-    # eMAG uses one event type for new and cancelled orders; the event id ends with which one.
+    # Same rule as db.PLACEMENT.
     return row["detail"].get("type") == "order.placed" or row["entity_id"].endswith("-new")
 
 
