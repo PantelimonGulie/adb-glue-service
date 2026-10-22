@@ -60,6 +60,8 @@ async def lifespan(app: FastAPI):
         yield
         for task in tasks:
             task.cancel()
+        # A loop stopped mid-step may still write while it unwinds.
+        await asyncio.gather(*tasks, return_exceptions=True)
         app.state.ctx.db.close()
 
 

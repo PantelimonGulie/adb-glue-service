@@ -4,8 +4,33 @@ import sqlite3
 import pytest
 
 import glue.main
-from glue import db, review
+from glue import db, llm, reconciler, review, traffic, worker
 from glue.db import Database
+
+
+async def test_shutdown_lets_the_background_loops_stop_before_closing_the_db(systems, monkeypatch):
+    stopped = []
+
+    async def loop(ctx) -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            # A loop cut short mid-step still writes what it was doing.
+            stopped.append(ctx.db.counters())
+
+    async def nothing(ctx) -> None:
+        pass
+
+    monkeypatch.setattr(reconciler, "reconcile_all", nothing)
+    for module in (worker, reconciler, traffic):
+        monkeypatch.setattr(module, "run_forever", loop)
+    monkeypatch.setattr(llm, "ensure_model", loop)
+    app = glue.main.create_app(systems.ctx.settings)
+
+    async with glue.main.lifespan(app):
+        await asyncio.sleep(0)
+
+    assert len(stopped) == 4
 
 
 async def test_a_decision_cut_short_is_open_again_after_a_restart(systems, sleeps):
