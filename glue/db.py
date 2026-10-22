@@ -76,6 +76,13 @@ class Database:
         rows = self.rows("SELECT * FROM orders WHERE order_id = ?", (order_id,), "lines")
         return rows[0] if rows else None
 
+    def orders_in(self, order_ids: list[str]) -> list[dict]:
+        return self.rows(
+            "SELECT * FROM orders WHERE order_id IN (SELECT value FROM json_each(?))",
+            (json.dumps(order_ids),),
+            "lines",
+        )
+
     def page(
         self, table: str, where: str, order_by: str, params: dict, json_column: str
     ) -> tuple[list[dict], int]:
@@ -268,6 +275,14 @@ class Database:
             "offset": offset,
         }
         return self.page("audit_log", AUDIT_FILTER, "id DESC", params, "detail")
+
+    def audit_between(self, since: str, until: str) -> list[dict]:
+        # By time first: loaded sample history has later ids than live rows but older times.
+        return self.rows(
+            "SELECT * FROM audit_log WHERE ts >= ? AND ts < ? ORDER BY ts, id",
+            (since, until),
+            "detail",
+        )
 
     def audit_after(self, after_id: int, limit: int) -> list[dict]:
         return self.rows(

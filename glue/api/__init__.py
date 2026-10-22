@@ -1,6 +1,17 @@
 from fastapi import APIRouter, Depends
 
-from glue.api import activity, admin, demo, events, orders, overview, review, session, stock
+from glue.api import (
+    activity,
+    admin,
+    analytics,
+    demo,
+    events,
+    orders,
+    overview,
+    review,
+    session,
+    stock,
+)
 from glue.guard import same_origin_request
 
 router = APIRouter(prefix="/api", dependencies=[Depends(same_origin_request)])
@@ -12,4 +23,5 @@ router.include_router(orders.router)
 router.include_router(stock.router)
 router.include_router(review.router)
 router.include_router(activity.router)
+router.include_router(analytics.router)
 router.include_router(events.router)
