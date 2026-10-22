@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { order, reviewItem } from '../../test/fixtures';
-import { consequence, story, suggested } from './explain';
+import { consequence, story, suggested, unavailable } from './explain';
 
 const cancelling = {
   ...reviewItem,
@@ -16,6 +16,12 @@ it('a failed customer cancellation is told as one, and retry asks to cancel agai
   );
   expect(consequence('retry', cancelling)).toBe('Asks the Bucharest warehouse again to cancel it.');
   expect(consequence('retry', reviewItem)).toMatch(/^Sends the order to the Bucharest warehouse/);
+});
+
+it('an item whose decision is being carried out says so instead of offering choices', () => {
+  const acting = { ...reviewItem, status: 'acting' as const, allowed: [] };
+
+  expect(unavailable('retry', acting)).toBe('Glue is carrying out a decision on this item');
 });
 
 it('a suggestion without a usable choice says so', () => {

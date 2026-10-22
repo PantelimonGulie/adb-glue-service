@@ -75,6 +75,24 @@ async def test_decide_returns_item(systems, sleeps):
     assert again.status_code == 409
 
 
+async def test_a_failed_decision_puts_the_order_back_in_review(systems, sleeps):
+    await systems.chaos("emag", freeze_stock=True)
+    await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    emag_order = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    await systems.chaos("emag", down=True)
+
+    response = await systems.decide(item["id"], "cancel")
+
+    assert response.status_code == 502
+    assert systems.ctx.db.get_review(item["id"])["status"] == "decided"
+    [again] = systems.open_reviews()
+    assert (again["order_id"], again["status"]) == (emag_order, "open")
+    assert again["reason"].startswith("cancel failed: HTTP 503")
+
+
 async def test_viewer_cannot_decide(systems, sleeps):
     await oversell_then_outage(systems)
     [item, *_] = systems.open_reviews()

@@ -60,9 +60,10 @@ export function consequence(action: Decision, { order, payload }: ReviewItem): s
 }
 
 // Why the API would refuse this choice, or undefined when it is allowed.
-export function unavailable(action: Decision, { allowed, order }: ReviewItem): string | undefined {
-  if (allowed.includes(action)) return undefined;
-  return order ? NOT_NOW[order.status] : 'No order is attached to this item';
+export function unavailable(action: Decision, item: ReviewItem): string | undefined {
+  if (item.allowed.includes(action)) return undefined;
+  if (item.status === 'acting') return 'Glue is carrying out a decision on this item';
+  return item.order ? NOT_NOW[item.order.status] : 'No order is attached to this item';
 }
 
 export function outcome(item: ReviewItem): string {

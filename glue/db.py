@@ -62,8 +62,13 @@ class Database:
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
         for number, step in enumerate(MIGRATIONS[version:], start=version + 1):
             self.conn.executescript(f"BEGIN; {step}; PRAGMA user_version = {number}; COMMIT;")
-        # Events claimed by a previous run that never finished go back to the queue.
+        # Events claimed and decisions started by a previous run that never finished go back
+        # to their queues.
         self.conn.execute("UPDATE events_inbox SET status = 'pending' WHERE status = 'processing'")
+        self.conn.execute(
+            "UPDATE review_queue SET status = 'open', action = NULL, decided_by = NULL"
+            " WHERE status = 'acting'"
+        )
 
     def close(self) -> None:
         self.conn.close()
@@ -231,8 +236,19 @@ class Database:
         return rows[0] if rows else None
 
     def list_review(self, status: str = "open") -> list[dict]:
+        # An item whose decision is being carried out still waits for its outcome.
+        statuses = ["open", "acting"] if status == "open" else [status]
         return self.rows(
-            "SELECT * FROM review_queue WHERE status = ? ORDER BY id", (status,), "payload"
+            "SELECT * FROM review_queue WHERE status IN (SELECT value FROM json_each(?))"
+            " ORDER BY id",
+            (json.dumps(statuses),),
+            "payload",
+        )
+
+    def start_review(self, item_id: int, action: str, decided_by: str) -> None:
+        self.conn.execute(
+            "UPDATE review_queue SET status = 'acting', action = ?, decided_by = ? WHERE id = ?",
+            (action, decided_by, item_id),
         )
 
     def decide_review(self, item_id: int, action: str, decided_by: str) -> None:

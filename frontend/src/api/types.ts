@@ -60,7 +60,7 @@ export interface ReviewItem {
   reason: string;
   payload: Record<string, unknown>;
   created_at: string;
-  status: 'open' | 'decided';
+  status: 'open' | 'acting' | 'decided';
   action: Decision | null;
   decided_by: string | null;
   decided_at: string | null;

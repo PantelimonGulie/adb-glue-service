@@ -85,8 +85,9 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         state = f"order is {order['status']}" if order else "no order attached"
         raise Conflict(f"cannot {action}: {state}")
     correlation_id = f"review-{item_id}"
-    # Closed before acting: a retry that fails again must be able to open a fresh item.
-    ctx.db.decide_review(item_id, action, decided_by)
+    # No longer open while acting, so a retry that fails again can open a fresh item; a crash
+    # mid-action leaves it acting, and the next start puts it back in the queue.
+    ctx.db.start_review(item_id, action, decided_by)
     record(
         ctx.db,
         correlation_id,
@@ -113,9 +114,11 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         elif action == "cancel":
             await router.cancel_on_channel(ctx, order_id, correlation_id)
     except Exception as exc:
+        ctx.db.decide_review(item_id, action, decided_by)
         reason = f"{action} failed: {exc}"
         queue_item(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
         raise
+    ctx.db.decide_review(item_id, action, decided_by)
 
 
 async def retry_all(ctx: Context, cause: str, by: str) -> int:
