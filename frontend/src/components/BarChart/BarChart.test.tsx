@@ -19,7 +19,7 @@ function renderChart() {
       note="by channel"
       labels={['00:00', '01:00']}
       series={series}
-      eventsLink={(label) => `/activity?bucket=${label}`}
+      eventsLink={(index) => `/activity?bucket=${index}`}
     />,
   );
   return (color: string) => container.querySelectorAll(`.recharts-rectangle[fill="${color}"]`);
@@ -50,7 +50,7 @@ it('clicking a bar opens its detail', async () => {
   expect(detail).toHaveTextContent('Shop 2');
   expect(detail).toHaveTextContent('eMAG 4');
   const open = within(detail).getByRole('link', { name: 'Open these events' });
-  expect(open).toHaveAttribute('href', '/activity?bucket=01:00');
+  expect(open).toHaveAttribute('href', '/activity?bucket=1');
   expect(bars(EMAG)[1]).toHaveClass(styles.picked);
   expect(bars(EMAG)[0]).toHaveClass(styles.dim);
 

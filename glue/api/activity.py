@@ -33,6 +33,7 @@ KINDS = {
 async def activity(
     request: Request,
     window: Annotated[ranges.Window | None, Depends(ranges.from_query)],
+    exact: Annotated[tuple[str, str] | None, Depends(ranges.exact_query)],
     kind: Literal[
         "all", "orders", "retries", "problems", "duplicates", "stock", "decisions"
     ] = "all",
@@ -40,7 +41,7 @@ async def activity(
     page: Annotated[int, Query(ge=1)] = 1,
     per_page: Annotated[int, Query(ge=1, le=200)] = 25,
 ) -> dict:
-    since, until = ranges.bounds(window)
+    since, until = exact or ranges.bounds(window)
     rows, total = request.app.state.ctx.db.audit_page(
         kinds=KINDS.get(kind),
         entity=entity.strip(),

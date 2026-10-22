@@ -67,5 +67,39 @@ def from_query(
         raise RequestValidationError([error]) from None
 
 
+def instant(text: str) -> datetime:
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        raise ValueError(f"{text!r} is not an ISO timestamp") from None
+    # Without an offset the time is taken as UTC, like every time the API returns.
+    return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
+
+
+def exact(since: str | None, until: str | None) -> tuple[str, str]:
+    if not since or not until:
+        raise ValueError("since and until go together")
+    start, end = instant(since), instant(until)
+    if start >= end:
+        raise ValueError("since must be before until")
+    if end - start > timedelta(days=366):
+        raise ValueError("a window can cover at most a year")
+    # The same format as the stored timestamps, so the database can compare them as text.
+    return stamp(start), stamp(end)
+
+
+def exact_query(
+    since: Annotated[str | None, Query(max_length=40)] = None,
+    until: Annotated[str | None, Query(max_length=40)] = None,
+) -> tuple[str, str] | None:
+    if since is None and until is None:
+        return None
+    try:
+        return exact(since, until)
+    except (ValueError, OverflowError) as exc:
+        error = {"type": "value_error", "loc": ("query", "since"), "msg": str(exc), "input": since}
+        raise RequestValidationError([error]) from None
+
+
 def bounds(window: Window | None) -> tuple[str, str]:
     return (window.since, window.until) if window else ("", "")

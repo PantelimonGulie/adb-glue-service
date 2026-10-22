@@ -28,7 +28,7 @@ interface Props {
   series: Series[];
   grouped?: boolean;
   format?: (value: number) => string;
-  eventsLink: (label: string) => string;
+  eventsLink: (index: number) => string;
 }
 
 const HEIGHT = 120;
@@ -126,7 +126,7 @@ export function BarChart({
         <BarDetail
           label={labels[pickedIndex]}
           index={pickedIndex}
-          link={eventsLink(labels[pickedIndex])}
+          link={eventsLink(pickedIndex)}
           series={series}
           format={format}
           onClose={() => setPicked(null)}

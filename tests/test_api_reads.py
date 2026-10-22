@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 ORDER_KEYS = {
     "order_id",
     "channel",
@@ -113,6 +115,35 @@ async def test_activity_kinds(systems):
     assert everything["total"] > 5
     ids = [row["id"] for row in everything["rows"]]
     assert ids == sorted(ids, reverse=True)
+
+
+async def test_activity_exact_window(systems):
+    await systems.buy_on_shop("IPH16-128")
+    await systems.run_worker()
+    now, hour = datetime.now(UTC), timedelta(hours=1)
+
+    def iso(moment: datetime) -> str:
+        return moment.isoformat().replace("+00:00", "Z")
+
+    everything = await get(systems, "/api/activity")
+    around = await get(systems, "/api/activity", since=iso(now - hour), until=iso(now + hour))
+    earlier = await get(
+        systems, "/api/activity", range="today", since=iso(now - 3 * hour), until=iso(now - hour)
+    )
+
+    assert around["total"] == everything["total"] > 0
+    assert earlier["total"] == 0
+
+
+async def test_activity_exact_window_errors(systems):
+    response = await systems.http.get(
+        "http://glue/api/activity",
+        params={"since": "2026-10-22T14:00:00Z", "until": "2026-10-22T13:00:00Z"},
+    )
+
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["msg"]) == (["query", "since"], "since must be before until")
 
 
 async def test_overview_counts_the_range(systems):

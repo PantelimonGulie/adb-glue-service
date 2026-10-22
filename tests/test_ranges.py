@@ -64,3 +64,27 @@ def test_previous_window_same_length(name):
     assert before.until == window.since
     assert previous_until - previous_since == until - since
     assert before.unit == window.unit
+
+
+def test_exact_window_is_stored_as_utc_stamps():
+    assert ranges.exact("2026-10-22T13:00:00Z", "2026-10-22T16:00:00.5+02:00") == (
+        "2026-10-22T13:00:00.000+00:00",
+        "2026-10-22T14:00:00.500+00:00",
+    )
+    assert ranges.exact("2026-10-22T13:00", "2026-10-22T13:01")[0] == (
+        "2026-10-22T13:00:00.000+00:00"
+    )
+
+
+@pytest.mark.parametrize(
+    ("since", "until", "message"),
+    [
+        ("2026-10-22T14:00:00Z", "2026-10-22T13:00:00Z", "before"),
+        ("yesterday", "2026-10-22T13:00:00Z", "not an ISO timestamp"),
+        ("2025-01-01T00:00:00Z", "2026-01-03T00:00:00Z", "at most a year"),
+        ("2026-10-22T13:00:00Z", None, "together"),
+    ],
+)
+def test_exact_window_validation(since, until, message):
+    with pytest.raises(ValueError, match=message):
+        ranges.exact(since, until)

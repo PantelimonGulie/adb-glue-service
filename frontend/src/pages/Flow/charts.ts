@@ -1,7 +1,6 @@
 import type { ActivityKind, Analytics, Channel } from '../../api/types';
 import type { Series } from '../../components/BarChart/BarChart';
 import { formatSeconds } from '../../lib/format';
-import { rangeSearch } from '../../lib/range';
 
 type Range = Analytics['range'];
 
@@ -9,18 +8,26 @@ interface Chart {
   id: string;
   title: string;
   note: string;
-  kind: ActivityKind;
+  // Left out when a bar mixes kinds, so the log shows everything in that time.
+  kind?: ActivityKind;
   series: Series[];
   grouped?: boolean;
   format?: (value: number) => string;
 }
 
-// The activity log filters by whole days, so an hour opens its day and a minute the live window.
-export function bucketEvents(range: Range, label: string, kind: ActivityKind): string {
-  const day = range.unit === 'day' ? label : range.since.slice(0, 10);
-  const window =
-    range.unit === 'minute' ? 'range=live' : rangeSearch({ range: 'custom', from: day, to: day });
-  return `/activity?kind=${kind}&${window}`;
+const STEP_MS = { minute: 60_000, hour: 3_600_000, day: 86_400_000 };
+
+// Like the backend, buckets start at the range start cut down to a whole minute, hour or UTC day.
+export function bucketEvents(range: Range, index: number, kind?: ActivityKind): string {
+  const step = STEP_MS[range.unit];
+  const since = Date.parse(range.since);
+  const start = since - (since % step) + index * step;
+  const params = new URLSearchParams({
+    since: new Date(start).toISOString(),
+    until: new Date(start + step).toISOString(),
+  });
+  if (kind) params.set('kind', kind);
+  return `/activity?${params}`;
 }
 
 const byChannel = (values: Record<Channel, number[]>): Series[] => [
@@ -41,7 +48,6 @@ export function flowCharts({ range, series }: Analytics) {
       id: 'all',
       title: `Orders ${per}`,
       note: 'all channels · red part had problems',
-      kind: 'all',
       series: [
         {
           key: 'fine',
@@ -63,7 +69,6 @@ export function flowCharts({ range, series }: Analytics) {
       id: 'problems',
       title: `Problems ${per}`,
       note: 'retries and failures',
-      kind: 'all',
       series: [
         { key: 'retried', name: 'Retried', color: 'var(--chart-retried)', values: problems.retried },
         { key: 'failed', name: 'Failed', color: 'var(--tone-red-dot)', values: problems.failed },
@@ -92,6 +97,6 @@ export function flowCharts({ range, series }: Analytics) {
   return charts.map(({ kind, ...chart }) => ({
     ...chart,
     labels: range.labels,
-    eventsLink: (label: string) => bucketEvents(range, label, kind),
+    eventsLink: (index: number) => bucketEvents(range, index, kind),
   }));
 }
