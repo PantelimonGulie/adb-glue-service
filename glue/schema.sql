@@ -1,3 +1,5 @@
+-- The first migration, as every existing database already has it. Later changes are new steps
+-- in MIGRATIONS in glue/db.py; editing this file would not reach existing databases.
 CREATE TABLE IF NOT EXISTS events_inbox (
     event_id    TEXT PRIMARY KEY,
     source      TEXT NOT NULL,

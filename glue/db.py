@@ -7,6 +7,29 @@ from common.catalog import PRODUCTS
 from common.models import Order, StockLevel
 
 SCHEMA = Path(__file__).with_name("schema.sql").read_text()
+# Each runs once, in order; PRAGMA user_version counts how many a database has had. A database
+# from before versioning is at 0 and already has schema.sql, which is why that file never changes.
+MIGRATIONS = (
+    SCHEMA,
+    # An event id is only unique for the system that sent it.
+    """
+    CREATE TABLE events_inbox_keyed (
+        event_id    TEXT NOT NULL,
+        source      TEXT NOT NULL,
+        type        TEXT NOT NULL,
+        payload     TEXT NOT NULL,
+        received_at TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        error       TEXT,
+        PRIMARY KEY (source, event_id)
+    );
+    INSERT INTO events_inbox_keyed
+        SELECT event_id, source, type, payload, received_at, status, error FROM events_inbox;
+    DROP TABLE events_inbox;
+    ALTER TABLE events_inbox_keyed RENAME TO events_inbox;
+    CREATE INDEX events_inbox_status ON events_inbox(status, received_at);
+    """,
+)
 # An empty filter value means "any"; :skus is a JSON list of the products the search matches.
 ORDER_FILTER = (
     "(:channel = '' OR channel = :channel) AND (:status = '' OR status = :status)"
@@ -36,7 +59,9 @@ class Database:
         self.conn = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.executescript(SCHEMA)
+        version = self.conn.execute("PRAGMA user_version").fetchone()[0]
+        for number, step in enumerate(MIGRATIONS[version:], start=version + 1):
+            self.conn.executescript(f"BEGIN; {step}; PRAGMA user_version = {number}; COMMIT;")
         # Events claimed by a previous run that never finished go back to the queue.
         self.conn.execute("UPDATE events_inbox SET status = 'pending' WHERE status = 'processing'")
 
@@ -57,7 +82,7 @@ class Database:
         cursor = self.conn.execute(
             "INSERT INTO events_inbox (event_id, source, type, payload, received_at)"
             " VALUES (?, ?, ?, ?, ?)"
-            " ON CONFLICT(event_id) DO UPDATE SET status = 'pending', error = NULL"
+            " ON CONFLICT(source, event_id) DO UPDATE SET status = 'pending', error = NULL"
             " WHERE events_inbox.status = 'failed'",
             (event_id, source, type, json.dumps(payload), now()),
         )
@@ -65,17 +90,19 @@ class Database:
 
     def claim_pending_events(self, limit: int) -> list[dict]:
         return self.rows(
-            "UPDATE events_inbox SET status = 'processing' WHERE event_id IN"
-            " (SELECT event_id FROM events_inbox WHERE status = 'pending'"
+            "UPDATE events_inbox SET status = 'processing' WHERE rowid IN"
+            " (SELECT rowid FROM events_inbox WHERE status = 'pending'"
             "  ORDER BY received_at LIMIT ?) RETURNING *",
             (limit,),
             "payload",
         )
 
-    def finish_event(self, event_id: str, status: str, error: str | None = None) -> None:
+    def finish_event(
+        self, source: str, event_id: str, status: str, error: str | None = None
+    ) -> None:
         self.conn.execute(
-            "UPDATE events_inbox SET status = ?, error = ? WHERE event_id = ?",
-            (status, error, event_id),
+            "UPDATE events_inbox SET status = ?, error = ? WHERE source = ? AND event_id = ?",
+            (status, error, source, event_id),
         )
 
     def get_order(self, order_id: str) -> dict | None:

@@ -1,3 +1,4 @@
+import itertools
 import json
 
 from common import signing
@@ -81,6 +82,22 @@ async def test_an_emag_order_without_products_is_not_reserved(systems):
     [item] = systems.open_reviews()
     assert (item["order_id"], item["payload"]["status"]) == (order_id, "processing")
     assert "List should have at least 1 item" in item["reason"]
+
+
+async def test_an_event_id_from_one_sender_does_not_hide_another_senders_event(systems):
+    systems.emag.state.order_ids = itertools.count(777)
+    shop_order = await systems.buy_on_shop("APP-3")
+    body = json.dumps({"type": "order.placed", "data": systems.shop.state.orders[shop_order]})
+    # A shop event whose id is the one Glue gives eMAG's notice about order 777.
+    headers = {"x-adobe-event-id": "emag-notify-777-new", "x-source": "shop"}
+    headers |= signing.headers(systems.ctx.settings.shop_webhook_secret, body.encode())
+    await systems.http.post("http://glue/events", content=body, headers=headers)
+    emag_order = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+
+    assert emag_order == "emag-777"
+    assert systems.ctx.db.get_order(emag_order)["status"] == "allocated"
+    assert "duplicate_dropped" not in systems.ctx.db.counters()
 
 
 def test_an_empty_secret_verifies_nothing():

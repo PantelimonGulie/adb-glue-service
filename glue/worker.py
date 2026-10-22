@@ -41,7 +41,7 @@ async def handle(ctx: Context, event: dict) -> None:
             await HANDLERS[event["type"]](ctx, event)
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-            ctx.db.finish_event(event_id, "failed", error)
+            ctx.db.finish_event(event["source"], event_id, "failed", error)
             record(
                 ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
             )
@@ -50,7 +50,7 @@ async def handle(ctx: Context, event: dict) -> None:
                 ctx, "order_failed", order_id_in(event), reason, event_id, payload=event
             )
             return
-        ctx.db.finish_event(event_id, "done")
+        ctx.db.finish_event(event["source"], event_id, "done")
 
 
 async def process_pending(ctx: Context) -> int:
