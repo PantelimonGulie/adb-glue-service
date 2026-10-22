@@ -29,7 +29,7 @@ def fail(
         ctx.db.set_order(order_id, last_error=reason)
     record(ctx.db, correlation_id, "order", order_id, kind, reason=reason)
     payload = {**ctx.db.get_order(order_id), "operation": operation}
-    review.open(ctx, kind, order_id, reason, correlation_id, payload=payload)
+    review.queue_item(ctx, kind, order_id, reason, correlation_id, payload=payload)
 
 
 async def place_order(ctx: Context, order: Order, correlation_id: str) -> None:

@@ -46,7 +46,9 @@ async def handle(ctx: Context, event: dict) -> None:
                 ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
             )
             reason = f"unexpected while handling {event['type']}: {error}"
-            review.open(ctx, "order_failed", order_id_in(event), reason, event_id, payload=event)
+            review.queue_item(
+                ctx, "order_failed", order_id_in(event), reason, event_id, payload=event
+            )
             return
         ctx.db.finish_event(event_id, "done")
 

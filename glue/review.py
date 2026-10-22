@@ -26,7 +26,7 @@ class Conflict(Exception):
     pass
 
 
-def open(
+def queue_item(
     ctx: Context,
     kind: str,
     order_id: str | None,
@@ -102,12 +102,19 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         if action == "retry" and item["payload"].get("operation") == "cancel":
             await router.cancel_order(ctx, order_id, correlation_id)
         elif action == "retry":
-            await router.allocate(ctx, Order(id=order_id, **order), correlation_id)
+            placed = Order(
+                id=order_id,
+                channel=order["channel"],
+                channel_order_id=order["channel_order_id"],
+                lines=order["lines"],
+                customer=order["customer"],
+            )
+            await router.allocate(ctx, placed, correlation_id)
         elif action == "cancel":
             await router.cancel_on_channel(ctx, order_id, correlation_id)
     except Exception as exc:
         reason = f"{action} failed: {exc}"
-        open(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
+        queue_item(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
         raise
 
 
