@@ -3,7 +3,9 @@ import itertools
 import json
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -28,6 +30,7 @@ OFFERS = {sku: (product_name(sku), price) for sku, price in PRICES.items()}
 STATUSES = {0: "cancelled", 1: "new", 2: "in progress", 3: "prepared", 4: "finalized"}
 
 log = logging.getLogger(__name__)
+EPOCH = datetime(2026, 1, 1, tzinfo=UTC).timestamp()
 templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
@@ -210,7 +213,9 @@ def create_app() -> FastAPI:
     app.state.secret = os.environ.get("EMAG_WEBHOOK_SECRET", "")
     app.state.stock = dict.fromkeys(OFFERS, 0)
     app.state.orders = {}
-    app.state.order_ids = itertools.count(500123)
+    # Glue keeps its orders across restarts and drops a number it has seen as a duplicate.
+    # Tenths of a second keep the clock ahead of even fast demo traffic.
+    app.state.order_ids = itertools.count(int((time.time() - EPOCH) * 10))
     app.state.chaos = Chaos()
     app.middleware("http")(apply_chaos)
     app.mount("/static", ui.static, name="static")

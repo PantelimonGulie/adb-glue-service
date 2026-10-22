@@ -47,7 +47,7 @@ async def apply_chaos(request: Request, call_next):
         await asyncio.sleep(chaos.slow_seconds)
     if chaos.down:
         return unavailable(retry_after=True)
-    if chaos.fail_next and request.url.path != "/health":
+    if chaos.fail_next and request.method == "POST" and request.url.path == "/orders":
         chaos.fail_next -= 1
         return unavailable(retry_after=False)
     return await call_next(request)

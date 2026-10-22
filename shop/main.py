@@ -1,8 +1,10 @@
 import itertools
 import os
 import random
+import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -27,6 +29,7 @@ PRICES = {
 }
 PRODUCTS = {sku: (product_name(sku), price) for sku, price in PRICES.items()}
 
+EPOCH = datetime(2026, 1, 1, tzinfo=UTC).timestamp()
 templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()
 
@@ -165,7 +168,9 @@ def create_app() -> FastAPI:
     app.state.secret = os.environ.get("SHOP_WEBHOOK_SECRET", "")
     app.state.stock = dict.fromkeys(PRODUCTS, 0)
     app.state.orders = {}
-    app.state.order_numbers = itertools.count(1001)
+    # Glue keeps its orders across restarts and drops a number it has seen as a duplicate.
+    # Tenths of a second keep the clock ahead of even fast demo traffic.
+    app.state.order_numbers = itertools.count(int((time.time() - EPOCH) * 10))
     app.state.last_event = None
     app.mount("/static", ui.static, name="static")
     app.include_router(router)

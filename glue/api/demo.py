@@ -56,7 +56,7 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
         [("warehouse", {"slow_seconds": 0})],
     ),
     "warehouse-fail-2": (
-        "The next 2 warehouse calls fail with 503.",
+        "The next 2 order placements at the warehouse fail with 503.",
         [("warehouse", {"fail_next": 2})],
     ),
     "reset": ("All faults are off.", ALL_FAULTS_OFF),

@@ -1,3 +1,9 @@
+import time
+
+import pytest
+
+import emag.main
+import shop.main
 from common.models import Order
 
 
@@ -49,6 +55,29 @@ async def test_warehouse_fails_twice_then_allocates(systems):
     assert order["status"] == "allocated"
     assert order["attempts"] == 3
     assert systems.ctx.db.counters()["retry_scheduled"] == 2
+
+
+async def test_reading_stock_leaves_the_failures_for_order_placements(systems):
+    await systems.chaos("warehouse", fail_next=2)
+    stock = await systems.http.get("http://warehouse/stock")
+    orders = await systems.http.get("http://warehouse/orders")
+
+    assert (stock.status_code, orders.status_code) == (200, 200)
+    assert systems.warehouse.state.chaos.fail_next == 2
+
+
+@pytest.mark.parametrize(
+    ("mock", "counter"), [(shop.main, "order_numbers"), (emag.main, "order_ids")]
+)
+def test_mock_order_numbers_never_repeat_after_a_restart(monkeypatch, mock, counter):
+    monkeypatch.setattr(time, "time", lambda: 1_790_000_000.0)
+    numbers = getattr(mock.create_app().state, counter)
+    issued = [next(numbers) for _ in range(5)]
+    # Glue keeps its orders, so a mock restarted a second later must not reuse a number.
+    monkeypatch.setattr(time, "time", lambda: 1_790_000_001.0)
+    restarted = next(getattr(mock.create_app().state, counter))
+
+    assert restarted > issued[-1]
 
 
 async def test_warehouse_down_queues_order_until_operator_retries(systems, sleeps):

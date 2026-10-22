@@ -12,7 +12,7 @@
   <ul class="wh-faults" aria-label="Active demo faults">
     {% if chaos.down %}<li>API down: every call gets 503.</li>{% endif %}
     {% if chaos.slow_seconds %}<li>API slow: {{ chaos.slow_seconds }} s before each answer.</li>{% endif %}
-    {% if chaos.fail_next %}<li>Next {{ chaos.fail_next }} API calls fail with 503.</li>{% endif %}
+    {% if chaos.fail_next %}<li>Next {{ chaos.fail_next }} order placements fail with 503.</li>{% endif %}
   </ul>
   {% endif %}
   <section class="wh-section">
