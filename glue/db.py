@@ -3,9 +3,22 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+from common.catalog import PRODUCTS
 from common.models import Order, StockLevel
 
 SCHEMA = Path(__file__).with_name("schema.sql").read_text()
+# An empty filter value means "any"; :skus is a JSON list of the products the search matches.
+ORDER_FILTER = (
+    "(:channel = '' OR channel = :channel) AND (:status = '' OR status = :status)"
+    " AND updated_at >= :since AND (:until = '' OR updated_at < :until)"
+    " AND (:q = '' OR order_id LIKE '%' || :q || '%' OR EXISTS (SELECT 1 FROM json_each(lines)"
+    " WHERE json_extract(value, '$.sku') IN (SELECT value FROM json_each(:skus))))"
+)
+AUDIT_FILTER = (
+    "ts >= :since AND (:until = '' OR ts < :until)"
+    " AND (:kinds IS NULL OR action IN (SELECT value FROM json_each(:kinds)))"
+    " AND (:entity = '' OR entity_id = :entity OR correlation_id = :entity)"
+)
 
 
 def now() -> str:
@@ -24,7 +37,9 @@ class Database:
     def close(self) -> None:
         self.conn.close()
 
-    def rows(self, sql: str, params: tuple = (), json_column: str | None = None) -> list[dict]:
+    def rows(
+        self, sql: str, params: tuple | dict = (), json_column: str | None = None
+    ) -> list[dict]:
         records = [dict(row) for row in self.conn.execute(sql, params).fetchall()]
         if json_column:
             for record in records:
@@ -61,8 +76,40 @@ class Database:
         rows = self.rows("SELECT * FROM orders WHERE order_id = ?", (order_id,), "lines")
         return rows[0] if rows else None
 
-    def list_orders(self) -> list[dict]:
-        return self.rows("SELECT * FROM orders ORDER BY updated_at DESC", (), "lines")
+    def page(
+        self, table: str, where: str, order_by: str, params: dict, json_column: str
+    ) -> tuple[list[dict], int]:
+        count = f"SELECT COUNT(*) FROM {table} WHERE {where}"
+        total = self.conn.execute(count, params).fetchone()[0]
+        rows = self.rows(
+            f"SELECT * FROM {table} WHERE {where} ORDER BY {order_by} LIMIT :limit OFFSET :offset",
+            params,
+            json_column,
+        )
+        return rows, total
+
+    def list_orders(
+        self,
+        q: str = "",
+        channel: str = "",
+        status: str = "",
+        since: str = "",
+        until: str = "",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        skus = [sku for sku, name in PRODUCTS.items() if q.lower() in f"{sku} {name}".lower()]
+        params = {
+            "q": q,
+            "skus": json.dumps(skus),
+            "channel": channel,
+            "status": status,
+            "since": since,
+            "until": until,
+            "limit": limit,
+            "offset": offset,
+        }
+        return self.page("orders", ORDER_FILTER, "updated_at DESC", params, "lines")
 
     def insert_order_if_new(self, order: Order, status: str = "received") -> bool:
         cursor = self.conn.execute(
@@ -203,6 +250,30 @@ class Database:
     def audit_tail(self, limit: int = 100) -> list[dict]:
         return self.rows("SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,), "detail")
 
+    def audit_page(
+        self,
+        kinds: list[str] | None = None,
+        entity: str = "",
+        since: str = "",
+        until: str = "",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        params = {
+            "kinds": None if kinds is None else json.dumps(kinds),
+            "entity": entity,
+            "since": since,
+            "until": until,
+            "limit": limit,
+            "offset": offset,
+        }
+        return self.page("audit_log", AUDIT_FILTER, "id DESC", params, "detail")
+
+    def audit_after(self, after_id: int, limit: int) -> list[dict]:
+        return self.rows(
+            "SELECT * FROM audit_log WHERE id > ? ORDER BY id LIMIT ?", (after_id, limit), "detail"
+        )
+
     def timeline(self, order_id: str) -> list[dict]:
         # Pulls in rows that share a correlation id with the order, e.g. the inbound event
         # and the stock pushes it triggered.
@@ -213,8 +284,10 @@ class Database:
             "detail",
         )
 
-    def counters(self, since: str = "") -> dict[str, int]:
+    def counters(self, since: str = "", until: str = "") -> dict[str, int]:
         rows = self.rows(
-            "SELECT action, COUNT(*) AS n FROM audit_log WHERE ts >= ? GROUP BY action", (since,)
+            "SELECT action, COUNT(*) AS n FROM audit_log"
+            " WHERE ts >= :since AND (:until = '' OR ts < :until) GROUP BY action",
+            {"since": since, "until": until},
         )
         return {row["action"]: row["n"] for row in rows}

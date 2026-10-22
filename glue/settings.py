@@ -32,6 +32,9 @@ class Settings:
         }
         return secrets.get(source, "")
 
+    def channel_urls(self) -> dict[str, str]:
+        return {"shop": self.shop_url, "emag": self.emag_url, "warehouse": self.warehouse_url}
+
     def password(self, username: str) -> str:
         passwords = {
             "viewer": self.viewer_password,

@@ -47,7 +47,7 @@ async def test_shop_signature_cannot_carry_an_emag_order(systems):
     await systems.run_worker()
 
     assert [r.status_code for r in (placed, cancelled)] == [422, 422]
-    assert systems.ctx.db.list_orders() == []
+    assert systems.ctx.db.list_orders() == ([], 0)
     assert systems.ctx.db.counters()["event_rejected"] == 2
 
 
@@ -58,7 +58,7 @@ async def test_warehouse_signature_cannot_place_an_order(systems):
     response = await systems.send_event("warehouse", "order.placed", order)
 
     assert response.status_code == 422
-    assert systems.ctx.db.list_orders() == []
+    assert systems.ctx.db.list_orders() == ([], 0)
 
 
 def test_an_empty_secret_verifies_nothing():

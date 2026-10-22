@@ -12,7 +12,7 @@ import glue.main
 import shop.main
 import warehouse.main
 from common import signing
-from glue import reconciler, retry, review, worker
+from glue import reconciler, retry, worker
 from glue.context import Context
 from glue.settings import Settings
 
@@ -79,8 +79,8 @@ class Systems:
     async def put(self, path: str, **body: object) -> httpx.Response:
         return await self.http.put(f"http://glue{path}", json=body, headers={"X-Glue-Request": "1"})
 
-    async def decide(self, item_id: int, action: str) -> None:
-        await review.decide(self.ctx, item_id, action)
+    async def decide(self, item_id: int, action: str) -> httpx.Response:
+        return await self.act(f"/api/review/{item_id}/{action}")
 
     def open_reviews(self) -> list[dict]:
         return self.ctx.db.list_review()

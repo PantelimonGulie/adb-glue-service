@@ -1,6 +1,6 @@
 import re
 
-from glue import assistant, views
+from glue import assistant, queries
 from glue.audit import record
 from glue.context import Context
 
@@ -14,8 +14,8 @@ ANSWER = re.compile(r"ACTION:\s*(\w+)\s*REASON:\s*(.+)", re.IGNORECASE | re.DOTA
 
 
 async def suggest(ctx: Context, item_id: int) -> None:
-    card = views.review_card(ctx, item_id)
-    item, allowed = card["item"], sorted(card["allowed"])
+    item = queries.review_item(ctx, ctx.db.get_review(item_id))
+    allowed = item["allowed"]
     question = PROMPT.format(
         id=item_id,
         kind=item["kind"],

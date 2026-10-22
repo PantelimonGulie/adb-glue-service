@@ -8,7 +8,7 @@ async def test_duplicate_shop_events_create_one_order(systems):
     await systems.send_event("shop", "order.placed", systems.shop.state.orders[order_id])
     await systems.run_worker()
 
-    assert [order["order_id"] for order in systems.ctx.db.list_orders()] == [order_id]
+    assert [order["order_id"] for order in systems.ctx.db.list_orders()[0]] == [order_id]
     assert systems.warehouse.state.stock["IPH16-128"]["reserved"] == 1
     counters = systems.ctx.db.counters()
     assert counters["duplicate_dropped"] == 1

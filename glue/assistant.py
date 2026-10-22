@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import httpx
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
 
-from glue import views
+from glue import queries
 from glue.context import Context
 from glue.settings import Settings
 
@@ -30,7 +30,7 @@ def client(settings: Settings, http: httpx.AsyncClient) -> AsyncOpenAI | None:
 def get_summary(ctx: Context, hours: int = 1) -> dict:
     hours = min(max(int(hours), 1), 168)
     since = (datetime.now(UTC) - timedelta(hours=hours)).isoformat(timespec="milliseconds")
-    orders = [o for o in ctx.db.list_orders() if o["updated_at"] >= since][:30]
+    orders, _ = ctx.db.list_orders(since=since, limit=30)
     keys = ("order_id", "channel", "status", "attempts", "last_error", "updated_at")
     return {
         "hours": hours,
@@ -53,7 +53,7 @@ def get_order(ctx: Context, order_id: str) -> dict:
 
 def get_stock(ctx: Context, sku: str) -> dict:
     sku = str(sku)[:64]
-    row = next((r for r in views.stock(ctx)["rows"] if r["sku"] == sku), None)
+    row = next((r for r in queries.stock_rows(ctx) if r["sku"] == sku), None)
     return row or {"error": f"sku {sku} not found"}
 
 

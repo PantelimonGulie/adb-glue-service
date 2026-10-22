@@ -62,11 +62,7 @@ async def run(request: Request, action: str) -> dict:
         raise HTTPException(404, f"unknown demo action {action!r}")
     message, calls = ACTIONS[action]
     ctx = request.app.state.ctx
-    urls = {
-        "shop": ctx.settings.shop_url,
-        "emag": ctx.settings.emag_url,
-        "warehouse": ctx.settings.warehouse_url,
-    }
+    urls = ctx.settings.channel_urls()
     for system, body in calls:
         try:
             # Flash sale and re-notify make the mock call back into this service first.

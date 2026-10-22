@@ -1,9 +1,15 @@
+import logging
+
 from common.models import Order
 from glue import router
 from glue.audit import record
 from glue.context import Context
 
+log = logging.getLogger(__name__)
+
 ACTIONS = ("retry", "cancel", "dismiss")
+CAUSES = ("outage", "soldout", "recount", "other")
+OUTAGE_SIGNS = ("http 5", "timeout", "unreachable", "not answering")
 # A retry repeats the operation that failed, which only makes sense from the state it left.
 RETRY_FROM = {"place": "failed", "cancel": "allocated"}
 
@@ -33,6 +39,15 @@ def open(
             reason=reason,
         )
     return item_id
+
+
+def cause_of(item: dict) -> str:
+    reason = item["reason"].lower()
+    if item["kind"] == "unfulfillable":
+        return "recount" if reason.startswith("recount") else "soldout"
+    if item["kind"] == "order_failed" and any(sign in reason for sign in OUTAGE_SIGNS):
+        return "outage"
+    return "other"
 
 
 def allowed_actions(item: dict, order: dict | None) -> set[str]:
@@ -86,3 +101,18 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
         reason = f"{action} failed: {exc}"
         open(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
         raise
+
+
+async def retry_all(ctx: Context, cause: str, by: str) -> int:
+    retried = 0
+    for item in ctx.db.list_review():
+        order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
+        if cause_of(item) != cause or "retry" not in allowed_actions(item, order):
+            continue
+        try:
+            await decide(ctx, item["id"], "retry", by)
+            retried += 1
+        except Exception as exc:
+            # decide has already re-queued the order with the new reason.
+            log.warning("retry of %s failed: %s", item["order_id"], exc)
+    return retried

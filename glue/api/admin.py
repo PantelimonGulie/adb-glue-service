@@ -1,11 +1,10 @@
-import asyncio
 from dataclasses import asdict
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from glue import auth, reconciler, rules, tuning, views
+from glue import auth, queries, reconciler, rules, tuning
 from glue.context import Context
 
 SKU_OR_BLANK = r"^([A-Z0-9-]{1,32})?$"
@@ -38,18 +37,13 @@ class RuleChange(BaseModel):
 
 
 async def settings_view(ctx: Context) -> dict:
-    urls = {
-        "shop": ctx.settings.shop_url,
-        "emag": ctx.settings.emag_url,
-        "warehouse": ctx.settings.warehouse_url,
-    }
-    checks = await asyncio.gather(*(views.check_health(ctx.http, url) for url in urls.values()))
+    health = await queries.health_of(ctx)
     return {
         **asdict(ctx.tuning),
         "http_timeout_seconds": ctx.settings.http_timeout_seconds,
         "connections": [
-            {"name": name, "url": url, **check}
-            for (name, url), check in zip(urls.items(), checks, strict=True)
+            {"name": name, "url": url, **health[name]}
+            for name, url in ctx.settings.channel_urls().items()
         ],
     }
 
