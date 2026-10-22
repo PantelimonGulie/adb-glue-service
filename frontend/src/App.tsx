@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { SignIn } from './auth/SignIn/SignIn';
 import { EmptyState } from './components/EmptyState/EmptyState';
 import { AppShell } from './layout/AppShell/AppShell';
+import { Overview } from './pages/Overview/Overview';
 import { Placeholder } from './pages/Placeholder/Placeholder';
 
 export function App() {
@@ -9,7 +10,7 @@ export function App() {
     <Routes>
       <Route path="/sign-in" element={<SignIn />} />
       <Route element={<AppShell />}>
-        <Route index element={<Placeholder title="Overview" />} />
+        <Route index element={<Overview />} />
         <Route path="flow" element={<Placeholder title="Flow" />} />
         <Route path="orders" element={<Placeholder title="Orders" />} />
         <Route path="orders/:id" element={<Placeholder title="Order" />} />

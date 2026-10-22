@@ -16,3 +16,10 @@ window.matchMedia = (media: string) =>
     removeListener: () => {},
     dispatchEvent: () => false,
   }) satisfies MediaQueryList;
+
+// jsdom has no ResizeObserver; nothing is measured in tests.
+window.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

@@ -47,6 +47,22 @@
   --tone-gold-ink: #7a4e10;
   --tone-gold-dot: #b7791f;
 
+  --map-grid: #dadde3;
+  --map-line: #b8bec8;
+  --map-label-hover: #eef2fb;
+  --map-shop: #b7791f;
+  --map-shop-ink: #8a5a12;
+  --map-emag: #6b2f7e;
+  --map-emag-ink: #5b2569;
+  --map-warehouse: #8a5a2b;
+  --map-warehouse-ink: #7a4e22;
+  --map-glue-ink: #f4f5f7;
+  --map-glue-muted: #a3abb8;
+  --map-glue-text: #d5dae1;
+  --map-glue-amber: #fbbf6a;
+  --map-glue-red: #ff9a7a;
+  --chart-fine: #c7d2e6;
+
   --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --text-xs: 11px;

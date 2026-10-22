@@ -40,6 +40,20 @@ export function renderPage(
   );
 }
 
+// Answers by path, ignoring the query; any other path is a 404.
+export function stubApi(answers: Record<string, unknown>) {
+  const fetch = vi.fn((path: string) => {
+    const body = answers[new URL(path, 'http://glue').pathname];
+    const response =
+      body === undefined
+        ? new Response('{"detail":"Not found"}', { status: 404 })
+        : new Response(JSON.stringify(body));
+    return Promise.resolve(response);
+  });
+  vi.stubGlobal('fetch', fetch);
+  return fetch;
+}
+
 // React reports a caught render error twice: on the console and as a window error event.
 export function silenceRenderErrors() {
   const swallow = (event: ErrorEvent) => event.preventDefault();

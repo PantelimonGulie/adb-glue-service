@@ -1,0 +1,43 @@
+.panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.panel[data-alert='true'] {
+  border-color: var(--alert-line);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line2);
+}
+
+.panel[data-alert='true'] .head {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--alert-bg);
+}
+
+.head h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}

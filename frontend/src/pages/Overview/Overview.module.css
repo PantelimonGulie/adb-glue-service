@@ -1,0 +1,31 @@
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.wide {
+  flex: 2 1 520px;
+  min-width: 0;
+}
+
+.side {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}

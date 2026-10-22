@@ -1,0 +1,52 @@
+.frame {
+  overflow-x: auto;
+  padding: var(--space-3) 14px;
+}
+
+.stage {
+  position: relative;
+  transform-origin: 0 0;
+  background-image: radial-gradient(var(--map-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lines path {
+  fill: none;
+  stroke: var(--map-line);
+}
+
+.lines path[data-main='true'] {
+  stroke: var(--ink);
+}
+
+.lines path[data-bad='true'] {
+  stroke: var(--tone-red-dot);
+  stroke-dasharray: 6 5;
+}
+
+.label {
+  position: absolute;
+  max-width: 150px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+a.label:hover {
+  background: var(--map-label-hover);
+  color: var(--blue);
+}
+
+.label[data-bad='true'] {
+  color: var(--bad);
+}

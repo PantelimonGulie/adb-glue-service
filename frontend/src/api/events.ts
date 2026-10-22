@@ -34,5 +34,8 @@ export function useEvents() {
       return { rows, lastId: page.last_id };
     },
     refetchInterval,
+    // Forget the cursor once nothing shows live events, so coming back starts at the newest
+    // event instead of replaying the time away.
+    gcTime: 0,
   });
 }

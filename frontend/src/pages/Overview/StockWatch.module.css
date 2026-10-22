@@ -1,0 +1,23 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 14px;
+  font-size: 13px;
+}
+
+.head {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.number {
+  font-family: var(--font-mono);
+}
+
+.number[data-behind='true'] {
+  color: var(--tone-amber-ink);
+  font-weight: 600;
+  cursor: help;
+}

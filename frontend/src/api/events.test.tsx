@@ -38,3 +38,23 @@ it('useEvents starts at the newest event, then pages until caught up', async () 
   await waitFor(() => expect(result.current.data?.lastId).toBe(250));
   expect(result.current.data?.rows.map((r) => r.id)).toEqual(ids(41, 250).map((r) => r.id));
 });
+
+it('useEvents starts again at the newest event once nothing watched it', async () => {
+  const fetch = vi.fn((path: string) =>
+    Promise.resolve(new Response(JSON.stringify(answers[path]))),
+  );
+  vi.stubGlobal('fetch', fetch);
+  const wrapper = withClient(testClient());
+  const first = renderHook(() => useEvents(), { wrapper });
+  await waitFor(() => expect(first.result.current.data?.lastId).toBe(40));
+  first.unmount();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const again = renderHook(() => useEvents(), { wrapper });
+
+  await waitFor(() => expect(again.result.current.data).toEqual({ rows: [], lastId: 40 }));
+  expect(fetch.mock.calls.map(([path]) => path)).toEqual([
+    '/api/activity?per_page=1',
+    '/api/activity?per_page=1',
+  ]);
+});

@@ -1,0 +1,64 @@
+.chart {
+  padding: var(--space-3) 14px 14px;
+  border-top: 1px solid var(--line2);
+}
+
+.heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-md);
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.bars {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 3px;
+  height: 90px;
+  padding: 0 var(--space-1);
+  overflow: hidden;
+}
+
+.bars[data-dense='true'] {
+  gap: 0;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: default;
+}
+
+.bar i {
+  display: block;
+}
+
+.fine {
+  border-radius: 2px 2px 0 0;
+  background: var(--chart-fine);
+}
+
+.bad {
+  background: var(--tone-red-dot);
+}
+
+.bar:hover .fine {
+  background: var(--blue);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--faint);
+}

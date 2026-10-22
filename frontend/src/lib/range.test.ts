@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { customRangeError, rangeParams, readRange } from './range';
+import { customRangeError, rangeLabel, rangeParams, rangeSearch, readRange } from './range';
 
 const read = (search: string) => readRange(new URLSearchParams(search));
 
@@ -46,4 +46,12 @@ it('sends dates only for a custom range', () => {
     from: '2026-10-01',
     to: '2026-10-02',
   });
+});
+
+it('names a range and writes it into a link', () => {
+  const custom = { range: 'custom', from: '2026-10-01', to: '2026-10-22' } as const;
+  expect(rangeLabel({ range: 'month' })).toBe('This month');
+  expect(rangeLabel(custom)).toBe('2026-10-01 to 2026-10-22');
+  expect(rangeSearch({ range: 'today' })).toBe('range=today');
+  expect(rangeSearch(custom)).toBe('range=custom&from=2026-10-01&to=2026-10-22');
 });

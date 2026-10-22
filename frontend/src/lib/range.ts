@@ -38,6 +38,21 @@ export function rangeParams(query: RangeQuery): RangeQuery {
   return { range: 'custom', from: query.from, to: query.to };
 }
 
+export function rangeSearch(query: RangeQuery): string {
+  const params = rangeParams(query);
+  const search = new URLSearchParams({ range: params.range });
+  if (params.from && params.to) {
+    search.set('from', params.from);
+    search.set('to', params.to);
+  }
+  return search.toString();
+}
+
+export function rangeLabel(query: RangeQuery): string {
+  if (query.range === 'custom') return `${query.from} to ${query.to}`;
+  return RANGES.find((range) => range.value === query.range)?.label ?? query.range;
+}
+
 export function thisMonth(now = new Date()): RangeQuery {
   const today = now.toISOString().slice(0, 10);
   return { range: 'custom', from: `${today.slice(0, 8)}01`, to: today };
