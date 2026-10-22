@@ -7,11 +7,13 @@ from openai import AsyncOpenAI
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.db import Database
 from glue.settings import Settings
+from glue.tuning import Tuning
 
 
 @dataclass
 class Context:
     settings: Settings
+    tuning: Tuning
     db: Database
     http: httpx.AsyncClient
     shop: ShopClient

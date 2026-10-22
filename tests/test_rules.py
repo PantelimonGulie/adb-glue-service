@@ -42,3 +42,22 @@ async def test_auto_retry_fires_once_when_the_warehouse_recovers(systems, sleeps
     assert (item["action"], item["decided_by"]) == ("retry", "rule:auto-retry")
     applied = [r for r in systems.ctx.db.audit_for(order_id) if r["action"] == "rule_applied"]
     assert [r["detail"]["rule"] for r in applied] == ["auto-retry"]
+
+
+async def test_operator_cannot_save_rule(systems):
+    response = await systems.put("/api/rules/auto-retry", enabled=True, config={})
+
+    assert response.status_code == 403
+    assert systems.ctx.db.rules() == []
+
+
+async def test_admin_saves_stock_buffer_and_channels_follow(systems):
+    await systems.sign_in("admin")
+    config = {"channel": "emag", "units": 2, "sku": ""}
+    saved = await systems.put("/api/rules/stock-buffer", enabled=True, config=config)
+    listed = await systems.http.get("http://glue/api/rules")
+
+    assert saved.status_code == 200
+    assert (saved.json()["enabled"], saved.json()["config"]) == (1, config)
+    assert systems.emag.state.stock["IPH16-128"] == 23
+    assert [rule["name"] for rule in listed.json()] == ["stock-buffer", "auto-retry"]

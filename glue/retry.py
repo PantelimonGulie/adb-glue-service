@@ -56,7 +56,7 @@ async def with_retries(
 ) -> httpx.Response:
     return await send_with_retries(
         send,
-        attempts=ctx.settings.retry_attempts,
-        base_seconds=ctx.settings.retry_base_seconds,
+        attempts=ctx.tuning.retry_attempts,
+        base_seconds=ctx.tuning.retry_base_seconds,
         on_retry=on_retry,
     )

@@ -76,6 +76,9 @@ class Systems:
             f"http://glue{path}", json=body, headers={"X-Glue-Request": "1"}
         )
 
+    async def put(self, path: str, **body: object) -> httpx.Response:
+        return await self.http.put(f"http://glue{path}", json=body, headers={"X-Glue-Request": "1"})
+
     async def decide(self, item_id: int, action: str) -> None:
         await review.decide(self.ctx, item_id, action)
 

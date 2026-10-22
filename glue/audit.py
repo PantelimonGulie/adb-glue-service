@@ -29,6 +29,7 @@ ACTIONS = frozenset(
         "review_decided",
         "rule_changed",
         "rule_applied",
+        "settings_changed",
         "triage_suggested",
         "signed_in",
         "sign_in_rejected",

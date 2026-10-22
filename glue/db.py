@@ -173,6 +173,17 @@ class Database:
             (name, int(enabled), json.dumps(config), updated_by, now()),
         )
 
+    def settings(self) -> dict[str, str]:
+        return {row["key"]: row["value"] for row in self.rows("SELECT key, value FROM settings")}
+
+    def set_setting(self, key: str, value: str, by: str) -> None:
+        self.conn.execute(
+            "INSERT INTO settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value,"
+            " updated_by = excluded.updated_by, updated_at = excluded.updated_at",
+            (key, value, by, now()),
+        )
+
     def audit(
         self, correlation_id: str, entity_type: str, entity_id: str, action: str, detail: dict
     ) -> None:

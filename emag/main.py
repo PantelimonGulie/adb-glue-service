@@ -14,15 +14,17 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from common import signing, ui
+from common.catalog import product_name
 
-OFFERS = {
-    "IPH16-128": ("Telefon mobil Apple iPhone 16, 128GB, 5G, Black", 4349),
-    "IPH16-256": ("Telefon mobil Apple iPhone 16, 256GB, 5G, Black", 4949),
-    "MBA-M4": ('Laptop Apple MacBook Air 13" cu procesor M4, 16GB, 256GB SSD', 5849),
-    "APP-3": ("Casti Apple AirPods Pro 3, ANC, USB-C", 1319),
-    "IPAD-A16": ('Tableta Apple iPad 11" A16, 128GB, Wi-Fi', 2049),
-    "WATCH-S10": ("Smartwatch Apple Watch Series 10, GPS, 42mm", 2149),
+PRICES = {
+    "IPH16-128": 4349,
+    "IPH16-256": 4949,
+    "MBA-M4": 5849,
+    "APP-3": 1319,
+    "IPAD-A16": 2049,
+    "WATCH-S10": 2149,
 }
+OFFERS = {sku: (product_name(sku), price) for sku, price in PRICES.items()}
 STATUSES = {0: "cancelled", 1: "new", 2: "in progress", 3: "prepared", 4: "finalized"}
 
 log = logging.getLogger(__name__)

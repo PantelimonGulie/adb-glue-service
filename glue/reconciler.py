@@ -152,7 +152,7 @@ def open_conflicts(ctx: Context, row: dict, correlation_id: str) -> None:
 
 async def run_forever(ctx: Context) -> None:
     while True:
-        await asyncio.sleep(ctx.settings.reconcile_interval_seconds)
+        await asyncio.sleep(ctx.tuning.reconcile_interval_seconds)
         try:
             await reconcile_all(ctx)
         except Exception:

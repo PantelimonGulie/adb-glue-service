@@ -13,17 +13,19 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from common import ui
+from common.catalog import product_name
 from common.events import emit
 from common.models import Order, OrderLine
 
-PRODUCTS = {
-    "IPH16-128": ("iPhone 16 128GB", 4299),
-    "IPH16-256": ("iPhone 16 256GB", 4899),
-    "MBA-M4": ('MacBook Air 13" M4 16GB', 5799),
-    "APP-3": ("AirPods Pro 3", 1299),
-    "IPAD-A16": ('iPad 11" A16 128GB', 1999),
-    "WATCH-S10": ("Apple Watch Series 10 42mm", 2099),
+PRICES = {
+    "IPH16-128": 4299,
+    "IPH16-256": 4899,
+    "MBA-M4": 5799,
+    "APP-3": 1299,
+    "IPAD-A16": 1999,
+    "WATCH-S10": 2099,
 }
+PRODUCTS = {sku: (product_name(sku), price) for sku, price in PRICES.items()}
 
 templates = Jinja2Templates(directory=[Path(__file__).parent / "templates", ui.mock_templates_dir])
 router = APIRouter()

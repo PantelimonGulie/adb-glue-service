@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, FastAPI, Request
 
-from glue import api, assistant, inbox, reconciler, views, worker
+from glue import api, assistant, inbox, reconciler, tuning, views, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -28,9 +28,11 @@ async def metrics(request: Request) -> dict:
 
 
 def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
+    db = Database(settings.db_path)
     return Context(
         settings=settings,
-        db=Database(settings.db_path),
+        tuning=tuning.load(db, settings),
+        db=db,
         http=http,
         shop=ShopClient(http, settings.shop_url),
         emag=EmagClient(http, settings.emag_url),
