@@ -238,6 +238,20 @@ class Database:
             (key, value, by, now()),
         )
 
+    def add_usage(self, tokens: int) -> None:
+        self.conn.execute(
+            "INSERT INTO ai_usage (day, tokens, questions) VALUES (?, ?, 1)"
+            " ON CONFLICT(day) DO UPDATE SET tokens = tokens + excluded.tokens,"
+            " questions = questions + 1",
+            (now()[:10], tokens),
+        )
+
+    def usage_today(self) -> dict:
+        row = self.conn.execute(
+            "SELECT tokens, questions FROM ai_usage WHERE day = ?", (now()[:10],)
+        ).fetchone()
+        return dict(row) if row else {"tokens": 0, "questions": 0}
+
     def audit(
         self, correlation_id: str, entity_type: str, entity_id: str, action: str, detail: dict
     ) -> None:

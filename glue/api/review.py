@@ -2,9 +2,11 @@ import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from openai import APIError
 from pydantic import BaseModel
 
-from glue import auth, queries, review
+from glue import auth, llm, queries, review, triage
+from glue.api.assistant import can_answer
 
 log = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(auth.require("view"))])
@@ -41,6 +43,21 @@ async def retry_all(
     if not (await queries.health_of(ctx))["warehouse"]["ok"]:
         raise HTTPException(409, "The warehouse is still not answering")
     return {"retried": await review.retry_all(ctx, body.cause, user.name)}
+
+
+@router.post(
+    "/review/{item_id}/triage", dependencies=[Depends(auth.require("ask")), Depends(can_answer)]
+)
+async def triage_item(request: Request, item_id: int) -> dict:
+    ctx = request.app.state.ctx
+    if ctx.db.get_review(item_id) is None:
+        raise HTTPException(404, f"review item {item_id} not found")
+    try:
+        await triage.suggest(ctx, item_id)
+    except APIError as exc:
+        log.warning("triage %s failed: %s: %s", item_id, type(exc).__name__, exc)
+        raise HTTPException(503, llm.failure(exc)) from None
+    return queries.review_item(ctx, ctx.db.get_review(item_id))
 
 
 @router.post("/review/{item_id}/{action}")

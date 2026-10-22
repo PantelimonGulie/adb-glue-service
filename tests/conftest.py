@@ -1,5 +1,6 @@
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -19,6 +20,44 @@ from glue.settings import Settings
 SECRETS = {"shop": "test-shop", "emag": "test-emag", "warehouse": "test-warehouse"}
 
 
+class Ollama:
+    # Answers like Ollama: /api/tags lists `models`, and a pull adds the model in two steps.
+    def __init__(self, models: list[str]):
+        self.models = models
+        self.up = True
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        if not self.up:
+            raise httpx.ConnectError("ollama is down", request=request)
+        if request.url.path == "/api/pull":
+            self.models.append(json.loads(request.content)["model"])
+            steps = [{"digest": "d1", "total": 4, "completed": n} for n in (1, 4)]
+            lines = [*steps, {"status": "success"}]
+            return httpx.Response(200, text="\n".join(json.dumps(line) for line in lines))
+        return httpx.Response(200, json={"models": [{"name": name} for name in self.models]})
+
+
+class StubModel:
+    # Stands in for AsyncOpenAI: makes each tool call in `calls`, one per round, then answers.
+    def __init__(self, answer: str, calls: Sequence[tuple[str, dict]], tokens: int):
+        self.answer = answer
+        self.calls = calls
+        self.tokens = tokens
+        self.requests: list[dict] = []
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
+
+    async def create(self, **request: object) -> SimpleNamespace:
+        self.requests.append(request)
+        message = SimpleNamespace(content=self.answer, tool_calls=None)
+        if len(self.requests) <= len(self.calls):
+            name, arguments = self.calls[len(self.requests) - 1]
+            function = SimpleNamespace(name=name, arguments=json.dumps(arguments))
+            call = SimpleNamespace(id=f"call-{len(self.requests)}", function=function)
+            message = SimpleNamespace(content=None, tool_calls=[call])
+        usage = SimpleNamespace(total_tokens=self.tokens)
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)], usage=usage)
+
+
 @dataclass
 class Systems:
     shop: FastAPI
@@ -26,6 +65,7 @@ class Systems:
     warehouse: FastAPI
     ctx: Context
     http: httpx.AsyncClient
+    ollama: Ollama
 
     async def buy_on_shop(self, sku: str, qty: int = 1) -> str:
         response = await self.http.post("http://shop/orders", data={"sku": sku, "qty": qty})
@@ -85,6 +125,13 @@ class Systems:
     def open_reviews(self) -> list[dict]:
         return self.ctx.db.list_review()
 
+    def use_model(
+        self, answer: str, calls: Sequence[tuple[str, dict]] = (), tokens: int = 60
+    ) -> StubModel:
+        model = StubModel(answer, calls, tokens)
+        self.ctx.assistant = model
+        return model
+
 
 @pytest.fixture
 async def systems(tmp_path, monkeypatch):
@@ -111,7 +158,9 @@ async def systems(tmp_path, monkeypatch):
         "warehouse": warehouse.main.create_app(),
         "glue": glue.main.create_app(settings),
     }
+    ollama = Ollama([settings.llm_model])
     mounts = {f"all://{name}": httpx.ASGITransport(app) for name, app in apps.items()}
+    mounts["all://ollama"] = httpx.MockTransport(ollama.handle)
     async with httpx.AsyncClient(mounts=mounts) as http:
         for name in ("shop", "emag", "warehouse"):
             apps[name].state.http = http
@@ -120,7 +169,7 @@ async def systems(tmp_path, monkeypatch):
         ctx = glue.main.build_context(settings, http)
         apps["glue"].state.ctx = ctx
         await reconciler.reconcile_all(ctx)
-        systems = Systems(apps["shop"], apps["emag"], apps["warehouse"], ctx, http)
+        systems = Systems(apps["shop"], apps["emag"], apps["warehouse"], ctx, http, ollama)
         # Most tests act as the operator; role tests sign in again as someone else.
         await systems.sign_in("operator")
         yield systems

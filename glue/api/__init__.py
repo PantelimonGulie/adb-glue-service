@@ -4,6 +4,7 @@ from glue.api import (
     activity,
     admin,
     analytics,
+    assistant,
     demo,
     events,
     orders,
@@ -24,4 +25,5 @@ router.include_router(stock.router)
 router.include_router(review.router)
 router.include_router(activity.router)
 router.include_router(analytics.router)
+router.include_router(assistant.router)
 router.include_router(events.router)

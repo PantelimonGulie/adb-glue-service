@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ai_usage (
+    day       TEXT PRIMARY KEY,
+    tokens    INTEGER NOT NULL,
+    questions INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     ts             TEXT NOT NULL,

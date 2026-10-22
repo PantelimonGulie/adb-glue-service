@@ -17,8 +17,8 @@ class Settings:
     retry_base_seconds: float = 0.5
     worker_concurrency: int = 10
     reconcile_interval_seconds: float = 10
-    gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"
+    llm_base_url: str = "http://ollama:11434"
+    llm_model: str = "qwen2.5:3b"
     session_secret: str = ""
     viewer_password: str = ""
     operator_password: str = ""

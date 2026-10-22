@@ -61,8 +61,8 @@ services:
       RETRY_BASE_SECONDS: "0.5"
       WORKER_CONCURRENCY: "10"
       RECONCILE_INTERVAL_SECONDS: "10"
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      LLM_BASE_URL: http://ollama:11434
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
       SESSION_SECRET: ${SESSION_SECRET:-demo-session-secret}
       VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
       OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-operator}
@@ -77,5 +77,12 @@ services:
       <<: *healthcheck
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
 
+  # Glue starts without it and pulls the model in the background; the volume keeps it.
+  ollama:
+    image: ollama/ollama:0.35.1
+    volumes:
+      - ollama-models:/root/.ollama
+
 volumes:
   glue-data:
+  ollama-models:

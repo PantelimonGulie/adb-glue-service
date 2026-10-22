@@ -1,5 +1,4 @@
 import json
-from types import SimpleNamespace
 
 from glue import triage
 
@@ -9,33 +8,18 @@ ANSWER = (
 )
 
 
-class StubModel:
-    # Stands in for AsyncOpenAI: first asks for the order, then answers from the tool result.
-    def __init__(self, order_id: str):
-        self.order_id = order_id
-        self.requests: list[list[dict]] = []
-        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
-
-    async def create(self, model: str, messages: list[dict], tools: list[dict]) -> SimpleNamespace:
-        self.requests.append(messages)
-        if len(self.requests) == 1:
-            function = SimpleNamespace(
-                name="get_order", arguments=json.dumps({"order_id": self.order_id})
-            )
-            call = SimpleNamespace(id="call-1", function=function)
-            message = SimpleNamespace(content=None, tool_calls=[call])
-        else:
-            message = SimpleNamespace(content=ANSWER, tool_calls=None)
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
-
-
-async def test_triage_suggests_without_acting(systems, sleeps):
+async def failed_order_review(systems) -> tuple[str, dict]:
     await systems.chaos("warehouse", down=True)
     order_id = await systems.buy_on_shop("IPH16-256")
     await systems.run_worker()
     await systems.chaos("warehouse", down=False)
     [item] = systems.open_reviews()
-    systems.ctx.assistant = StubModel(order_id)
+    return order_id, item
+
+
+async def test_triage_suggests_without_acting(systems, sleeps):
+    order_id, item = await failed_order_review(systems)
+    model = systems.use_model(ANSWER, [("get_order", {"order_id": order_id})])
 
     await triage.suggest(systems.ctx, item["id"])
 
@@ -44,6 +28,34 @@ async def test_triage_suggests_without_acting(systems, sleeps):
     assert item["suggested_reason"] == ANSWER.split("REASON: ")[1]
     assert systems.ctx.db.get_order(order_id)["status"] == "failed"
     assert systems.warehouse.state.stock["IPH16-256"]["reserved"] == 0
-    tool_result = json.loads(systems.ctx.assistant.requests[1][-1]["content"])
+    tool_result = json.loads(model.requests[1]["messages"][-1]["content"])
     assert tool_result["order"]["order_id"] == order_id
     assert systems.ctx.db.counters()["triage_suggested"] == 1
+
+
+async def test_triage_uses_local_model(systems, sleeps):
+    order_id, item = await failed_order_review(systems)
+    model = systems.use_model(ANSWER, [("get_order", {"order_id": order_id})])
+
+    response = await systems.act(f"/api/review/{item['id']}/triage")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["id"], body["status"], body["order"]["order_id"]) == (item["id"], "open", order_id)
+    assert body["suggestion"] == {"action": "retry", "reason": ANSWER.split("REASON: ")[1]}
+    assert model.requests[0]["model"] == "qwen2.5:3b"
+    assistant = (await systems.http.get("http://glue/api/assistant")).json()
+    assert (assistant["used_today"], assistant["questions_today"]) == (120, 1)
+
+
+async def test_triage_offline_returns_503(systems, sleeps):
+    _, item = await failed_order_review(systems)
+    model = systems.use_model(ANSWER)
+    systems.ollama.up = False
+
+    response = await systems.act(f"/api/review/{item['id']}/triage")
+
+    assert response.status_code == 503
+    assert "not answering" in response.json()["detail"]
+    assert systems.ctx.db.get_review(item["id"])["suggested_reason"] is None
+    assert model.requests == []

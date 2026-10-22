@@ -23,7 +23,7 @@ async def suggest(ctx: Context, item_id: int) -> None:
         order=item["order_id"] or "none",
         allowed=", ".join(allowed),
     )
-    answer = await assistant.ask(ctx, [{"role": "user", "content": question}])
+    answer = (await assistant.ask(ctx, [{"role": "user", "content": question}])).answer
     match = ANSWER.search(answer)
     action = match.group(1).lower() if match else None
     reason = (match.group(2) if match else answer).strip()[:2000]

@@ -19,10 +19,12 @@ class Context:
     shop: ShopClient
     emag: EmagClient
     warehouse: WarehouseClient
+    assistant: AsyncOpenAI
     # Reconcile runs read-then-push; serialising them keeps a slower run from
     # overwriting a newer stock figure on the channels.
     reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
     sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
-    assistant: AsyncOpenAI | None = None
+    model_status: str = "offline"
+    model_progress: float = 0.0

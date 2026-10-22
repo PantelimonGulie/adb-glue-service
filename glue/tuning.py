@@ -13,6 +13,11 @@ LIMITS = {
     "retry_base_seconds": (0.1, 10),
     "reconcile_interval_seconds": (2, 300),
 }
+AI_KEYS = {
+    "effort": "ai_effort",
+    "max_tokens_per_question": "ai_max_tokens",
+    "daily_token_budget": "ai_daily_budget",
+}
 
 
 @dataclass(frozen=True)
@@ -43,3 +48,21 @@ def save(ctx: "Context", values: dict, user: str) -> Tuning:
         record(ctx.db, "settings", "settings", "settings", "settings_changed", by=user, **changed)
     ctx.tuning = replace(ctx.tuning, **changed)
     return ctx.tuning
+
+
+def ai_limits(db: Database) -> dict:
+    stored = db.settings()
+    return {
+        "effort": stored.get("ai_effort", "medium"),
+        "max_tokens_per_question": int(stored.get("ai_max_tokens", 2000)),
+        "daily_token_budget": int(stored.get("ai_daily_budget", 200000)),
+    }
+
+
+def save_ai_limits(ctx: "Context", values: dict, user: str) -> None:
+    current = ai_limits(ctx.db)
+    changed = {key: value for key, value in values.items() if value != current[key]}
+    for key, value in changed.items():
+        ctx.db.set_setting(AI_KEYS[key], str(value), user)
+    if changed:
+        record(ctx.db, "settings", "settings", "settings", "settings_changed", by=user, **changed)

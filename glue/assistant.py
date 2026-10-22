@@ -1,15 +1,11 @@
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-import httpx
-from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
-
-from glue import queries
+from glue import queries, tuning
 from glue.context import Context
-from glue.settings import Settings
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-MAX_ROUNDS = 6
+ROUNDS = {"low": 2, "medium": 4, "high": 6}
 SYSTEM = (
     "You are the operations assistant for the Glue platform, which routes orders from the shop"
     " (Electronic Market) and eMAG to one warehouse and pushes true stock back to both channels."
@@ -19,12 +15,11 @@ SYSTEM = (
 )
 
 
-def client(settings: Settings, http: httpx.AsyncClient) -> AsyncOpenAI | None:
-    if not settings.gemini_api_key:
-        return None
-    return AsyncOpenAI(
-        api_key=settings.gemini_api_key, base_url=GEMINI_URL, http_client=http, timeout=30
-    )
+@dataclass(frozen=True)
+class AskResult:
+    answer: str
+    tools: list[str]
+    tokens: int
 
 
 def get_summary(ctx: Context, hours: int = 1) -> dict:
@@ -96,15 +91,24 @@ def run_tool(ctx: Context, name: str, arguments: str) -> str:
     return json.dumps(result, default=str)
 
 
-async def ask(ctx: Context, turns: list[dict]) -> str:
+async def ask(ctx: Context, turns: list[dict]) -> AskResult:
+    limits = tuning.ai_limits(ctx.db)
     messages = [{"role": "system", "content": SYSTEM}, *turns]
-    for _ in range(MAX_ROUNDS):
+    answer = "I could not find the answer within the allowed number of lookups."
+    tools: list[str] = []
+    tokens = 0
+    for _ in range(ROUNDS[limits["effort"]]):
         response = await ctx.assistant.chat.completions.create(
-            model=ctx.settings.gemini_model, messages=messages, tools=TOOL_SPECS
+            model=ctx.settings.llm_model,
+            messages=messages,
+            tools=TOOL_SPECS,
+            max_tokens=limits["max_tokens_per_question"],
         )
+        tokens += response.usage.total_tokens if response.usage else 0
         message = response.choices[0].message
         if not message.tool_calls:
-            return message.content or "I do not know."
+            answer = message.content or "I do not know."
+            break
         calls = [
             {
                 "id": call.id,
@@ -117,33 +121,9 @@ async def ask(ctx: Context, turns: list[dict]) -> str:
             {"role": "assistant", "content": message.content or "", "tool_calls": calls}
         )
         for call in message.tool_calls:
+            if call.function.name not in tools:
+                tools.append(call.function.name)
             content = run_tool(ctx, call.function.name, call.function.arguments)
             messages.append({"role": "tool", "tool_call_id": call.id, "content": content})
-    return "I could not find the answer within the allowed number of lookups."
-
-
-def failure_message(exc: Exception) -> str:
-    if isinstance(exc, RateLimitError):
-        return "The model is rate limited right now. Try again in a minute."
-    if isinstance(exc, APIStatusError):
-        return f"The model API refused the request (HTTP {exc.status_code}). Check GEMINI_API_KEY."
-    if isinstance(exc, APIConnectionError):
-        return "Could not reach the model API. Check the network and try again."
-    return "The assistant hit an unexpected error. It is logged; try again."
-
-
-def parse_history(raw: str) -> list[dict]:
-    try:
-        turns = json.loads(raw or "[]")
-    except ValueError:
-        return []
-    if not isinstance(turns, list):
-        return []
-    clean = [
-        {"role": t["role"], "content": t["content"][:4000]}
-        for t in turns
-        if isinstance(t, dict)
-        and t.get("role") in ("user", "assistant")
-        and isinstance(t.get("content"), str)
-    ]
-    return clean[-12:]
+    ctx.db.add_usage(tokens)
+    return AskResult(answer, tools, tokens)
