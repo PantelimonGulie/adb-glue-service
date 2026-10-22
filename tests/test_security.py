@@ -67,13 +67,24 @@ def test_an_empty_secret_verifies_nothing():
     assert signing.verify("", body, signing.sign("", body)) is False
 
 
-async def test_dashboard_actions_need_the_htmx_header_from_same_origin(systems):
-    no_header = await systems.http.post("http://glue/review/1/dismiss")
-    demo = await systems.http.post("http://glue/demo/warehouse-down")
+async def test_mutation_needs_glue_header(systems):
+    await systems.sign_in("admin")
+    await systems.chaos("warehouse", down=True)
+    no_header = await systems.http.post("http://glue/api/demo/reset")
     cross_site = await systems.http.post(
-        "http://glue/review/1/dismiss",
-        headers={"HX-Request": "true", "Origin": "http://attacker.example"},
+        "http://glue/api/demo/reset",
+        headers={"X-Glue-Request": "1", "Origin": "http://attacker.example"},
+    )
+    sign_in = await systems.http.post(
+        "http://glue/api/session", json={"username": "admin", "password": "admin"}
     )
 
-    assert [r.status_code for r in (no_header, demo, cross_site)] == [403, 403, 403]
+    assert [r.status_code for r in (no_header, cross_site, sign_in)] == [403, 403, 403]
+    assert systems.warehouse.state.chaos.down is True
+
+    same_origin = await systems.http.post(
+        "http://glue/api/demo/reset", headers={"X-Glue-Request": "1", "Origin": "http://glue"}
+    )
+
+    assert same_origin.status_code == 200
     assert systems.warehouse.state.chaos.down is False

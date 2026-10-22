@@ -1,3 +1,8 @@
+import pytest
+
+from glue import review
+
+
 def dirty_skus(systems, channel: str) -> set[str]:
     return {row["sku"] for row in systems.ctx.db.channel_stock(channel) if row["dirty"]}
 
@@ -35,5 +40,5 @@ async def test_recount_below_reserved_caps_channels_and_queues_each_order(system
     assert {item["kind"] for item in items} == {"unfulfillable"}
 
     # Both orders still hold their reservation, so there is no allocation to retry.
-    response = await systems.decide(items[0]["id"], "retry")
-    assert response.status_code == 409
+    with pytest.raises(review.Conflict):
+        await systems.decide(items[0]["id"], "retry")

@@ -62,9 +62,8 @@ async def test_warehouse_down_queues_order_until_operator_retries(systems, sleep
     assert (item["kind"], item["order_id"]) == ("order_failed", order_id)
 
     await systems.chaos("warehouse", down=False)
-    response = await systems.decide(item["id"], "retry")
+    await systems.decide(item["id"], "retry")
 
-    assert response.status_code == 200
     assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
     assert systems.open_reviews() == []
 
@@ -95,9 +94,8 @@ async def test_oversell_is_queued_and_operator_cancels_on_emag(systems):
     [item] = systems.open_reviews()
     assert (item["kind"], item["order_id"]) == ("unfulfillable", emag_order)
 
-    response = await systems.decide(item["id"], "cancel")
+    await systems.decide(item["id"], "cancel")
 
-    assert response.status_code == 200
     assert systems.emag_order(emag_order)["status"] == 0
     assert systems.ctx.db.get_order(emag_order)["status"] == "cancelled"
     assert systems.warehouse.state.stock["MBA-M4"]["reserved"] == 1

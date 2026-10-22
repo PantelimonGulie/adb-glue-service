@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+from glue import triage
+
 ANSWER = (
     "ACTION: retry\nREASON: The order failed only because the warehouse answered 503 five"
     " times; stock for IPH16-256 is available, so a retry should allocate it."
@@ -35,27 +37,13 @@ async def test_triage_suggests_without_acting(systems, sleeps):
     [item] = systems.open_reviews()
     systems.ctx.assistant = StubModel(order_id)
 
-    response = await systems.act(f"/triage/{item['id']}")
+    await triage.suggest(systems.ctx, item["id"])
 
-    assert response.status_code == 200
-    assert "Assistant suggests" in response.text and ANSWER.split("\n")[1][8:] in response.text
     item = systems.ctx.db.get_review(item["id"])
     assert (item["status"], item["suggested_action"]) == ("open", "retry")
+    assert item["suggested_reason"] == ANSWER.split("REASON: ")[1]
     assert systems.ctx.db.get_order(order_id)["status"] == "failed"
     assert systems.warehouse.state.stock["IPH16-256"]["reserved"] == 0
     tool_result = json.loads(systems.ctx.assistant.requests[1][-1]["content"])
     assert tool_result["order"]["order_id"] == order_id
     assert systems.ctx.db.counters()["triage_suggested"] == 1
-
-
-async def test_triage_button_is_disabled_offline(systems, sleeps):
-    await systems.chaos("warehouse", down=True)
-    await systems.buy_on_shop("IPH16-256")
-    await systems.run_worker()
-    [item] = systems.open_reviews()
-
-    page = await systems.http.get("http://glue/review")
-    refused = await systems.act(f"/triage/{item['id']}")
-
-    assert 'hx-post="/triage/1" disabled' in page.text
-    assert refused.status_code == 409

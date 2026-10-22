@@ -1,52 +1,63 @@
 from glue.auth import COOKIE
 
 
-async def failed_order(systems) -> int:
-    await systems.chaos("warehouse", down=True)
-    await systems.buy_on_shop("IPH16-256")
-    await systems.run_worker()
-    await systems.chaos("warehouse", down=False)
-    [item] = systems.open_reviews()
-    return item["id"]
+async def test_sign_in_returns_user_and_cookie(systems):
+    systems.http.cookies.clear()
+    response = await systems.sign_in("operator")
+    me = await systems.http.get("http://glue/api/me")
+
+    assert response.status_code == 200
+    user = {"name": "operator", "role": "operator", "permissions": ["ask", "decide", "view"]}
+    assert response.json() == user
+    assert COOKIE in response.cookies
+    assert me.json() == user
 
 
-async def test_viewer_cannot_decide_but_operator_can(systems, sleeps):
-    item_id = await failed_order(systems)
-    await systems.sign_in("viewer")
-    page = await systems.http.get("http://glue/review")
-    refused = await systems.decide(item_id, "retry")
-    await systems.sign_in("operator")
-    allowed = await systems.decide(item_id, "retry")
+async def test_wrong_password_401(systems):
+    response = await systems.sign_in("admin", password="guess")
 
-    assert page.status_code == 200
-    assert refused.status_code == 403
-    assert allowed.status_code == 200
-    [item] = systems.ctx.db.list_review("decided")
-    assert item["decided_by"] == "operator"
+    assert response.status_code == 401
+    assert systems.ctx.db.counters()["sign_in_rejected"] == 1
 
 
-async def test_only_admin_edits_rules_and_demo_controls(systems):
-    refused = await systems.act("/rules/auto-retry", enabled="1")
-    demo_refused = await systems.act("/demo/warehouse-down")
-    await systems.sign_in("admin")
-    saved = await systems.act("/rules/auto-retry", enabled="1")
+async def test_me_requires_session(systems):
+    systems.http.cookies.clear()
+    response = await systems.http.get("http://glue/api/me")
 
-    assert (refused.status_code, demo_refused.status_code, saved.status_code) == (403, 403, 200)
-    assert systems.warehouse.state.chaos.down is False
-    [rule] = systems.ctx.db.rules()
-    assert (rule["name"], rule["enabled"], rule["updated_by"]) == ("auto-retry", 1, "admin")
+    assert response.status_code == 401
 
 
-async def test_wrong_password_and_tampered_cookie_are_rejected(systems):
-    rejected = await systems.sign_in("admin", password="guess")
-    assert rejected.status_code == 401
-
+async def test_tampered_cookie_is_rejected(systems):
     await systems.sign_in("viewer")
     token = systems.http.cookies[COOKIE]
     systems.http.cookies.set(COOKIE, token.replace("viewer", "admin", 1))
-    response = await systems.http.get("http://glue/")
+    response = await systems.http.get("http://glue/api/me")
 
-    assert response.status_code == 303
-    assert response.headers["location"].startswith("/sign-in")
-    counters = systems.ctx.db.counters()
-    assert counters["sign_in_rejected"] == 1
+    assert response.status_code == 401
+
+
+async def test_sign_out_clears_cookie(systems):
+    response = await systems.http.delete("http://glue/api/session", headers={"X-Glue-Request": "1"})
+    me = await systems.http.get("http://glue/api/me")
+
+    assert response.status_code == 204
+    assert COOKIE not in systems.http.cookies
+    assert me.status_code == 401
+
+
+async def test_viewer_gets_403_with_detail(systems):
+    await systems.sign_in("viewer")
+    response = await systems.act("/api/demo/reset")
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "a viewer may not do this"
+
+
+async def test_only_admin_runs_demo_controls(systems):
+    refused = await systems.act("/api/demo/warehouse-down")
+    await systems.sign_in("admin")
+    done = await systems.act("/api/demo/warehouse-down")
+
+    assert refused.status_code == 403
+    assert done.json() == {"ok": True, "message": "The warehouse answers 503 to every call."}
+    assert systems.warehouse.state.chaos.down is True

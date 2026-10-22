@@ -2,9 +2,8 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from glue import auth
-from glue.web import fragment, from_dashboard
 
-router = APIRouter(dependencies=[Depends(from_dashboard), Depends(auth.require("demo"))])
+router = APIRouter(dependencies=[Depends(auth.require("demo"))])
 
 ALL_FAULTS_OFF = [
     ("emag", {"rate_limit": False, "reject_sku": None, "freeze_stock": False, "down": False}),
@@ -58,7 +57,7 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
 
 
 @router.post("/demo/{action}")
-async def run(request: Request, action: str):
+async def run(request: Request, action: str) -> dict:
     if action not in ACTIONS:
         raise HTTPException(404, f"unknown demo action {action!r}")
     message, calls = ACTIONS[action]
@@ -74,6 +73,5 @@ async def run(request: Request, action: str):
             response = await ctx.http.post(f"{urls[system]}/chaos", json=body, timeout=10)
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            context = {"ok": False, "message": f"The {system} mock did not take the change: {exc}"}
-            return fragment(request, "_demo_result.html", context)
-    return fragment(request, "_demo_result.html", {"ok": True, "message": message})
+            return {"ok": False, "message": f"The {system} mock did not take the change: {exc}"}
+    return {"ok": True, "message": message}

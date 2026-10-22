@@ -1,10 +1,14 @@
 from glue import rules
 
 
+async def hold_back_on_emag(systems, units: int, sku: str = "") -> None:
+    config = {"channel": "emag", "units": units, "sku": sku}
+    rules.save(systems.ctx, "stock-buffer", True, config, "admin")
+    await systems.reconcile()
+
+
 async def test_stock_buffer_holds_units_back_from_one_channel(systems):
-    await systems.sign_in("admin")
-    response = await systems.act("/rules/stock-buffer", enabled="1", channel="emag", units=2)
-    assert response.status_code == 200
+    await hold_back_on_emag(systems, 2)
 
     assert systems.emag.state.stock["IPH16-128"] == 23
     assert systems.emag.state.stock["MBA-M4"] == 0
@@ -13,7 +17,7 @@ async def test_stock_buffer_holds_units_back_from_one_channel(systems):
     expected = {"channel": "emag", "qty": 23, "rule": "stock-buffer", "held_back": 2}
     assert pushes[-1]["detail"] == expected
 
-    await systems.act("/rules/stock-buffer", enabled="1", channel="emag", units=1, sku="APP-3")
+    await hold_back_on_emag(systems, 1, sku="APP-3")
 
     assert systems.emag.state.stock["APP-3"] == 39
     assert systems.emag.state.stock["IPH16-128"] == 25

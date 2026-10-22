@@ -1,23 +1,30 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 
-from common import ui
-from glue import assistant, auth, demo, extras, inbox, reconciler, web, worker
+from glue import api, assistant, inbox, reconciler, views, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
 from glue.db import Database
 from glue.settings import Settings
+from glue.spa import mount_spa
 
+DIST = Path(__file__).parents[1] / "frontend" / "dist"
 router = APIRouter()
 
 
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/metrics")
+async def metrics(request: Request) -> dict:
+    return views.metrics(request.app.state.ctx)
 
 
 def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
@@ -55,16 +62,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     app = FastAPI(title="Glue", lifespan=lifespan)
     app.state.settings = settings or Settings.from_env()
-    app.mount("/static", ui.static, name="static")
     app.include_router(inbox.router)
-    app.include_router(auth.router)
-    app.include_router(web.router)
-    app.include_router(web.actions)
-    app.include_router(web.public)
-    app.include_router(extras.router)
-    app.include_router(extras.actions)
-    app.include_router(demo.router)
+    app.include_router(api.router)
     app.include_router(router)
+    mount_spa(app, DIST)
     return app
 
 

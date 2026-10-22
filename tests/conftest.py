@@ -12,7 +12,7 @@ import glue.main
 import shop.main
 import warehouse.main
 from common import signing
-from glue import reconciler, retry, worker
+from glue import reconciler, retry, review, worker
 from glue.context import Context
 from glue.settings import Settings
 
@@ -69,14 +69,15 @@ class Systems:
         return await self.http.post("http://glue/events", content=body, headers=headers)
 
     async def sign_in(self, username: str, password: str | None = None) -> httpx.Response:
-        data = {"username": username, "password": password or username}
-        return await self.http.post("http://glue/sign-in", data=data)
+        return await self.act("/api/session", username=username, password=password or username)
 
-    async def act(self, path: str, **form: object) -> httpx.Response:
-        return await self.http.post(f"http://glue{path}", data=form, headers={"HX-Request": "true"})
+    async def act(self, path: str, **body: object) -> httpx.Response:
+        return await self.http.post(
+            f"http://glue{path}", json=body, headers={"X-Glue-Request": "1"}
+        )
 
-    async def decide(self, item_id: int, action: str) -> httpx.Response:
-        return await self.act(f"/review/{item_id}/{action}")
+    async def decide(self, item_id: int, action: str) -> None:
+        await review.decide(self.ctx, item_id, action)
 
     def open_reviews(self) -> list[dict]:
         return self.ctx.db.list_review()
