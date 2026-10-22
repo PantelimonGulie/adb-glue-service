@@ -44,6 +44,14 @@ async def test_custom_range_validation(systems):
     assert response.json()["detail"][0]["loc"] == ["query", "range"]
 
 
+def test_custom_range_is_capped_at_a_year():
+    leap_year = ranges.resolve("custom", "2024-01-01", "2024-12-31", NOW)
+
+    with pytest.raises(ValueError, match="at most a year"):
+        ranges.resolve("custom", "2024-01-01", "2025-01-01", NOW)
+    assert leap_year.until == "2025-01-01T00:00:00.000+00:00"
+
+
 @pytest.mark.parametrize("name", ["live", "today", "week", "month", "custom"])
 def test_previous_window_same_length(name):
     window = ranges.resolve(name, "2026-10-01", "2026-10-07", NOW)

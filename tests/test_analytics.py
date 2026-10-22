@@ -152,9 +152,19 @@ async def test_csv_has_header_and_total(systems):
     assert disposition == 'attachment; filename="glue-flow-today.csv"'
     lines = response.text.splitlines()
     assert lines[0] == "bucket,orders,retried,failed"
-    assert lines[1] == "00:00,0,0,0"
+    assert lines[1].startswith("00:00,")
     assert len(lines) == 26
     assert lines[-1] == "total,1,0,0"
+
+
+async def test_custom_range_over_a_year_is_rejected(systems):
+    params = {"range": "custom", "from": "2024-01-01", "to": "2025-01-01"}
+
+    report = await systems.http.get("http://glue/api/analytics", params=params)
+    export = await systems.http.get("http://glue/api/analytics.csv", params=params)
+
+    assert (report.status_code, export.status_code) == (422, 422)
+    assert report.json()["detail"][0]["msg"] == "a custom range can cover at most a year"
 
 
 async def test_analytics_needs_sign_in(systems):

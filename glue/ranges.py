@@ -27,6 +27,8 @@ def custom_days(from_: str | None, to: str | None) -> tuple[datetime, datetime]:
     first, last = date.fromisoformat(from_), date.fromisoformat(to)
     if first > last:
         raise ValueError("from must not be after to")
+    if last - first >= timedelta(days=366):
+        raise ValueError("a custom range can cover at most a year")
     return datetime.combine(first, time(), UTC), datetime.combine(last, time(), UTC) + DAY
 
 
