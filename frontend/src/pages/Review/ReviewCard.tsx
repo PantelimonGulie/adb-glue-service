@@ -4,14 +4,12 @@ import { useStock } from '../../api/hooks';
 import type { ReviewItem } from '../../api/types';
 import { Tag } from '../../components/Tag/Tag';
 import { decider } from '../../lib/activity';
-import { formatDay, formatTime } from '../../lib/format';
+import { formatDateTime } from '../../lib/format';
 import { cause, channel } from '../../lib/labels';
 import { Decisions } from './Decisions';
 import { facts, outcome, story } from './explain';
 import styles from './ReviewCard.module.css';
 import { Triage } from './Triage';
-
-const when = (ts: string) => `${formatDay(ts)} ${formatTime(ts)}`.trim();
 
 export function ReviewCard({ item }: { item: ReviewItem }) {
   const { data: stock } = useStock();
@@ -21,7 +19,7 @@ export function ReviewCard({ item }: { item: ReviewItem }) {
   const source = order && channel(order.channel);
   const decided = item.status === 'decided';
   const name = item.order_id ?? 'an item without an order';
-  const decidedAt = item.decided_at ? ` at ${when(item.decided_at)}` : '';
+  const decidedAt = item.decided_at ? ` at ${formatDateTime(item.decided_at)}` : '';
 
   return (
     <article className={styles.card} data-decided={decided} aria-label={`Review of ${name}`}>
@@ -41,7 +39,7 @@ export function ReviewCard({ item }: { item: ReviewItem }) {
             {order.qty} × {order.product}
           </span>
         )}
-        <span className={styles.when}>{when(item.created_at)}</span>
+        <span className={styles.when}>{formatDateTime(item.created_at)}</span>
       </div>
       <div className={styles.body}>
         <div className={styles.story}>

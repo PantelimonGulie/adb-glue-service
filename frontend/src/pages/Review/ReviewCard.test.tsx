@@ -30,6 +30,7 @@ it('explains the order, what Glue saw and what each choice does', async () => {
   expect(screen.getByText(/never reserves twice/)).toBeInTheDocument();
   const link = screen.getByRole('link', { name: 'emag-500124' });
   expect(link).toHaveAttribute('href', '/orders/emag-500124');
+  expect(screen.getByText('22 Oct, 13:41')).toBeInTheDocument();
 });
 
 it('a choice the order does not allow is disabled with the reason', () => {
@@ -133,7 +134,7 @@ it('a decided item says who decided, instead of the choices', () => {
   renderCard({ ...reviewItem, ...decided, decided_at: at } as ReviewItem);
 
   expect(screen.getByText('Cancelled on eMAG').parentElement).toHaveTextContent(
-    /^Cancelled on eMAG by operator at .+\. Saved in the activity log\.$/,
+    /^Cancelled on eMAG by operator at 22 Oct, 13:45\. Saved in the activity log\.$/,
   );
   expect(screen.queryByRole('button')).toBeNull();
 });
