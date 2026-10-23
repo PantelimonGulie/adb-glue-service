@@ -72,9 +72,9 @@ it('never shows exception names, HTTP codes or rule ids', () => {
   const said = (action: string, detail: Record<string, unknown>) =>
     describe(on('order', 'shop-1', action, detail), productName);
 
-  expect(said('retry_scheduled', { attempt: 1, delay_seconds: 0.56, problem: 'ReadTimeout: ' })).toBe(
-    'no answer in time · try 1, next in 0.6 seconds',
-  );
+  expect(
+    said('retry_scheduled', { attempt: 1, delay_seconds: 0.56, problem: 'ReadTimeout: ' }),
+  ).toBe('no answer in time · try 1, next in 0.6 seconds');
   expect(said('order_failed', { reason: 'HTTP 503 after 5 attempts' })).toBe(
     'not available after 5 tries',
   );
@@ -84,16 +84,20 @@ it('never shows exception names, HTTP codes or rule ids', () => {
   expect(said('rule_applied', { rule: 'auto-retry', review_id: 228 })).toBe(
     'the auto-retry rule sends it again',
   );
-  expect(said('triage_suggested', { review_id: 25, suggested: 'cancel', reason: 'Sold out.' })).toBe(
-    'Cancel. Sold out.',
-  );
+  expect(
+    said('triage_suggested', { review_id: 25, suggested: 'cancel', reason: 'Sold out.' }),
+  ).toBe('Cancel. Sold out.');
   expect(said('order_cancelled', { was: 'allocated' })).toBe(
     'the reserved unit went back on the shelf',
   );
   expect(said('order_cancelled', { was: 'failed' })).toBe('nothing was reserved');
-  expect(describe(on('webhook', 'shop', 'signature_rejected', { path: '/events' }), productName)).toBe(
-    'no valid signature, so Glue refused it',
+  const unreadable = { source: 'shop', error: 'x-adobe-event-id: missing or malformed' };
+  expect(describe(on('event', '-', 'event_rejected', unreadable), productName)).toBe(
+    'Glue could not read the message, so it refused it',
   );
+  expect(
+    describe(on('webhook', 'shop', 'signature_rejected', { path: '/events' }), productName),
+  ).toBe('no valid signature, so Glue refused it');
 });
 
 it('says a failure went to review once, not twice with the same words', () => {
@@ -103,8 +107,12 @@ it('says a failure went to review once, not twice with the same words', () => {
 });
 
 it('calls a recount conflict a shelf count, as the review queue does', () => {
-  const recount = on('order', 'shop-1', 'unfulfillable', { reason: 'recount: 18 on hand, 20 reserved' });
-  const soldOut = on('order', 'shop-1', 'unfulfillable', { reason: 'sold on another channel first' });
+  const recount = on('order', 'shop-1', 'unfulfillable', {
+    reason: 'recount: 18 on hand, 20 reserved',
+  });
+  const soldOut = on('order', 'shop-1', 'unfulfillable', {
+    reason: 'sold on another channel first',
+  });
 
   expect(labelOf(recount).label).toBe('Shelf count too low');
   expect(labelOf(soldOut).label).toBe('Sold out, needs you');

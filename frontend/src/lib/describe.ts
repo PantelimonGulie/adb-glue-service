@@ -37,7 +37,9 @@ function plain(detail: AuditRow['detail']): string {
 
 function cancelled(detail: AuditRow['detail']): string {
   if (detail.note) return 'the cancellation came before the order';
-  return detail.was === 'allocated' ? 'the reserved unit went back on the shelf' : 'nothing was reserved';
+  return detail.was === 'allocated'
+    ? 'the reserved unit went back on the shelf'
+    : 'nothing was reserved';
 }
 
 export function describe(row: AuditRow, productName: ProductName): string {
@@ -94,6 +96,8 @@ export function describe(row: AuditRow, productName: ProductName): string {
       return `${SUGGESTIONS.get(text('suggested')) ?? 'No single choice'}. ${text('reason')}`;
     case 'signature_rejected':
       return 'no valid signature, so Glue refused it';
+    case 'event_rejected':
+      return 'Glue could not read the message, so it refused it';
     case 'signed_in':
       return `as ${text('role')}`;
     default:
