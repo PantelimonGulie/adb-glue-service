@@ -81,7 +81,7 @@ Every time and date on the dashboard is Bucharest time (see [Architecture](#arch
 9. **Partial batch rejection.** eMAG card, **Refuse updates for MacBook Air M4**. On the next reconcile run the batch applies every other product and only MacBook Air M4 is flagged on **Stock**; the marketplace's Offers table shows "rejected: validation error" for it. **Accept updates for MacBook Air M4 again** clears it on the next run.
 10. **Recount below reserved.** With at least two iPhone 16 128GB reserved, use **Warehouse recount** (or the warehouse terminal) to set the shelf to one fewer than are reserved. Both channels drop to 0, and only the newest reserved order appears under "Shelf count too low": the shelf is short by one. Retry is not offered: the order still holds its reservation, so a person decides whether to cancel it. Recount the shelf back up and Glue closes the item itself ("Closed as no longer needed").
 11. **A forged message.** Security card, **Send a message with a fake signature**: Glue answers 401, and **Activity log** shows "Fake message blocked".
-12. **History and analytics.** History card, **Load sample history**: 30 days of generated orders from a fixed seed, about 300 a day. Open **Flow** on **This month**: the funnel from received to reserved, p50 and p95 time to reserve, orders with problems per day, a panel per system (including "Orders lost"), a breakdown by product and **Export CSV**. A banner says sample data is included until **Clear sample history** removes it; real orders stay.
+12. **History and analytics.** **Sample history** card, **Load sample history**: 30 days of generated orders from a fixed seed, about 300 a day. Open **Flow** on **This month**: the funnel from received to reserved, p50 and p95 time to reserve, orders with problems per day, a panel per system (including "Orders lost"), a breakdown by product and **Export CSV**. A banner says sample data is included until **Clear sample history** (it asks you to confirm) removes it; real orders stay.
 13. **Assistant and triage.** Once the model is ready, ask the **Assistant** "Which orders need a decision?". It answers from a block of live facts and five read-only lookups, and the page lists the lookups it used. On a review card, **Suggest an action** asks the model for a triage suggestion; it is shown on the card and never acts.
 
 Click **Resume new orders** when done.
@@ -179,14 +179,14 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 ## Testing
 
 ```sh
-# Backend, in the same image Compose runs: lint, format check, 216 tests in about 8 seconds
-docker compose run --rm --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
+# Backend, in the same image Compose runs: lint, format check, 227 tests in about 8 seconds
+docker compose run --rm --no-deps --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
 
 # Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 222 tests in 44 files
 cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 ```
 
-`--build` puts the current code in the image; drop it if the image is up to date. Without Docker, with Python 3.12 or newer: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m pytest -q`.
+`--build` puts the current code in the image; drop it if the image is up to date. `--no-deps` leaves a running demo alone: the tests start their own in-process apps, so the mock containers are not recreated and keep their stock. Without Docker, with Python 3.12 or newer: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m pytest -q`.
 
 **How the backend tests run.** [`tests/conftest.py`](tests/conftest.py) starts all four apps in one process and connects them with one `httpx.AsyncClient` whose mounts route `http://shop`, `http://emag`, `http://warehouse` and `http://glue` to the apps directly: no network, no ports. Each test gets a fresh SQLite file, zero back-off, a stub Ollama and a session signed in as `operator`. The background loops do not start; tests drive the worker and the reconciler step by step, so each test reads like a demo step and asserts end state (one reservation, eMAG status 4, which items are open), not call counts.
 
