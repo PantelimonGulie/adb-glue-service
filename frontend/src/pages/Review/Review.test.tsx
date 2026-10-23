@@ -60,7 +60,7 @@ it('groups open orders by cause in plain words, a few of each', async () => {
   expect(within(outages).getByText(/4 orders · the warehouse did not answer/)).toBeInTheDocument();
   expect(within(outages).getAllByRole('article')).toHaveLength(3);
   expect(within(outages).getByText(/and 1 more with the same cause/)).toBeInTheDocument();
-  const soldOut = screen.getByRole('region', { name: 'Sold on the other channel' });
+  const soldOut = screen.getByRole('region', { name: 'Sold out' });
   expect(within(soldOut).getAllByRole('article')).toHaveLength(1);
   expect(screen.getAllByRole('button', { name: /^Retry all/ })).toHaveLength(1);
   expect(await screen.findByRole('button', { name: 'All open (5)' })).toBeInTheDocument();
@@ -73,7 +73,7 @@ it('shows every order of one cause', async () => {
 
   expect(address().get('show')).toBe('outage');
   expect(screen.getAllByRole('article')).toHaveLength(4);
-  expect(screen.queryByRole('region', { name: 'Sold on the other channel' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Sold out' })).toBeNull();
 });
 
 it('shows why the warehouse outage could not be retried', async () => {

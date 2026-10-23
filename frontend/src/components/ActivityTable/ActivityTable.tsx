@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { AuditRow } from '../../api/types';
-import { describe, entityOf, labelOf, type Entity, type ProductName } from '../../lib/activity';
+import { entityOf, labelOf, type Entity, type ProductName } from '../../lib/activity';
+import { describe } from '../../lib/describe';
 import { formatDay, formatTime } from '../../lib/format';
 import { Tag } from '../Tag/Tag';
 import styles from './ActivityTable.module.css';

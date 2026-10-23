@@ -39,5 +39,7 @@ describe('action', () => {
 
 it('names statuses and causes in plain words', () => {
   expect(status('failed').label).toBe('Needs a decision');
-  expect(cause('soldout').label).toBe('Sold on the other channel');
+  expect(cause('soldout').label).toBe('Sold out');
+  expect(cause('recount').label).toBe('Shelf count too low');
 });
+

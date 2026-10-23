@@ -26,7 +26,7 @@ export function ReviewCard({ item }: { item: ReviewItem }) {
     <article className={styles.card} data-decided={decided} aria-label={`Review of ${name}`}>
       <div className={styles.head}>
         <Tag tone={kind.tone} title={kind.hint}>
-          {kind.short}
+          {kind.label}
         </Tag>
         {item.order_id && (
           <Link className={styles.order} to={`/orders/${encodeURIComponent(item.order_id)}`}>

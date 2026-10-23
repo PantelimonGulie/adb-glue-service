@@ -2,7 +2,8 @@ import type { AuditRow } from '../../api/types';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Panel } from '../../components/Panel/Panel';
 import { Tag } from '../../components/Tag/Tag';
-import { describe, labelOf, type ProductName } from '../../lib/activity';
+import { labelOf, type ProductName } from '../../lib/activity';
+import { describe } from '../../lib/describe';
 import { formatDay, formatTime } from '../../lib/format';
 import styles from './History.module.css';
 

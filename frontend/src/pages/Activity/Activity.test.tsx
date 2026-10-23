@@ -84,7 +84,7 @@ it('marks rows that come from the sample history', async () => {
   renderActivity('/activity?range=month');
 
   expect(await screen.findByText('sample')).toBeInTheDocument();
-  expect(screen.getByText('was failed')).toBeInTheDocument();
+  expect(screen.getByText('nothing was reserved')).toBeInTheDocument();
 });
 
 it('says it is loading before the first answer instead of showing an empty box', () => {

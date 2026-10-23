@@ -25,7 +25,7 @@ export function Review() {
   const waiting = overview ? ` (${formatNumber(overview.open_reviews)})` : '';
   const options: { value: Show; label: string }[] = [
     { value: 'open', label: `All open${waiting}` },
-    ...CAUSES.map((name) => ({ value: name, label: cause(name).short })),
+    ...CAUSES.map((name) => ({ value: name, label: cause(name).label })),
     { value: 'decided', label: 'Decided' },
   ];
   const show = oneOf(options, params.get('show'));
