@@ -127,6 +127,43 @@ async def test_an_event_id_from_one_sender_does_not_hide_another_senders_event(s
     assert "duplicate_dropped" not in systems.ctx.db.counters()
 
 
+async def notify_emag(systems, order_id: str, kind: str) -> None:
+    body = json.dumps({"order_id": int(order_id.removeprefix("emag-")), "type": kind}).encode()
+    headers = signing.headers(systems.ctx.settings.emag_webhook_secret, body)
+    response = await systems.http.post(
+        "http://glue/emag/notifications", content=body, headers=headers
+    )
+    assert response.status_code == 202
+    await systems.run_worker()
+
+
+async def test_a_cancel_notice_for_an_order_emag_still_shows_open_changes_nothing(systems):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+
+    await notify_emag(systems, order_id, "cancelled")
+
+    assert systems.emag_order(order_id)["status"] == 2
+    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.warehouse.state.stock["APP-3"]["reserved"] == 1
+    assert systems.open_reviews() == []
+    [ignored] = [
+        row for row in systems.ctx.db.audit_for(order_id) if row["action"] == "cancel_ignored"
+    ]
+    assert ignored["detail"]["reason"] == (
+        "eMAG still shows this order as in progress, so Glue did not cancel it"
+    )
+
+
+async def test_a_new_order_notice_for_an_order_emag_shows_cancelled_reserves_nothing(systems):
+    order_id = await systems.buy_on_emag("APP-3")
+    systems.emag_order(order_id)["status"] = 0
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
+    assert systems.warehouse.state.stock["APP-3"]["reserved"] == 0
+
+
 def test_an_empty_secret_verifies_nothing():
     body = b'{"type": "order.cancelled"}'
 

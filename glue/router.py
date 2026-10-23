@@ -6,6 +6,8 @@ from glue.audit import record
 from glue.context import Context
 from glue.retry import RetryExhausted, with_retries
 
+EMAG_STATUSES = {1: "new", 2: "in progress", 3: "prepared", 4: "finalized"}
+
 
 class EmagProduct(BaseModel):
     part_number: str
@@ -101,12 +103,18 @@ async def import_emag_order(ctx: Context, event: dict) -> None:
         lines=[OrderLine(sku=p.part_number, qty=p.quantity) for p in raw.products],
         customer=raw.customer,
     )
-    if event["payload"]["type"] == "new":
+    # The notice only says which order to read; what eMAG shows now decides, so a forged or
+    # stale cancel notice cannot cancel an order the customer still wants.
+    if raw.status == 0:
+        await cancel_order(ctx, order.id, correlation_id)
+    elif event["payload"]["type"] == "new":
         await place_order(ctx, order, correlation_id)
         await with_retries(ctx, lambda: ctx.emag.acknowledge(emag_id))
         record(ctx.db, correlation_id, "order", order.id, "emag_acknowledged")
     else:
-        await cancel_order(ctx, order.id, correlation_id)
+        shown = EMAG_STATUSES.get(raw.status, f"status {raw.status}")
+        reason = f"eMAG still shows this order as {shown}, so Glue did not cancel it"
+        record(ctx.db, correlation_id, "order", order.id, "cancel_ignored", reason=reason)
 
 
 async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None:
