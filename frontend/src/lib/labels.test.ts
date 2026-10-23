@@ -24,6 +24,14 @@ describe('action', () => {
     );
   });
 
+  it('names a review item Glue closed because it was no longer needed', () => {
+    expect(action('review_resolved')).toEqual({
+      label: 'Closed as no longer needed',
+      tone: 'green',
+      explanation: "The order's state made this review item moot, so Glue closed it.",
+    });
+  });
+
   it('does not mistake built-in object names for actions', () => {
     expect(action('constructor').label).toBe('Constructor');
   });

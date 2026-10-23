@@ -120,6 +120,8 @@ export function describe(row: AuditRow, productName: ProductName): string {
       return text('reason');
     case 'warehouse_unreachable':
       return text('problem');
+    case 'review_resolved':
+      return text('why');
     case 'review_decided':
       return `${DECISIONS.get(text('decision')) ?? text('decision')} by ${text('decided_by')}`;
     case 'signed_in':

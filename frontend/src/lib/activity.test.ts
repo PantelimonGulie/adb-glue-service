@@ -47,6 +47,10 @@ it('describes the details in plain words', () => {
   expect(describe(on('order', 'shop-1', 'cancel_repeated'), productName)).toBe(
     'the order was already cancelled',
   );
+  const resolved = { review_id: 7, kind: 'unfulfillable', why: 'the order is cancelled' };
+  expect(describe(on('order', 'emag-9', 'review_resolved', resolved), productName)).toBe(
+    'the order is cancelled',
+  );
 });
 
 it('labels an incoming message by what it is about', () => {

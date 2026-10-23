@@ -82,6 +82,11 @@ const ACTIONS: Record<string, Label> = {
     tone: 'green',
     explanation: 'A person, or a rule, decided what happens with this order.',
   },
+  review_resolved: {
+    label: 'Closed as no longer needed',
+    tone: 'green',
+    explanation: "The order's state made this review item moot, so Glue closed it.",
+  },
   triage_suggested: {
     label: 'Suggestion ready',
     tone: 'blue',
