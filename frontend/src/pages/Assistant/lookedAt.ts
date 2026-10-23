@@ -5,6 +5,7 @@ const SOURCES: Record<string, string> = {
   list_review_items: 'review queue',
   get_order: 'order history',
   get_stock: 'stock',
+  get_system_health: 'system health',
 };
 
 export function lookedAt(tools: string[], tokens: number): string {

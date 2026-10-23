@@ -7,4 +7,5 @@ it('names what an answer looked at in plain words, once each', () => {
   );
   expect(lookedAt(['get_weather'], 1200)).toBe('Looked at: other records · 1,200 tokens');
   expect(lookedAt([], 80)).toBe('Answered without looking anything up · 80 tokens');
+  expect(lookedAt(['get_system_health'], 300)).toBe('Looked at: system health · 300 tokens');
 });
