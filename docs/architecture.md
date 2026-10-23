@@ -230,7 +230,7 @@ A dirty row keeps the time of the last push the channel accepted, so its age on 
 
 Glue knows whether a channel accepted a figure, not what the channel displays. A channel that accepts and does not apply it (eMAG's "Ignore stock updates" fault) looks in step on the Stock page. Reading eMAG's offers back during a run would close that gap; it is not built.
 
-A run that reaches the warehouse after runs that could not is a recovery. After releasing the lock it applies the auto-retry rule: every open `order_failed` item whose placement never went through is retried as an operator's **Retry** would be, decided by `rule:auto-retry` and audited as `rule_applied`.
+A run that reaches the warehouse after runs that could not is a recovery. After releasing the lock it applies the auto-retry rule: every open `outage` item whose placement never went through is retried as an operator's **Retry** would be, decided by `rule:auto-retry` and audited as `rule_applied`.
 
 ## The live map: an events cursor
 
