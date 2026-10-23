@@ -80,6 +80,10 @@
   padding: 0 var(--space-4) var(--space-4);
 }
 
+.denied {
+  padding: 0 var(--space-4) var(--space-2);
+}
+
 @media (max-width: 479px) {
   .log {
     min-height: 200px;

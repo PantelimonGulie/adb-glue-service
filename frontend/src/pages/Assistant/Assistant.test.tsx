@@ -18,20 +18,37 @@ const downloading = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  sessionStorage.clear();
 });
 
 const question = () => screen.getByRole('textbox', { name: 'Question' });
 
-it('puts the question from the address in the box without asking it', async () => {
+it('asks the question from the address as soon as the model is ready', async () => {
   const fetch = stubApi({ '/api/assistant': assistant, [ASK]: answer });
   renderPage(<Assistant />, {
     user: users.operator,
     route: '/assistant?q=What+happened+to+emag-500124%3F',
   });
 
-  expect(question()).toHaveValue('What happened to emag-500124?');
+  expect(await screen.findByText('It was reserved at 10:41.')).toBeInTheDocument();
+  expect(lastBody(fetch, ASK)).toEqual({ question: 'What happened to emag-500124?', history: [] });
+  expect(fetch.mock.calls.filter(([path]) => path === ASK)).toHaveLength(1);
+  expect(question()).toHaveValue('');
+});
+
+it('keeps the conversation when the page is left and opened again', async () => {
+  stubApi({ '/api/assistant': assistant, [ASK]: answer });
+  const first = renderPage(<Assistant />, { user: users.operator });
   await screen.findByText('Ready');
-  expect(lastBody(fetch, ASK)).toBeUndefined();
+  await userEvent.type(question(), 'What happened to shop-1041?');
+  await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+  await screen.findByText('It was reserved at 10:41.');
+  first.unmount();
+
+  renderPage(<Assistant />, { user: users.operator });
+
+  expect(screen.getByText('What happened to shop-1041?')).toBeInTheDocument();
+  expect(screen.getByText('It was reserved at 10:41.')).toBeInTheDocument();
 });
 
 it('asks with the conversation so far and shows what each answer looked at', async () => {
@@ -89,6 +106,10 @@ it('a viewer sees why they cannot ask', async () => {
   await screen.findByText('Ready');
 
   expect(question()).toBeDisabled();
+  expect(question()).toHaveAttribute('placeholder', expect.stringMatching(/^Ask a question/));
+  expect(
+    screen.getByText('You can read this page. Only operators and admins can ask.'),
+  ).toBeInTheDocument();
   const ask = screen.getByRole('button', { name: 'Ask' });
   expect(ask).toBeDisabled();
   expect(ask).toHaveAttribute('title', 'Your role (viewer) cannot do this');
