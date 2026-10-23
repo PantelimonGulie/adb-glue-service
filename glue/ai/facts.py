@@ -32,6 +32,12 @@ STATUSES = {
     "failed": "failed, waiting for a person",
     "cancelled": "cancelled",
 }
+STOCK_STATES = {
+    "in_sync": "both channels show what Glue last sent them",
+    "behind": "a channel has not been told the latest figure yet",
+    "refused": "eMAG refused the last stock update",
+    "held": "a rule holds some units back on a channel",
+}
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00")
 
 
@@ -41,6 +47,29 @@ def local(moment: datetime, zone: ZoneInfo) -> str:
 
 def plural(count: int, word: str) -> str:
     return f"{count} {word}{'' if count == 1 else 's'}"
+
+
+def told(ctx: Context, row: dict, channel: str) -> str:
+    sent, held = row[channel], row["held_back"][channel]
+    if sent is None:
+        return "not told yet"
+    if sent["dirty"]:
+        shown = ctx.db.last_taken(channel, row["sku"])
+        still = "an older figure" if shown is None else shown
+        return f"refused the update to {sent['qty']}, so it still shows {still}"
+    return f"shows {sent['qty']}" + (f" ({held} held back by a rule)" if held else "")
+
+
+def stock_line(ctx: Context) -> str:
+    rows = [row for row in queries.stock_rows(ctx) if row["state"] != "in_sync"]
+    if not rows:
+        return f"- Stock: {STOCK_STATES['in_sync']}."
+    differ = "; ".join(
+        f"{row['product']}, {row['free']} free: the shop {told(ctx, row, 'shop')};"
+        f" eMAG {told(ctx, row, 'emag')}"
+        for row in rows
+    )
+    return f"- Stock not in step: {differ}."
 
 
 async def live(ctx: Context) -> str:
@@ -63,6 +92,7 @@ async def live(ctx: Context) -> str:
             f"- Systems: {systems}.",
             f"- Waiting for a person: {waiting}.",
             f"- Last hour: {hour}.",
+            stock_line(ctx),
         ]
     )
 

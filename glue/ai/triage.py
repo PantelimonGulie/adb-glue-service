@@ -24,6 +24,7 @@ async def ask_model(ctx: Context, question: str) -> str:
             model=ctx.settings.llm_model,
             messages=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": question}],
             max_tokens=tuning.ai_limits(ctx.db)["max_tokens_per_question"],
+            temperature=0,
         )
         tokens = response.usage.total_tokens if response.usage else 0
     finally:

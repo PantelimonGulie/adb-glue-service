@@ -22,12 +22,6 @@ SYSTEM = (
     " give no advice unless asked. Be brief: a few sentences or a short list, plain text"
     " without markdown. You are read-only and cannot change anything."
 )
-STOCK_STATES = {
-    "in_sync": "both channels show what Glue last sent them",
-    "behind": "a channel has not been told the latest figure yet",
-    "refused": "eMAG refused the last stock update",
-    "held": "a rule holds some units back on a channel",
-}
 
 
 @dataclass(frozen=True)
@@ -84,17 +78,6 @@ def get_order(ctx: Context, order_id: str) -> dict:
     return {"order": facts.order(row), "history": history}
 
 
-def told(ctx: Context, row: dict, channel: str) -> str:
-    sent, held = row[channel], row["held_back"][channel]
-    if sent is None:
-        return "not told yet"
-    if sent["dirty"]:
-        shown = ctx.db.last_taken(channel, row["sku"])
-        still = "an older figure" if shown is None else shown
-        return f"refused the update to {sent['qty']}, so it still shows {still}"
-    return f"shows {sent['qty']}" + (f" ({held} held back by a rule)" if held else "")
-
-
 def get_stock(ctx: Context, product: str) -> list[dict] | dict:
     wanted = str(product).lower()[:64]
     rows = [
@@ -103,9 +86,9 @@ def get_stock(ctx: Context, product: str) -> list[dict] | dict:
             "on the shelf": row["on_hand"],
             "reserved for orders": row["reserved"],
             "free to sell": row["free"],
-            "the shop": told(ctx, row, "shop"),
-            "eMAG": told(ctx, row, "emag"),
-            "in short": STOCK_STATES[row["state"]],
+            "the shop": facts.told(ctx, row, "shop"),
+            "eMAG": facts.told(ctx, row, "emag"),
+            "in short": facts.STOCK_STATES[row["state"]],
         }
         for row in queries.stock_rows(ctx)
         if wanted in f"{row['sku']} {PRODUCTS.get(row['sku'], '')}".lower()
@@ -185,6 +168,8 @@ async def ask(ctx: Context, turns: list[dict]) -> AskResult:
                 messages=messages,
                 tools=TOOL_SPECS,
                 max_tokens=limits["max_tokens_per_question"],
+                # The same question gets the same answer; a small model wanders when it samples.
+                temperature=0,
             )
             tokens += response.usage.total_tokens if response.usage else 0
             message = response.choices[0].message

@@ -41,7 +41,7 @@ async def test_triage_uses_local_model(systems, sleeps):
     body = response.json()
     assert (body["id"], body["status"], body["order"]["order_id"]) == (item["id"], "open", order_id)
     assert body["suggestion"] == {"action": "retry", "reason": ANSWER.split("REASON: ")[1]}
-    assert model.requests[0]["model"] == "qwen2.5:3b"
+    assert (model.requests[0]["model"], model.requests[0]["temperature"]) == ("qwen2.5:3b", 0)
     assistant = (await systems.http.get("http://glue/api/assistant")).json()
     assert (assistant["used_today"], assistant["questions_today"]) == (60, 1)
 

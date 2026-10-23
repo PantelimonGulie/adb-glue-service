@@ -67,7 +67,7 @@ async def test_ask_records_usage(systems):
         "tokens": 120,
     }
     assert model.requests[0]["messages"][1:4] == [*history, {"role": "user", "content": QUESTION}]
-    assert model.requests[0]["max_tokens"] == 2000
+    assert (model.requests[0]["max_tokens"], model.requests[0]["temperature"]) == (2000, 0)
     state = await assistant_state(systems)
     assert (state["used_today"], state["questions_today"]) == (120, 1)
 
@@ -87,7 +87,23 @@ async def test_the_prompt_carries_live_facts_and_the_words_to_use(systems, sleep
     assert "Last hour: 1 order in, 0 reserved, 1 failed" in system
     assert "'the shop' is Electronic Market" in system
     assert "never say 'SKU'" in system
+    assert "- Stock: both channels show what Glue last sent them." in system
     assert not any(code in system for code in PRODUCTS)
+
+
+async def test_the_prompt_names_stock_a_channel_shows_differently(systems):
+    await systems.chaos("emag", reject_sku="MBA-M4")
+    await systems.recount("MBA-M4", 3)
+    await systems.run_worker()
+    model = systems.use_model("eMAG refused the update.")
+
+    await systems.act("/api/assistant/ask", question="Why is the MacBook different on eMAG?")
+
+    system = model.requests[0]["messages"][0]["content"]
+    assert (
+        "- Stock not in step: MacBook Air M4, 3 free: the shop shows 3;"
+        " eMAG refused the update to 3, so it still shows 1." in system
+    )
 
 
 async def test_tools_answer_in_product_names_and_plain_words(systems, sleeps):
