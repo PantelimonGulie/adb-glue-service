@@ -98,6 +98,8 @@ Four services from one image: three mocks and Glue. Glue is one FastAPI process 
 - **Audit log.** One row per thing that happened, with a correlation id, mirrored as one JSON log line.
 - **Business timezone.** `BUSINESS_TIMEZONE` (default `Europe/Bucharest`) says where a day starts. Today, Last 7 days, This month and custom ranges, and the Flow page's day buckets, are cut at midnight in that zone, so the day the clocks go back has 25 hours. Glue stores and returns UTC; `/api/me` names the zone, and the dashboard shows every time and date in it, whatever the browser's own zone.
 
+**Crash safety.** Four patterns keep an order right wherever Glue stops. A transactional inbox saves each event with its audit row before the 202. Processing is at least once, and every hop is idempotent, which together give effectively once. Each local step is atomic: a state change, its audit row and its review item commit in one SQLite transaction. Steps across the three systems cannot share a transaction, so they run saga style: each is idempotent and retried, and what still fails goes to a person in the review queue, whose **Cancel** compensates it on the channel. What is saved, and what happens on restart, for each place Glue can stop is in the [crash table](docs/architecture.md#crash-safety).
+
 What runs in production and what exists for the walkthrough:
 
 | Layer | Where | In production |
@@ -152,7 +154,9 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 - **A person decides oversells.** Cancelling a paid order is a business decision: stock may arrive tomorrow, the customer may take a different model. Glue does the safe part (reserve nothing it cannot fill, cap both channels at 0) and queues the rest with the reason.
 - **Per-order serialisation instead of a global lock.** Events and decisions for one order run one at a time; different orders run in parallel. At scale this becomes workers partitioned by order id.
 - **Decisions run inside the HTTP request.** Simple, and the operator sees the outcome at once. The cost is that a retry against a slow warehouse holds the request; the `acting` state makes a cut-off decision safe, but not fast.
+- **No distributed transaction across the three systems: idempotency and compensation instead.** The shop, eMAG and the Bucharest warehouse are separate systems behind HTTP APIs, and none of them offers a two-phase commit. Holding one transaction across them would also let one slow system stall the others. So each call is idempotent and retried, its result is saved locally in one transaction with its audit row, and what cannot be completed goes to review, where a cancel undoes it on the channel. The cost is a short window in which the systems disagree, such as a reservation Glue has not recorded yet; the crash-point test shows that each such window heals.
 - **Triage: the policy is in code, the model explains it.** The 3B local model follows a rule that names one choice but not a conditional one, so `glue/ai/triage_prompt.py` decides the recommendation and the model writes the reason. It is testable, and the model cannot steer the outcome.
+- **No RAG:** orders, stock and the audit log are live, structured data, so the assistant's tools query them directly, which is more accurate than searching embeddings.
 - **Polling instead of push to the browser.** Two-second polling with a cursor is simple and survives proxies; push would matter only with many operators.
 - **Mocks instead of real sandboxes.** The mocks copy the behaviour that matters for the logic (at-least-once delivery, acknowledge, per-item batch results, numeric statuses) and add fault switches, so every failure can be shown on demand. Real API quirks stay untested.
 
@@ -179,7 +183,7 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 ## Testing
 
 ```sh
-# Backend, in the same image Compose runs: lint, format check, 227 tests in about 8 seconds
+# Backend, in the same image Compose runs: lint, format check, 238 tests in about 13 seconds
 docker compose run --rm --no-deps --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
 
 # Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 222 tests in 44 files
@@ -196,11 +200,13 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 - **Retries.** Warehouse 503, 503, 201 reserves on the third try; `Retry-After` is honoured as seconds or an HTTP date, capped at 30 seconds, and ignored when unreadable; 4xx answers are not retried; a retried eMAG read or acknowledge, warehouse cancel, ship notice or channel cancel each leaves a retry row in the activity log.
 - **Partial failures.** A ship notice the channel missed is retried from review; an acknowledge that fails after the reservation heals on eMAG's next notification; a failed event sent again goes back to the queue; items whose order reached a good state by another path close themselves.
 - **Concurrency.** Two cancels for one order in one batch cancel it once; an operator cancel racing a customer cancel cancels it once; the production worker loop refills a slot as soon as one frees.
-- **Crash recovery.** An event claimed when Glue stopped is handled once after a restart; a decision cut short is reopened or closed depending on where the order got to; a database from before versioning, or from before `received_at`, upgrades in place.
+- **Crash recovery.** An event claimed when Glue stopped is handled once after a restart; a decision cut short is reopened or closed depending on where the order got to; a database from before versioning, or from before `received_at`, upgrades in place; and the crash-point test below.
 - **Conflicts.** The oversell is queued, names the order that got the last unit, and the operator's cancel sets the eMAG order to 0; a shelf short by two flags the two newest orders, and a count that covers them closes their items; a two-product order keeps its item while only one product is short; a rejected SKU in an eMAG batch is flagged and fixed on the next run.
 - **Security.** Unsigned, forged, wrong-source and replayed-under-a-new-id webhooks get 401; a shop order without lines gets 422 and an eMAG order without products is never reserved; an eMAG cancel notice changes nothing while eMAG shows the order open, and a new-order notice reserves nothing once eMAG shows it cancelled; an empty secret verifies nothing; a session cookie with a superscript digit in its expiry is refused instead of crashing; dashboard writes without `X-Glue-Request` or from another origin get 403; each role gets 403 on what it may not do.
 - **Business days.** Today starts at midnight in Bucharest, an order at 00:30 local counts for that day, and the day the clocks go back has 25 hourly buckets.
 - **Console, AI and demo.** Filters, paging without gaps when orders arrive in the same millisecond, the events cursor, analytics (including lost orders, and Overview, Flow and Orders agreeing on one day), system states (including a rate limit only Glue's own calls meet), settings, rules, the model download, budgets, an assistant prompt that carries live facts and tools that answer in product names, triage that hands the model the facts, never acts, drops sentences that name internal tools and refuses a missing or decided item before asking the model, and demo restocks that leave a hand-counted product alone.
+
+**The crash-point test.** [`tests/test_crash_points.py`](tests/test_crash_points.py) runs 11 flows: a shop order reserved, refused with 409, or failed in an outage; a cancel; a shipment; an eMAG order; a retry from review; an eMAG order Glue cannot read; a cancel of a failed order; a cancel from review that fails; and a short recount. It counts each flow's database writes, then reruns the flow on fresh systems once per write and stops Glue just before it: 132 crash points in about 6 seconds. After each restart it checks that the warehouse holds exactly Glue's allocated orders, that every order ends as in the run without a crash, that every failed order has one open item, that every state change has its audit row once, and that every event ends done or failed with an item. Before the fixes this test led to, 31 of the 132 points failed. How it stops and restarts Glue is under [Crash safety](docs/architecture.md#crash-safety).
 
 **A mutation check.** Each of these bugs, planted one at a time, makes the backend suite fail: inbox dedupe off, order-id dedupe off, no `Idempotency-Key`, `Retry-After` ignored, `Retry-After` uncapped, 4xx retried, no per-order lock, `processing` not reset at start, cut-off decisions not settled at start, stale items not settled, event id left out of the signature, an empty secret accepted, dirty flag never set, negative stock pushed, a cancel that does not release stock, ship notices not retryable, eMAG never acknowledged, CSRF header not checked.
 
@@ -303,7 +309,7 @@ I built this with an AI coding assistant (Claude Code) and used it heavily. This
 
 **Decided by me.** The scenario (one Bucharest warehouse, the shop and eMAG); that the first order to reach the warehouse wins; that a person decides oversells; that triage is policy in code and the model only explains it; the look of every screen, approved as mockups before any UI code; what to leave out; and the order of work: the sync core first, then the operator console, then the demo layer.
 
-**How it was checked.** 227 backend and 222 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
+**How it was checked.** 238 backend and 222 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
 
 **What review caught.** Three partial-failure gaps in the core (a ship notice nobody retried, a crash in the middle of a review decision, review items left open after the problem healed), a hard-coded "Orders lost: 0", a recount that flooded the review queue, and a worker loop capped at 20 orders per second that only the load probe exposed. Each is fixed and has a test.
 
