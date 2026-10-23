@@ -94,7 +94,8 @@ async def test_tools_answer_in_product_names_and_plain_words(systems, sleeps):
     order_id = await systems.buy_on_shop("MBA-M4")
     await systems.run_worker()
     await systems.chaos("emag", reject_sku="MBA-M4")
-    await systems.reconcile()
+    await systems.recount("MBA-M4", 3)
+    await systems.run_worker()
     calls = [
         ("get_system_health", {}),
         ("get_stock", {"product": "macbook"}),
@@ -113,7 +114,8 @@ async def test_tools_answer_in_product_names_and_plain_words(systems, sleeps):
     health, stock, order, summary, review = (json.loads(result) for result in results)
     assert health["the Bucharest warehouse"]["state"] == "working"
     assert stock[0]["product"] == "MacBook Air M4"
-    assert stock[0]["state"] == "eMAG refused the last stock update"
+    assert stock[0]["eMAG"] == "refused the update to 2, so it still shows 0"
+    assert stock[0]["in short"] == "eMAG refused the last stock update"
     assert order["order"]["products"] == "1 × MacBook Air M4"
     assert summary["orders in"] == 1
     assert review == []

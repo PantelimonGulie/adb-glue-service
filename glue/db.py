@@ -223,6 +223,16 @@ class Database:
     def channel_stock(self, channel: str) -> list[dict]:
         return self.rows("SELECT * FROM channel_stock WHERE channel = ? ORDER BY sku", (channel,))
 
+    def last_taken(self, channel: str, sku: str) -> int | None:
+        # The last figure the channel accepted, which it still shows after refusing a newer one.
+        row = self.conn.execute(
+            "SELECT json_extract(detail, '$.qty') FROM audit_log WHERE entity_id = ?"
+            " AND action = 'stock_pushed' AND json_extract(detail, '$.channel') = ?"
+            " ORDER BY id DESC LIMIT 1",
+            (sku, channel),
+        ).fetchone()
+        return row[0] if row else None
+
     def set_channel_stock(self, channel: str, sku: str, qty: int, dirty: bool) -> bool:
         before = self.conn.execute(
             "SELECT qty, dirty FROM channel_stock WHERE channel = ? AND sku = ?", (channel, sku)

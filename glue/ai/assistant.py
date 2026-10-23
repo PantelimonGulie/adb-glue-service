@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from common.catalog import PRODUCTS
-from glue import queries, ranges, review, tuning
+from glue import queries, ranges, tuning
 from glue.ai import facts
 from glue.context import Context
 
@@ -18,9 +18,9 @@ SYSTEM = (
     " sells. Never mix the two up.\n"
     "Rules: answer from the live facts below and from tool results only; if they do not show"
     " it, say you do not know. Name products by their names; never use product codes and never"
-    " say 'SKU'. Never mention tool names. Times are Bucharest time. Be brief: a few sentences"
-    " or a short list, plain text without markdown. You are read-only and cannot change"
-    " anything."
+    " say 'SKU'. Never mention tool names. Times are Bucharest time. Say what happened and why;"
+    " give no advice unless asked. Be brief: a few sentences or a short list, plain text"
+    " without markdown. You are read-only and cannot change anything."
 )
 STOCK_STATES = {
     "in_sync": "both channels show what Glue last sent them",
@@ -57,16 +57,17 @@ def get_summary(ctx: Context, hours: int = 1) -> dict:
 def list_review_items(ctx: Context) -> list[dict]:
     items = []
     for item in ctx.db.list_review()[::-1][:20]:
-        row = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
-        items.append(
-            {
-                "order": item["order_id"],
-                "why": facts.CAUSES[review.cause_of(item)],
-                "what happened": item["reason"],
-                "waiting since": item["created_at"],
-                **({"products": facts.products(row["lines"])} if row else {}),
-            }
-        )
+        shown = queries.review_item(ctx, item)
+        about = {"order": item["order_id"], "why": facts.CAUSES[shown["cause"]]}
+        if shown["order"]:
+            about["from"] = facts.CHANNELS[shown["order"]["channel"]]
+            about["products"] = f"{shown['order']['qty']} × {shown['order']['product']}"
+        if shown["winner"]:
+            winner = shown["winner"]
+            about["the last unit went to"] = (
+                f"{winner['order_id']} from {facts.CHANNELS[winner['channel']]}"
+            )
+        items.append(about | {"what happened": item["reason"], "since": item["created_at"]})
     return items
 
 
@@ -83,6 +84,17 @@ def get_order(ctx: Context, order_id: str) -> dict:
     return {"order": facts.order(row), "history": history}
 
 
+def told(ctx: Context, row: dict, channel: str) -> str:
+    sent, held = row[channel], row["held_back"][channel]
+    if sent is None:
+        return "not told yet"
+    if sent["dirty"]:
+        shown = ctx.db.last_taken(channel, row["sku"])
+        still = "an older figure" if shown is None else shown
+        return f"refused the update to {sent['qty']}, so it still shows {still}"
+    return f"shows {sent['qty']}" + (f" ({held} held back by a rule)" if held else "")
+
+
 def get_stock(ctx: Context, product: str) -> list[dict] | dict:
     wanted = str(product).lower()[:64]
     rows = [
@@ -91,10 +103,9 @@ def get_stock(ctx: Context, product: str) -> list[dict] | dict:
             "on the shelf": row["on_hand"],
             "reserved for orders": row["reserved"],
             "free to sell": row["free"],
-            "the shop shows": row["shop"] and row["shop"]["qty"],
-            "eMAG shows": row["emag"] and row["emag"]["qty"],
-            "held back by a rule": row["held_back"],
-            "state": STOCK_STATES[row["state"]],
+            "the shop": told(ctx, row, "shop"),
+            "eMAG": told(ctx, row, "emag"),
+            "in short": STOCK_STATES[row["state"]],
         }
         for row in queries.stock_rows(ctx)
         if wanted in f"{row['sku']} {PRODUCTS.get(row['sku'], '')}".lower()
