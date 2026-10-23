@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from contextlib import nullcontext
 
 from common.models import Order
 from glue import reconciler, review, router, settle
@@ -43,17 +42,10 @@ def operation_in(event: dict) -> str | None:
     return OPERATIONS.get(event["type"])
 
 
-def order_lock(ctx: Context, order_id: str | None) -> asyncio.Lock | nullcontext:
-    # Events for one order run one at a time, so two of them never act on the same state.
-    if order_id is None:
-        return nullcontext()
-    return ctx.order_locks.setdefault(order_id, asyncio.Lock())
-
-
 async def handle(ctx: Context, event: dict) -> None:
     event_id = event["event_id"]
     order_id = order_id_in(event)
-    async with order_lock(ctx, order_id), ctx.worker_slots:
+    async with ctx.order_lock(order_id), ctx.worker_slots:
         failures = ctx.db.failures_recorded(order_id, event_id)
         try:
             await HANDLERS[event["type"]](ctx, event)

@@ -77,6 +77,16 @@ async def decide(ctx: Context, item_id: int, action: str, decided_by: str = "ope
     item = ctx.db.get_review(item_id)
     if item is None:
         raise LookupError(f"review item {item_id} not found")
+    # asyncio.Lock is not reentrant. The auto-retry rule decides from inside an event or a
+    # decision that holds the lock of an order it just allocated or cancelled, but it only
+    # retries failed orders, so it never waits on a lock its own task holds.
+    async with ctx.order_lock(item["order_id"]):
+        # Read again: the item may have been decided or settled while this waited.
+        await carry_out(ctx, ctx.db.get_review(item_id), action, decided_by)
+
+
+async def carry_out(ctx: Context, item: dict, action: str, decided_by: str) -> None:
+    item_id = item["id"]
     if item["status"] != "open":
         raise Conflict(f"already decided: {item['action']} by {item['decided_by']}")
     order_id = item["order_id"]

@@ -1,5 +1,6 @@
 import asyncio
 import weakref
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 
 import httpx
@@ -26,7 +27,7 @@ class Context:
     # overwriting a newer stock figure on the channels.
     reconcile_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     worker_slots: asyncio.Semaphore = field(default_factory=lambda: asyncio.Semaphore(10))
-    # One lock per order with events in flight; it goes away once no event holds it.
+    # One lock per order being worked on; it goes away once nothing holds it.
     order_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = field(
         default_factory=weakref.WeakValueDictionary
     )
@@ -35,3 +36,10 @@ class Context:
     traffic: Traffic = field(default_factory=Traffic)
     model_status: str = "offline"
     model_progress: float = 0.0
+
+    def order_lock(self, order_id: str | None) -> asyncio.Lock | nullcontext:
+        # Events and review decisions for one order run one at a time, so two of them never
+        # act on the same state.
+        if order_id is None:
+            return nullcontext()
+        return self.order_locks.setdefault(order_id, asyncio.Lock())

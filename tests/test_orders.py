@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 import pytest
@@ -5,6 +6,7 @@ import pytest
 import emag.main
 import shop.main
 from common.models import Order
+from glue import review
 
 
 async def test_duplicate_shop_events_create_one_order(systems):
@@ -163,3 +165,35 @@ async def test_two_cancels_for_one_order_in_one_batch_cancel_it_once(systems):
     assert sent == [order_id]
     assert systems.ctx.db.counters()["order_cancelled"] == 1
     assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
+
+
+async def test_an_operator_cancel_and_a_customer_cancel_cancel_the_order_once(systems):
+    order_id = await systems.buy_on_shop("APP-3")
+    await systems.run_worker()
+    await systems.recount("APP-3", 0)
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    sent = []
+    answer = asyncio.Event()
+    cancel = systems.ctx.warehouse.cancel_order
+
+    async def slow(order_id: str):
+        sent.append(order_id)
+        await answer.wait()
+        return await cancel(order_id)
+
+    systems.ctx.warehouse.cancel_order = slow
+    operator = asyncio.create_task(review.decide(systems.ctx, item["id"], "cancel"))
+    for _ in range(50):
+        await asyncio.sleep(0)
+    assert sent == [order_id]
+    # The customer cancels too, while the operator's cancel waits on the warehouse.
+    await systems.send_event("shop", "order.cancelled", {"order_id": order_id})
+    customer = asyncio.create_task(systems.run_worker())
+    for _ in range(50):
+        await asyncio.sleep(0)
+    answer.set()
+    await asyncio.gather(operator, customer)
+
+    assert sent == [order_id]
+    assert systems.ctx.db.counters()["order_cancelled"] == 1
