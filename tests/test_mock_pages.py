@@ -112,6 +112,16 @@ async def test_warehouse_outage_is_shown_and_turns_off_ship_and_save(systems, sl
     assert html.count("disabled>Save") == 6
 
 
+async def test_mock_pages_refresh_themselves(systems):
+    for system in ("shop", "emag", "warehouse"):
+        html = await page(systems, system)
+        script = await systems.http.get(f"http://{system}/static/common/refresh.js")
+
+        assert '<script src="/static/common/refresh.js" defer></script>' in html
+        assert script.status_code == 200
+        assert "location.reload()" in script.text
+
+
 async def test_mock_pages_load_vendored_fonts_and_art(systems):
     for path in (
         "http://shop/static/shop.css",
