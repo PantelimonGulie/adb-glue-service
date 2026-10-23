@@ -1,8 +1,10 @@
+import json
 from types import SimpleNamespace
 
 import httpx
 from openai import APITimeoutError
 
+from common.catalog import PRODUCTS
 from glue.ai import llm
 
 QUESTION = "Which orders need a decision?"
@@ -68,6 +70,57 @@ async def test_ask_records_usage(systems):
     assert model.requests[0]["max_tokens"] == 2000
     state = await assistant_state(systems)
     assert (state["used_today"], state["questions_today"]) == (120, 1)
+
+
+async def test_the_prompt_carries_live_facts_and_the_words_to_use(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    model = systems.use_model("No, the Bucharest warehouse is not answering.")
+
+    await systems.act("/api/assistant/ask", question="Is the warehouse working?")
+
+    system = model.requests[0]["messages"][0]["content"]
+    assert "the shop (Electronic Market): working" in system
+    assert "the Bucharest warehouse: not answering" in system
+    assert "Waiting for a person: 1 warehouse outage." in system
+    assert "Last hour: 1 order in, 0 reserved, 1 failed" in system
+    assert "'the shop' is Electronic Market" in system
+    assert "never say 'SKU'" in system
+    assert not any(code in system for code in PRODUCTS)
+
+
+async def test_tools_answer_in_product_names_and_plain_words(systems, sleeps):
+    order_id = await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    await systems.chaos("emag", reject_sku="MBA-M4")
+    await systems.reconcile()
+    calls = [
+        ("get_system_health", {}),
+        ("get_stock", {"product": "macbook"}),
+        ("get_order", {"order_id": order_id}),
+        ("get_summary", {"hours": 1}),
+        ("list_review_items", {}),
+    ]
+    model = systems.use_model("eMAG refused the last MacBook update.", calls)
+    await systems.sign_in("admin")
+    await systems.put("/api/assistant/settings", effort="high")
+
+    response = await systems.act("/api/assistant/ask", question="Why is the MacBook different?")
+
+    results = [m["content"] for m in model.requests[-1]["messages"] if m["role"] == "tool"]
+    assert response.json()["tools"] == [name for name, _ in calls]
+    health, stock, order, summary, review = (json.loads(result) for result in results)
+    assert health["the Bucharest warehouse"]["state"] == "working"
+    assert stock[0]["product"] == "MacBook Air M4"
+    assert stock[0]["state"] == "eMAG refused the last stock update"
+    assert order["order"]["products"] == "1 × MacBook Air M4"
+    assert summary["orders in"] == 1
+    assert review == []
+    for result in results:
+        assert "MBA-M4" not in result
+        assert "sku" not in result.lower()
+        assert "+00:00" not in result
 
 
 async def test_budget_spent_returns_429(systems):
