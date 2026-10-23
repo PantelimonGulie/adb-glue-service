@@ -39,5 +39,6 @@ async def sign_out(response: Response) -> None:
 
 
 @router.get("/me")
-async def me(user: Annotated[auth.User, Depends(auth.require("view"))]) -> dict:
-    return user.as_json()
+async def me(request: Request, user: Annotated[auth.User, Depends(auth.require("view"))]) -> dict:
+    # The dashboard shows every time and day in the zone the API cuts days in.
+    return user.as_json() | {"timezone": request.app.state.settings.business_timezone}

@@ -1,5 +1,10 @@
+from zoneinfo import ZoneInfoNotFoundError
+
+import pytest
+
 import glue.main
 from glue import tuning
+from glue.settings import Settings
 
 
 async def test_settings_change_applies_to_retries(systems, sleeps):
@@ -59,3 +64,8 @@ async def test_users_lists_three_roles(systems):
         ("admin", "admin"),
     ]
     assert users[2]["permissions"] == ["ask", "decide", "demo", "rules", "settings", "view"]
+
+
+def test_an_unknown_business_timezone_stops_the_start():
+    with pytest.raises(ZoneInfoNotFoundError):
+        Settings(business_timezone="Europe/Atlantis")

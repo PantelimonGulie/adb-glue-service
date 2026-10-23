@@ -10,7 +10,7 @@ async def test_sign_in_returns_user_and_cookie(systems):
     user = {"name": "operator", "role": "operator", "permissions": ["ask", "decide", "view"]}
     assert response.json() == user
     assert COOKIE in response.cookies
-    assert me.json() == user
+    assert me.json() == user | {"timezone": "Europe/Bucharest"}
 
 
 async def test_wrong_password_401(systems):

@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, fields
 from typing import Self
+from zoneinfo import ZoneInfo
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,15 @@ class Settings:
     operator_password: str = ""
     admin_password: str = ""
     demo_traffic: str = "off"
+    business_timezone: str = "Europe/Bucharest"
+
+    def __post_init__(self) -> None:
+        # A misspelt zone should stop the start, not the first page that shows a day.
+        ZoneInfo(self.business_timezone)
+
+    @property
+    def zone(self) -> ZoneInfo:
+        return ZoneInfo(self.business_timezone)
 
     def webhook_secret(self, source: str) -> str:
         secrets = {

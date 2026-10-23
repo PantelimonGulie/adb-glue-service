@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
-from fastapi import Query
+from fastapi import Query, Request
 from fastapi.exceptions import RequestValidationError
 
 DAY = timedelta(days=1)
@@ -18,10 +19,14 @@ class Window:
 
 
 def stamp(moment: datetime) -> str:
-    return moment.isoformat(timespec="milliseconds")
+    return moment.astimezone(UTC).isoformat(timespec="milliseconds")
 
 
-def custom_days(from_: str | None, to: str | None) -> tuple[datetime, datetime]:
+def midnight(day: date, zone: ZoneInfo) -> datetime:
+    return datetime.combine(day, time(), zone)
+
+
+def custom_days(from_: str | None, to: str | None, zone: ZoneInfo) -> tuple[datetime, datetime]:
     if not from_ or not to:
         raise ValueError("a custom range needs both from and to")
     first, last = date.fromisoformat(from_), date.fromisoformat(to)
@@ -29,30 +34,34 @@ def custom_days(from_: str | None, to: str | None) -> tuple[datetime, datetime]:
         raise ValueError("from must not be after to")
     if last - first >= timedelta(days=366):
         raise ValueError("a custom range can cover at most a year")
-    return datetime.combine(first, time(), UTC), datetime.combine(last, time(), UTC) + DAY
+    return midnight(first, zone), midnight(last + DAY, zone)
 
 
-def resolve(range: str, from_: str | None, to: str | None, now: datetime) -> Window:
-    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = today + DAY
+def resolve(range: str, from_: str | None, to: str | None, now: datetime, zone: ZoneInfo) -> Window:
+    # Days are the business's own: they start at midnight where it trades, not in UTC.
+    today = now.astimezone(zone).date()
+    tomorrow = midnight(today + DAY, zone)
     if range == "live":
         since, until = now - timedelta(minutes=15), now
     elif range == "today":
-        since, until = today, tomorrow
+        since, until = midnight(today, zone), tomorrow
     elif range == "week":
-        since, until = tomorrow - 7 * DAY, tomorrow
+        since, until = midnight(today - 6 * DAY, zone), tomorrow
     elif range == "month":
-        since, until = today.replace(day=1), tomorrow
+        since, until = midnight(today.replace(day=1), zone), tomorrow
     elif range == "custom":
-        since, until = custom_days(from_, to)
+        since, until = custom_days(from_, to, zone)
     else:
         raise ValueError(f"unknown range {range!r}")
     unit = UNITS[range]
+    # Both ends share one zone, so this steps back by calendar days: the day before a 25-hour
+    # day is still a whole day.
     previous = Window(stamp(since - (until - since)), stamp(since), unit)
     return Window(stamp(since), stamp(until), unit, previous)
 
 
 def from_query(
+    request: Request,
     range: Literal["live", "today", "week", "month", "custom"] | None = None,
     from_: Annotated[str | None, Query(alias="from", max_length=10)] = None,
     to: Annotated[str | None, Query(max_length=10)] = None,
@@ -61,7 +70,7 @@ def from_query(
         return None
     # Dates near year 1 or 9999 overflow when the window or the one before it is computed.
     try:
-        return resolve(range, from_, to, datetime.now(UTC))
+        return resolve(range, from_, to, datetime.now(UTC), request.app.state.settings.zone)
     except (ValueError, OverflowError) as exc:
         error = {"type": "value_error", "loc": ("query", "range"), "msg": str(exc), "input": range}
         raise RequestValidationError([error]) from None

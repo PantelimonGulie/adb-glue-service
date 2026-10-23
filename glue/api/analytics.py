@@ -11,9 +11,10 @@ router = APIRouter(dependencies=[Depends(auth.require("view"))])
 
 
 def window_or_today(
-    window: Annotated[ranges.Window | None, Depends(ranges.from_query)],
+    request: Request, window: Annotated[ranges.Window | None, Depends(ranges.from_query)]
 ) -> ranges.Window:
-    return window or ranges.resolve("today", None, None, datetime.now(UTC))
+    zone = request.app.state.settings.zone
+    return window or ranges.resolve("today", None, None, datetime.now(UTC), zone)
 
 
 Window = Annotated[ranges.Window, Depends(window_or_today)]

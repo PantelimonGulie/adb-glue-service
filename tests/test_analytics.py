@@ -1,7 +1,10 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from common.models import Order, OrderLine
+
+BUCHAREST = ZoneInfo("Europe/Bucharest")
 
 
 async def get(systems, path: str = "/api/analytics", **params: object) -> dict:
@@ -19,8 +22,15 @@ def log(systems, ts: str, correlation_id: str, entity_id: str, action: str, **de
     )
 
 
+def local(day_offset: int, clock: str) -> str:
+    day = datetime.now(BUCHAREST).date() + timedelta(days=day_offset)
+    moment = datetime.combine(day, time.fromisoformat(clock), BUCHAREST)
+    return moment.astimezone(UTC).isoformat(timespec="milliseconds")
+
+
 def today_at(clock: str) -> str:
-    return f"{datetime.now(UTC).date()}T{clock}+00:00"
+    # Ranges and buckets follow Bucharest days and hours.
+    return local(0, clock)
 
 
 async def test_analytics_empty_range(systems):
@@ -153,8 +163,9 @@ async def test_latency_percentiles(systems):
     glue = report["parts"]["glue"]
     latency = report["series"]["latency"]
     assert (glue["p50_seconds"], glue["p95_seconds"]) == (2.0, 2.9)
-    assert (latency["p50"][10], latency["p95"][10]) == (2.0, 2.9)
-    assert latency["p50"][9] == 0
+    ten = report["range"]["labels"].index("10:00")
+    assert (latency["p50"][ten], latency["p95"][ten]) == (2.0, 2.9)
+    assert latency["p50"][ten - 1] == 0
     [product] = report["by_product"]
     assert (product["product"], product["orders"], product["p50_seconds"]) == (
         "AirPods Pro 3",
@@ -164,8 +175,7 @@ async def test_latency_percentiles(systems):
 
 
 async def test_compare_returns_previous(systems):
-    yesterday = datetime.now(UTC).date() - timedelta(days=1)
-    old = f"{yesterday}T12:00:00.000+00:00"
+    old = local(-1, "12:00")
     log(systems, old, "old", "old", "event_received", source="shop", type="order.placed")
 
     compared = await get(systems, range="today", compare=1)

@@ -5,7 +5,7 @@ from common.catalog import product_name
 from glue import queries, ranges
 from glue.analytics_series import (
     Trip,
-    bucket_keys,
+    bucket_starts,
     duplicate,
     labels,
     percentile,
@@ -122,7 +122,8 @@ def report(ctx: Context, window: ranges.Window, compare: bool) -> dict:
     for order in ctx.db.orders_in(list(found)):
         if order["lines"]:
             found[order["order_id"]].sku = order["lines"][0]["sku"]
-    keys = bucket_keys(window)
+    zone = ctx.settings.zone
+    keys = bucket_starts(window, zone)
     steps = funnel(rows, found)
     previous = queries.counters(ctx, *ranges.bounds(window.previous)) if compare else None
     opened = [row["detail"] for row in rows if row["action"] == "review_opened"]
@@ -131,12 +132,12 @@ def report(ctx: Context, window: ranges.Window, compare: bool) -> dict:
             "since": window.since,
             "until": window.until,
             "unit": window.unit,
-            "labels": labels(keys, window.unit),
+            "labels": labels(keys, window.unit, zone),
         },
         "totals": queries.counters(ctx, window.since, window.until),
         "previous": previous,
         "funnel": steps,
-        "series": series(rows, found, keys, window.unit),
+        "series": series(rows, found, keys),
         "parts": parts(rows, found, steps, window.until, ctx.db.lost(list(found))),
         "by_product": by_product(found),
         "failure_causes": queries.review_groups(opened),
@@ -146,12 +147,12 @@ def report(ctx: Context, window: ranges.Window, compare: bool) -> dict:
 
 def csv_rows(ctx: Context, window: ranges.Window) -> list[list]:
     rows = ctx.db.audit_between(window.since, window.until)
-    keys = bucket_keys(window)
-    charts = series(rows, trips(rows), keys, window.unit)
+    keys = bucket_starts(window, ctx.settings.zone)
+    charts = series(rows, trips(rows), keys)
     shop, emag = charts["orders"]["shop"], charts["orders"]["emag"]
     retried, failed = charts["problems"]["retried"], charts["problems"]["failed"]
     lines = [["bucket", "orders", "retried", "failed"]]
-    for i, label in enumerate(labels(keys, window.unit)):
+    for i, label in enumerate(labels(keys, window.unit, ctx.settings.zone)):
         lines.append([label, shop[i] + emag[i], retried[i], failed[i]])
     lines.append(["total", sum(shop) + sum(emag), sum(retried), sum(failed)])
     return lines

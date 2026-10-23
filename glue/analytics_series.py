@@ -1,11 +1,13 @@
+from bisect import bisect_right
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from glue.queries import CHANNELS, COUNTERS
-from glue.ranges import Window
+from glue.ranges import DAY, Window, midnight, stamp
 
-KEY_SIZE = {"minute": 16, "hour": 13, "day": 10}
-STEP = {"minute": timedelta(minutes=1), "hour": timedelta(hours=1), "day": timedelta(days=1)}
+STEP = {"minute": timedelta(minutes=1), "hour": timedelta(hours=1)}
+LABEL = {"minute": "%H:%M", "hour": "%H:00", "day": "%Y-%m-%d"}
 
 
 def seconds_between(start: str, end: str) -> float:
@@ -80,23 +82,30 @@ def trips(rows: list[dict]) -> dict[str, Trip]:
     return found
 
 
-def bucket_keys(window: Window) -> list[str]:
-    size = KEY_SIZE[window.unit]
-    moment = datetime.fromisoformat(window.since[:size]).replace(tzinfo=UTC)
+def bucket_starts(window: Window, zone: ZoneInfo) -> list[str]:
+    # UTC stamps like the stored times, so a time finds its bucket by comparing text. Days are
+    # local days, 23 or 25 hours long when the clocks change.
+    since = datetime.fromisoformat(window.since).astimezone(zone)
     until = datetime.fromisoformat(window.until)
-    keys = []
+    starts = []
+    if window.unit == "day":
+        day = since.date()
+        while (moment := midnight(day, zone)) < until:
+            starts.append(stamp(moment))
+            day += DAY
+        return starts
+    whole = {"minute": 0} if window.unit == "hour" else {}
+    moment = since.replace(second=0, microsecond=0, **whole).astimezone(UTC)
     while moment < until:
-        keys.append(moment.isoformat()[:size])
+        starts.append(stamp(moment))
         moment += STEP[window.unit]
-    return keys
+    return starts
 
 
-def labels(keys: list[str], unit: str) -> list[str]:
-    if unit == "minute":
-        return [key[11:16] for key in keys]
-    if unit == "hour":
-        return [f"{key[11:13]}:00" for key in keys]
-    return keys
+def labels(starts: list[str], unit: str, zone: ZoneInfo) -> list[str]:
+    return [
+        datetime.fromisoformat(start).astimezone(zone).strftime(LABEL[unit]) for start in starts
+    ]
 
 
 def percentile(values: list[float], share: float) -> float:
@@ -109,20 +118,21 @@ def percentile(values: list[float], share: float) -> float:
     return round(ordered[low] + (ordered[high] - ordered[low]) * (position - low), 2)
 
 
-def series(rows: list[dict], found: dict[str, Trip], keys: list[str], unit: str) -> dict:
-    size = KEY_SIZE[unit]
-    index = {key: i for i, key in enumerate(keys)}
+def series(rows: list[dict], found: dict[str, Trip], keys: list[str]) -> dict:
+    def index(ts: str) -> int:
+        return bisect_right(keys, ts) - 1
+
     orders = {channel: [0] * len(keys) for channel in CHANNELS}
     seconds: list[list[float]] = [[] for _ in keys]
     for trip in found.values():
-        i = index[trip.received[:size]]
+        i = index(trip.received)
         orders[trip.channel][i] += 1
         if trip.reserved:
             seconds[i].append(trip.seconds)
     retried, failed = [0] * len(keys), [0] * len(keys)
     unsynced: dict[str, list[set]] = {channel: [set() for _ in keys] for channel in CHANNELS}
     for row in rows:
-        i = index[row["ts"][:size]]
+        i = index(row["ts"])
         if row["action"] in COUNTERS["retries"]:
             retried[i] += 1
         elif row["action"] in COUNTERS["failed"]:
