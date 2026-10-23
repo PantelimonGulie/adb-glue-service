@@ -27,8 +27,8 @@
           <tr>
             <td class="order">{{ pick.id }}</td>
             <td class="channel">{{ pick.channel }}</td>
-            <td>{% for line in pick.lines %}<span class="line">{{ line.text }} <span class="name">{{ line.name }}</span></span>{% endfor %}</td>
-            <td class="bin">{% for line in pick.lines %}<span class="line">{{ line.bin }}</span>{% endfor %}</td>
+            <td class="lines">{% for line in pick.lines %}<span class="line">{{ line.text }} <span class="name">{{ line.name }}</span></span>{% endfor %}</td>
+            <td class="bin"><span class="bin-label">Bin</span>{% for line in pick.lines %}<span class="line">{{ line.bin }}</span>{% endfor %}</td>
             <td class="action">
               <form method="post" action="/orders/{{ pick.id }}/ship"><button type="submit" class="ship"{% if down %} disabled{% endif %}>Ship<span class="visually-hidden"> {{ pick.id }}</span></button></form>
             </td>

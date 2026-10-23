@@ -54,7 +54,6 @@ def record(app: FastAPI, line: str, problem: bool = False) -> None:
 async def notify(app: FastAPI, order_id: int, kind: str) -> None:
     body = json.dumps({"order_id": order_id, "type": kind}).encode()
     headers = signing.headers(app.state.secret, body)
-    app.state.callbacks[order_id] += 1
     try:
         response = await app.state.http.post(
             app.state.notify_url, content=body, headers=headers, timeout=2
@@ -64,6 +63,7 @@ async def notify(app: FastAPI, order_id: int, kind: str) -> None:
         log.warning("%s notification for order %s not delivered: %s", kind, order_id, exc)
         record(app, f"callback → Glue · order {order_id} · {kind} · not delivered", problem=True)
         return
+    app.state.callbacks[order_id] += 1
     record(app, f"callback → Glue · order {order_id} · {kind} · {response.status_code}")
 
 

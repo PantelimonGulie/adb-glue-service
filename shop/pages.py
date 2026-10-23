@@ -50,8 +50,17 @@ def product_cards(stock: dict[str, int], category: str, query: str) -> list[dict
         if query.lower() not in f"{name} {sku}".lower():
             continue
         note, tone = availability(stock[sku])
-        card = {"sku": sku, "name": name, "price": ui.price(amount), "left": stock[sku]}
-        cards.append({**card, "note": note, "tone": tone})
+        cards.append(
+            {
+                "sku": sku,
+                "name": name,
+                "price": ui.price(amount),
+                "left": stock[sku],
+                "last_one": stock[sku] == 1,
+                "note": note,
+                "tone": tone,
+            }
+        )
     return cards
 
 
@@ -88,6 +97,7 @@ async def storefront(
         "chips": chips(category),
         "query": q,
         "cards": product_cards(state.stock, category, q.strip()),
+        "no_match": f"Nothing matches “{q}”." if q.strip() else "There is no such category.",
         "orders": order_rows(orders),
         "open_orders": sum(order["status"] == "pending" for order in orders),
     }

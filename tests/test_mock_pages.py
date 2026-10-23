@@ -28,7 +28,8 @@ async def test_shop_search_and_category_filter_the_catalog(systems):
 
     assert by_query.count('<article class="card') == 1
     assert by_category.count('<article class="card') == 2
-    assert "Nothing matches" in await page(systems, "shop", q="pixel")
+    assert "Nothing matches “pixel”." in await page(systems, "shop", q="pixel")
+    assert "There is no such category." in await page(systems, "shop", category="cameras")
 
 
 async def test_marketplace_page_shows_callbacks_acknowledges_and_seller_cancels(systems):
@@ -54,6 +55,17 @@ async def test_marketplace_page_shows_callbacks_acknowledges_and_seller_cancels(
     assert "33.3% <span>1 of 3 orders</span>" in html
 
 
+async def test_marketplace_counts_only_delivered_callbacks(systems):
+    # Glue refuses a callback signed with the wrong secret, so it is never delivered.
+    systems.emag.state.secret = "not-the-shared-secret"
+    order_id = await systems.buy_on_emag("APP-3")
+
+    html = await page(systems, "emag")
+
+    assert "sent 0× · every 20 s" in html
+    assert f"order {order_id.removeprefix('emag-')} · new · not delivered" in html
+
+
 async def test_marketplace_page_shows_how_each_offer_update_went(systems):
     await systems.chaos("emag", reject_sku="MBA-M4")
     await systems.reconcile()
@@ -76,7 +88,7 @@ async def test_warehouse_page_lists_picks_by_bin_and_the_outbox(systems):
 
     assert f'<td class="order">{order_id}</td>' in html
     assert '1 × MBA-M4 <span class="name">MacBook Air M4</span>' in html
-    assert '<td class="bin"><span class="line">A-03-2</span>' in html
+    assert '<span class="bin-label">Bin</span><span class="line">A-03-2</span>' in html
     assert f"201 order accepted · {order_id}" in html
 
     await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
