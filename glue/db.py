@@ -248,7 +248,7 @@ class Database:
     def failures_recorded(self, order_id: str | None, correlation_id: str) -> int:
         return self.conn.execute(
             "SELECT COUNT(*) FROM audit_log WHERE entity_id = ? AND correlation_id = ?"
-            " AND action IN ('order_failed', 'unfulfillable')",
+            " AND action = 'order_failed'",
             (order_id, correlation_id),
         ).fetchone()[0]
 

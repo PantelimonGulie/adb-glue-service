@@ -68,7 +68,8 @@ async def handle(ctx: Context, event: dict) -> None:
             review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload=payload)
             return
         ctx.db.finish_event(event["source"], event_id, "done")
-        # A handler that queued a failure still returns normally; that failure stands.
+        # A handler can record an order_failed and still return; that failure may have been
+        # merged into the very item this would close. Other kinds always get their own item.
         if ctx.db.failures_recorded(order_id, event_id) == failures:
             settle.settle_event(ctx, order_id, event)
 

@@ -128,6 +128,26 @@ async def test_a_redelivered_event_that_fails_again_keeps_its_item_open(systems,
     assert [i["id"] for i in systems.open_reviews()] == [item["id"]]
 
 
+async def test_a_recount_found_while_an_event_heals_leaves_only_the_recount(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    order_id = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    create_order = systems.ctx.warehouse.create_order
+
+    async def then_recounted(order):
+        response = await create_order(order)
+        systems.warehouse.state.stock["MBA-M4"]["on_hand"] = 0
+        return response
+
+    systems.ctx.warehouse.create_order = then_recounted
+    await systems.chaos("emag", down=False, renotify_now=True)
+    await systems.run_worker()
+
+    [recount] = systems.open_reviews()
+    assert (recount["kind"], recount["order_id"]) == ("unfulfillable", order_id)
+    assert resolved(systems) == [(order_id, "resolved", "glue")]
+
+
 async def test_a_failed_emag_import_healed_on_renotify_resolves_its_item(systems, sleeps):
     await systems.chaos("emag", down=True)
     order_id = await systems.buy_on_emag("APP-3")
