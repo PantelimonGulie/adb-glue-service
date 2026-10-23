@@ -120,6 +120,8 @@ async def test_mock_pages_refresh_themselves(systems):
         assert '<script src="/static/common/refresh.js" defer></script>' in html
         assert script.status_code == 200
         assert "location.reload()" in script.text
+        # A slow form post must not be cut off by a reload before its answer arrives.
+        assert "addEventListener('submit'" in script.text
 
 
 async def test_mock_pages_load_vendored_fonts_and_art(systems):
