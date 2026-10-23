@@ -163,7 +163,9 @@ async def test_two_cancels_for_one_order_in_one_batch_cancel_it_once(systems):
     await systems.run_worker()
 
     assert sent == [order_id]
-    assert systems.ctx.db.counters()["order_cancelled"] == 1
+    counters = systems.ctx.db.counters()
+    assert (counters["order_cancelled"], counters["cancel_repeated"]) == (1, 1)
+    assert "order_known" not in counters
     assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
 
 

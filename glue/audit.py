@@ -21,6 +21,7 @@ ACTIONS = frozenset(
         "unfulfillable",
         "order_shipped",
         "order_cancelled",
+        "cancel_repeated",
         "placed_after_cancel",
         "stock_pushed",
         "stock_push_failed",

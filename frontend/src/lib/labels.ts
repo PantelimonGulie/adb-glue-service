@@ -46,6 +46,12 @@ const ACTIONS: Record<string, Label> = {
     tone: 'grey',
     explanation: 'A channel sent an order Glue already had. Glue kept the first one and ignored this.',
   },
+  cancel_repeated: {
+    label: 'Cancellation repeated',
+    tone: 'grey',
+    explanation:
+      'The order was already cancelled when the cancellation arrived again, so Glue ignored it.',
+  },
   emag_acknowledged: {
     label: 'Confirmed to eMAG',
     tone: 'plum',

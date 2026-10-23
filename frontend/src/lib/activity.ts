@@ -96,6 +96,8 @@ export function describe(row: AuditRow, productName: ProductName): string {
       return 'the same message arrived again';
     case 'order_known':
       return 'the channel sent an order Glue already had';
+    case 'cancel_repeated':
+      return 'the order was already cancelled';
     case 'emag_acknowledged':
       return 'eMAG will stop re-sending this order';
     case 'order_shipped':

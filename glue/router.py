@@ -121,7 +121,7 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         record(ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed")
         return settle.settle(ctx, order_id, "cancelled", correlation_id)
     if order["status"] == "cancelled":
-        record(ctx.db, correlation_id, "order", order_id, "order_known", note="already cancelled")
+        record(ctx.db, correlation_id, "order", order_id, "cancel_repeated")
         return
     releases_stock = order["status"] == "allocated"
     if releases_stock:

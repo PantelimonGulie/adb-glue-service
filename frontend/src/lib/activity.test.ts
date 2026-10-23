@@ -44,6 +44,9 @@ it('describes the details in plain words', () => {
   expect(describe(row(4, 'rule_changed', { enabled: true, by: 'admin' }), productName)).toBe(
     'enabled true · by admin',
   );
+  expect(describe(on('order', 'shop-1', 'cancel_repeated'), productName)).toBe(
+    'the order was already cancelled',
+  );
 });
 
 it('labels an incoming message by what it is about', () => {

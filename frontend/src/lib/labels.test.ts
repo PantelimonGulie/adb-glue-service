@@ -17,6 +17,13 @@ describe('action', () => {
     });
   });
 
+  it('tells a repeated cancellation apart from a repeated order', () => {
+    expect(action('cancel_repeated').label).toBe('Cancellation repeated');
+    expect(action('cancel_repeated').explanation).toBe(
+      'The order was already cancelled when the cancellation arrived again, so Glue ignored it.',
+    );
+  });
+
   it('does not mistake built-in object names for actions', () => {
     expect(action('constructor').label).toBe('Constructor');
   });

@@ -23,7 +23,7 @@ KINDS = {
         "event_rejected",
         "warehouse_unreachable",
     ],
-    "duplicates": ["duplicate_dropped", "order_known"],
+    "duplicates": ["duplicate_dropped", "order_known", "cancel_repeated"],
     "stock": ["stock_pushed", "stock_push_failed"],
     "decisions": [
         "review_decided",
