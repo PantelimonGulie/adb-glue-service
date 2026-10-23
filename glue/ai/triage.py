@@ -13,6 +13,8 @@ SYSTEM = (
 )
 ANSWER = re.compile(r"ACTION:\s*(\w+)\s*REASON:\s*(.+)", re.IGNORECASE | re.DOTALL)
 ORDER_ID = re.compile(r"\b(?:shop|emag)-(?:sample-)?\d+\b", re.IGNORECASE)
+# Tool, function and field names: words joined by underscores never occur in plain English.
+CODE_NAME = re.compile(r"\b[a-z]+(?:_[a-z0-9]+)+\b", re.IGNORECASE)
 
 
 async def ask_model(ctx: Context, question: str) -> str:
@@ -29,6 +31,12 @@ async def ask_model(ctx: Context, question: str) -> str:
     return response.choices[0].message.content or ""
 
 
+def without_code_names(reason: str) -> str:
+    # A name like list_review_items means nothing to an operator; the rest of the reason may.
+    sentences = re.split(r"(?<=[.!?])\s+", reason)
+    return " ".join(s for s in sentences if not CODE_NAME.search(s))
+
+
 def foreign_order(reason: str, order_id: str | None) -> str | None:
     others = sorted({found.lower() for found in ORDER_ID.findall(reason)} - {order_id})
     return others[0] if others else None
@@ -42,9 +50,11 @@ async def suggest(ctx: Context, item_id: int) -> None:
     answer = await ask_model(ctx, triage_prompt.question(item, order, stock, answering))
     match = ANSWER.search(answer)
     action = match.group(1).lower() if match else None
-    reason = (match.group(2) if match else answer).strip()[:2000]
+    reason = without_code_names((match.group(2) if match else answer).strip()[:2000])
     if action not in item["allowed"]:
         action = None
+    if not reason:
+        action, reason = None, "No suggestion this time: ask again."
     # A different order id in the reasoning means the model mixed up orders.
     other = foreign_order(reason, item["order_id"])
     if other:

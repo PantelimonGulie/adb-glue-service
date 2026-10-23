@@ -59,6 +59,31 @@ async def test_triage_offline_returns_503(systems, sleeps):
     assert model.requests == []
 
 
+async def test_triage_drops_sentences_that_name_an_internal_tool(systems, sleeps):
+    _, item = await failed_order_review(systems)
+    systems.use_model(
+        "ACTION: retry\nREASON: The details are given but retrying needs the order, which"
+        " list_review_items does not provide. The warehouse answers again, so retrying is safe."
+    )
+
+    await triage.suggest(systems.ctx, item["id"])
+
+    saved = systems.ctx.db.get_review(item["id"])
+    assert saved["suggested_reason"] == "The warehouse answers again, so retrying is safe."
+    assert saved["suggested_action"] == "retry"
+
+
+async def test_triage_with_nothing_left_but_tool_names_suggests_nothing(systems, sleeps):
+    _, item = await failed_order_review(systems)
+    systems.use_model("ACTION: retry\nREASON: Call get_order with the order_id first.")
+
+    await triage.suggest(systems.ctx, item["id"])
+
+    saved = systems.ctx.db.get_review(item["id"])
+    assert saved["suggested_action"] is None
+    assert saved["suggested_reason"] == "No suggestion this time: ask again."
+
+
 async def test_triage_on_a_missing_or_decided_item_is_refused_before_the_model(systems, sleeps):
     _, item = await failed_order_review(systems)
     model = systems.use_model(ANSWER)
