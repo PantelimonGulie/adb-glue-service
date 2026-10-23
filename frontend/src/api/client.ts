@@ -25,10 +25,12 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     credentials: 'same-origin',
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  // On the sign-in page a 401 means a wrong password, not an expired session.
+  // On the sign-in page a 401 means a wrong password, not an expired session. /api/me is the
+  // first call of a visit, so a 401 anywhere else means a session that was working has ended.
   if (response.status === 401 && window.location.pathname !== '/sign-in') {
     const next = window.location.pathname + window.location.search;
-    window.location.assign(`/sign-in?next=${encodeURIComponent(next)}`);
+    const ended = path === '/api/me' ? '' : '&ended=1';
+    window.location.assign(`/sign-in?next=${encodeURIComponent(next)}${ended}`);
   }
   const text = await response.text();
   if (!response.ok) throw new ApiError(response.status, detailOf(text, response));

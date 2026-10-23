@@ -68,3 +68,13 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.ended {
+  margin: 0;
+  padding: var(--space-2) 10px;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  font-size: var(--text-sm);
+}

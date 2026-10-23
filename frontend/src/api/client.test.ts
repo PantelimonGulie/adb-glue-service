@@ -18,12 +18,21 @@ afterEach(() => {
 });
 
 describe('api', () => {
-  it('client redirects on 401', async () => {
+  it('client redirects on 401, saying the session ended', async () => {
     respond(401, { detail: 'sign in first' });
     const assign = vi.fn();
     vi.stubGlobal('location', { pathname: '/orders', search: '', assign });
 
     await expect(api('/api/orders')).rejects.toMatchObject({ status: 401 });
+    expect(assign).toHaveBeenCalledWith('/sign-in?next=%2Forders&ended=1');
+  });
+
+  it('a first visit goes to sign-in without saying a session ended', async () => {
+    respond(401, { detail: 'sign in first' });
+    const assign = vi.fn();
+    vi.stubGlobal('location', { pathname: '/orders', search: '', assign });
+
+    await expect(api('/api/me')).rejects.toMatchObject({ status: 401 });
     expect(assign).toHaveBeenCalledWith('/sign-in?next=%2Forders');
   });
 

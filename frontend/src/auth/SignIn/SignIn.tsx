@@ -16,6 +16,7 @@ export function SignIn() {
   const signIn = useSignIn();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const ended = params.get('ended') === '1';
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -31,6 +32,11 @@ export function SignIn() {
           <h1>Sign in</h1>
           <p className={styles.note}>Follow orders from the shop and eMAG to the warehouse.</p>
         </div>
+        {ended && (
+          <p className={styles.ended} role="status">
+            Your session ended. Sign in again.
+          </p>
+        )}
         <label className={styles.field}>
           User name
           <input

@@ -63,3 +63,15 @@ it('never leaves the dashboard after signing in', async () => {
 
   expect(await screen.findByText('Overview page')).toBeInTheDocument();
 });
+
+it('says the session ended when Glue signed the user out', () => {
+  renderPage(<SignIn />, { route: '/sign-in?next=%2Forders&ended=1' });
+
+  expect(screen.getByRole('status')).toHaveTextContent('Your session ended. Sign in again.');
+});
+
+it('says nothing about a session on a first visit', () => {
+  renderPage(<SignIn />, { route: '/sign-in?next=%2Forders' });
+
+  expect(screen.queryByText(/session ended/)).toBeNull();
+});
