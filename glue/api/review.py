@@ -46,13 +46,21 @@ async def retry_all(
     return {"retried": await review.retry_all(ctx, body.cause, user.name)}
 
 
+def open_item(request: Request, item_id: int) -> None:
+    # Checked before the model, so a wrong id is not answered with "the model is offline".
+    item = request.app.state.ctx.db.get_review(item_id)
+    if item is None:
+        raise HTTPException(404, f"review item {item_id} not found")
+    if item["status"] != "open":
+        raise HTTPException(409, "This item is already decided.")
+
+
 @router.post(
-    "/review/{item_id}/triage", dependencies=[Depends(auth.require("ask")), Depends(can_answer)]
+    "/review/{item_id}/triage",
+    dependencies=[Depends(auth.require("ask")), Depends(open_item), Depends(can_answer)],
 )
 async def triage_item(request: Request, item_id: int) -> dict:
     ctx = request.app.state.ctx
-    if ctx.db.get_review(item_id) is None:
-        raise HTTPException(404, f"review item {item_id} not found")
     try:
         await triage.suggest(ctx, item_id)
     except APIError as exc:

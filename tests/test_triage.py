@@ -58,6 +58,20 @@ async def test_triage_offline_returns_503(systems, sleeps):
     assert model.requests == []
 
 
+async def test_triage_on_a_missing_or_decided_item_is_refused_before_the_model(systems, sleeps):
+    _, item = await failed_order_review(systems)
+    model = systems.use_model(ANSWER)
+    systems.ollama.up = False
+
+    missing = await systems.act("/api/review/9999/triage")
+    await systems.decide(item["id"], "dismiss")
+    decided = await systems.act(f"/api/review/{item['id']}/triage")
+
+    assert (missing.status_code, decided.status_code) == (404, 409)
+    assert decided.json()["detail"] == "This item is already decided."
+    assert model.requests == []
+
+
 async def oversell_review(systems) -> dict:
     await systems.chaos("emag", freeze_stock=True)
     await systems.buy_on_shop("MBA-M4")
