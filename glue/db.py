@@ -262,11 +262,13 @@ class Database:
             "payload",
         )
 
-    def start_review(self, item_id: int, action: str, decided_by: str) -> None:
-        self.conn.execute(
-            "UPDATE review_queue SET status = 'acting', action = ?, decided_by = ? WHERE id = ?",
+    def start_review(self, item_id: int, action: str, decided_by: str) -> bool:
+        cursor = self.conn.execute(
+            "UPDATE review_queue SET status = 'acting', action = ?, decided_by = ?"
+            " WHERE id = ? AND status = 'open'",
             (action, decided_by, item_id),
         )
+        return cursor.rowcount == 1
 
     def decide_review(self, item_id: int, action: str, decided_by: str) -> None:
         self.conn.execute(

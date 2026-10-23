@@ -93,6 +93,23 @@ async def test_a_failed_decision_puts_the_order_back_in_review(systems, sleeps):
     assert again["reason"].startswith("cancel failed: HTTP 503")
 
 
+async def test_a_decision_on_an_item_claimed_since_it_was_read_is_refused(
+    systems, sleeps, monkeypatch
+):
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_shop("IPH16-256")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    await systems.chaos("warehouse", down=False)
+    # This decision read the item while it was open; another one claimed it since.
+    monkeypatch.setattr(systems.ctx.db, "get_review", lambda item_id: item)
+    systems.ctx.db.start_review(item["id"], "dismiss", "admin")
+
+    with pytest.raises(review.Conflict):
+        await review.decide(systems.ctx, item["id"], "retry")
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+
+
 async def test_viewer_cannot_decide(systems, sleeps):
     await oversell_then_outage(systems)
     [item, *_] = systems.open_reviews()
