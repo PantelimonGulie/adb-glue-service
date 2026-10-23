@@ -33,8 +33,10 @@ def get(ctx: Context, name: str) -> dict:
 
 
 def save(ctx: Context, name: str, enabled: bool, config: dict, user: str) -> None:
-    ctx.db.set_rule(name, enabled, config, user)
-    record(ctx.db, f"rule-{name}", "rule", name, "rule_changed", enabled=enabled, by=user, **config)
+    with ctx.db.transaction():
+        ctx.db.set_rule(name, enabled, config, user)
+        detail = {"enabled": enabled, "by": user, **config}
+        record(ctx.db, f"rule-{name}", "rule", name, "rule_changed", **detail)
 
 
 def held_back(ctx: Context, channel: str, skus: list[str]) -> dict[str, int]:

@@ -61,14 +61,15 @@ async def suggest(ctx: Context, item_id: int) -> None:
     if other:
         action = None
         reason += f"\n\nNo choice suggested: this reasoning is about {other}, not this order."
-    ctx.db.set_suggestion(item_id, action, reason)
-    record(
-        ctx.db,
-        f"review-{item_id}",
-        "order",
-        item["order_id"] or "-",
-        "triage_suggested",
-        review_id=item_id,
-        suggested=action or "none",
-        reason=reason[:300],
-    )
+    with ctx.db.transaction():
+        ctx.db.set_suggestion(item_id, action, reason)
+        record(
+            ctx.db,
+            f"review-{item_id}",
+            "order",
+            item["order_id"] or "-",
+            "triage_suggested",
+            review_id=item_id,
+            suggested=action or "none",
+            reason=reason[:300],
+        )
