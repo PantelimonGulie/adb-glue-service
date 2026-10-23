@@ -38,7 +38,7 @@
 /* Lines break only where the label says; the stacked phone drawing gives each label a width. */
 .label {
   position: absolute;
-  padding: 2px 4px;
+  padding: 2px 3px;
   white-space: pre;
   border-radius: 3px;
   font-family: var(--font-mono);
