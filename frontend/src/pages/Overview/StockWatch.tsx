@@ -8,20 +8,20 @@ import { CHANNELS, shown } from '../../lib/stock';
 import controls from '../../styles/controls.module.css';
 import styles from './StockWatch.module.css';
 
-const WATCHED = 5;
+const SENT = 'The last number this channel accepted from Glue';
 
 function watched(rows: StockRow[]) {
   const all = rows.map((row) => ({ row, channels: CHANNELS.map((ch) => shown(row, ch)) }));
   const behind = (item: (typeof all)[number]) => Number(item.channels.some((c) => c.behind));
-  // Products a channel is behind on come first, so the short list never hides them.
-  return all.sort((a, b) => behind(b) - behind(a)).slice(0, WATCHED);
+  // Products a channel is behind on come first.
+  return all.sort((a, b) => behind(b) - behind(a));
 }
 
 export function StockWatch({ rows }: { rows: StockRow[] }) {
   return (
     <Panel
       title="Stock"
-      note="warehouse vs what customers see"
+      note="free to sell vs the last number Glue sent"
       actions={
         <Link className={controls.button} to="/stock">
           All stock
@@ -30,9 +30,15 @@ export function StockWatch({ rows }: { rows: StockRow[] }) {
     >
       <div className={styles.grid}>
         <span className={styles.head}>Product</span>
-        <span className={styles.head}>Warehouse</span>
-        <span className={styles.head}>Shop</span>
-        <span className={styles.head}>eMAG</span>
+        <span className={styles.head} title="On the shelf minus reserved">
+          Free to sell
+        </span>
+        <span className={styles.head} title={SENT}>
+          Shop
+        </span>
+        <span className={styles.head} title={SENT}>
+          eMAG
+        </span>
         {watched(rows).map(({ row, channels }) => (
           <Fragment key={row.sku}>
             <Product name={row.product} sku={row.sku} />

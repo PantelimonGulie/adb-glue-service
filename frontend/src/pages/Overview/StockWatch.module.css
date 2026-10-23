@@ -12,6 +12,12 @@
   color: var(--muted);
 }
 
+.head[title] {
+  cursor: help;
+  text-decoration: underline dotted var(--faint);
+  text-underline-offset: 3px;
+}
+
 .number {
   font-family: var(--font-mono);
 }

@@ -110,3 +110,15 @@ it('keeps the last counters on screen while a new range loads', async () => {
   expect(screen.getByRole('status')).toHaveTextContent('Loading…');
   expect(within(screen.getByLabelText('Counters')).getByText('99')).toBeInTheDocument();
 });
+
+it('the stock panel lists every product by what is free to sell', async () => {
+  const names = ['AirPods', 'iPhone 128', 'iPhone 256', 'iPad', 'Watch', 'MacBook'];
+  const rows = names.map((product, i) => ({ ...stock.rows[0], sku: `P-${i}`, product }));
+  stubApi({ ...api, '/api/stock': { ...stock, rows } });
+  renderPage(<Overview />);
+
+  const panel = (await screen.findByText('All stock')).closest('section')!;
+  expect(await within(panel).findByText('MacBook')).toBeInTheDocument();
+  expect(within(panel).getByText('Free to sell')).toHaveAttribute('title', expect.any(String));
+  for (const name of names) expect(within(panel).getByText(name)).toBeInTheDocument();
+});
