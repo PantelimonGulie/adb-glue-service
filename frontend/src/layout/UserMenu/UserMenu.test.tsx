@@ -1,8 +1,14 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { renderPage, users } from '../../test/render';
 import { UserMenu } from './UserMenu';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
 
 async function openMenu() {
   renderPage(<UserMenu me={users.operator} />);
@@ -38,4 +44,32 @@ it('moves between items with the arrow keys', async () => {
   expect(screen.getByRole('menuitem', { name: 'Sign out' })).toHaveFocus();
   await userEvent.keyboard('{ArrowDown}');
   expect(screen.getByRole('menuitem', { name: 'Sign in as another user' })).toHaveFocus();
+});
+
+it('signing out forgets every saved assistant conversation, so the next person cannot read it', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+  vi.stubGlobal('location', { pathname: '/', search: '', assign: vi.fn() });
+  sessionStorage.setItem('glue.conversation.operator', '[{"role":"user","content":"hi"}]');
+  sessionStorage.setItem('glue.other', 'kept');
+  await openMenu();
+
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+  await waitFor(() => expect(location.assign).toHaveBeenCalledWith('/sign-in'));
+  expect(sessionStorage.getItem('glue.conversation.operator')).toBeNull();
+  expect(sessionStorage.getItem('glue.other')).toBe('kept');
+});
+
+it('still signs out when the browser blocks storage', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+  vi.stubGlobal('location', { pathname: '/', search: '', assign: vi.fn() });
+  sessionStorage.setItem('glue.conversation.operator', '[]');
+  vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+    throw new Error('blocked');
+  });
+  await openMenu();
+
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+
+  await waitFor(() => expect(location.assign).toHaveBeenCalledWith('/sign-in'));
 });

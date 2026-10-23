@@ -31,6 +31,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  sessionStorage.clear();
 });
 
 it('signs in and opens the page the user came from', async () => {
@@ -74,4 +75,14 @@ it('says nothing about a session on a first visit', () => {
   renderPage(<SignIn />, { route: '/sign-in?next=%2Forders' });
 
   expect(screen.queryByText(/session ended/)).toBeNull();
+});
+
+it('signing in forgets the conversation a previous user left in this tab', async () => {
+  respond(200, users.admin);
+  sessionStorage.setItem('glue.conversation.operator', '[{"role":"user","content":"hi"}]');
+
+  await signIn('/orders');
+
+  expect(await screen.findByText('Orders page')).toBeInTheDocument();
+  expect(sessionStorage.getItem('glue.conversation.operator')).toBeNull();
 });
