@@ -8,7 +8,7 @@ import { CHANNELS, shown } from '../../lib/stock';
 import controls from '../../styles/controls.module.css';
 import styles from './StockWatch.module.css';
 
-const SENT = 'The last number this channel accepted from Glue';
+const SENT = 'The last number Glue sent this channel';
 
 function watched(rows: StockRow[]) {
   const all = rows.map((row) => ({ row, channels: CHANNELS.map((ch) => shown(row, ch)) }));

@@ -6,7 +6,7 @@ import table from '../../styles/table.module.css';
 import styles from './StockTable.module.css';
 
 const SENT = (where: string) =>
-  `The last number ${where} accepted from Glue. Glue does not read back what ${where} displays.`;
+  `The last number Glue sent ${where}. Glue knows whether ${where} accepted it, not what it displays.`;
 const COLUMNS = [
   { name: 'Product', hint: undefined, width: styles.product },
   { name: 'On the shelf', hint: 'Units the Bucharest warehouse counted', width: styles.count },

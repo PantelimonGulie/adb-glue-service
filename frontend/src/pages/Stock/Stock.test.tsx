@@ -23,7 +23,7 @@ it('shows each product against the last number Glue sent each channel, read-only
   expect(sent).toHaveTextContent('1');
   expect(screen.getByRole('columnheader', { name: 'Last sent to eMAG' })).toHaveAttribute(
     'title',
-    expect.stringMatching(/does not read back/),
+    expect.stringMatching(/not what it displays/),
   );
   expect(screen.queryByText(/shows/)).toBeNull();
   expect(screen.getByText(/every 10 s/)).toBeInTheDocument();
