@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from common.catalog import PRODUCTS, product_name
-from glue import queries, ranges
+from glue import queries, ranges, review
 from glue.context import Context
 
 # The words the dashboard uses, so answers read like the rest of it.
@@ -38,6 +38,8 @@ STOCK_STATES = {
     "refused": "eMAG refused the last stock update",
     "held": "a rule holds some units back on a channel",
 }
+# A long outage can fail many orders in an hour; the newest are enough to answer from.
+FAILED_SHOWN = 10
 STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?\+00:00")
 
 
@@ -70,27 +72,44 @@ def stock_lines(ctx: Context) -> list[str]:
     ]
 
 
+def failed_lines(ctx: Context, since: str) -> list[str]:
+    failed = ctx.db.failed_since(since)
+    if not failed:
+        return ["- No order failed in the last hour."]
+    newest = f"; the newest {FAILED_SHOWN}" if len(failed) > FAILED_SHOWN else ""
+    return [
+        f"- {plural(len(failed), 'order')} that came in during the last hour failed{newest}:"
+    ] + [
+        f"  - {row['order_id']} from {CHANNELS[row['channel']]}, {products(row['lines'])}."
+        f" Cause: {CAUSES[review.cause_of(row)]}. Now: {STATUSES[row['status']]}."
+        for row in failed[:FAILED_SHOWN]
+    ]
+
+
 async def live(ctx: Context) -> str:
     # A small model answers "is X working?" or "what failed?" from these lines more reliably
-    # than by choosing and reading tools.
+    # than by choosing and reading tools. Each count says what it counts: a bare "120 retried"
+    # next to "1 failed" was read as one order tried 120 times. Failed orders come after the
+    # stock: placed before it, a failed MacBook order was taken as the MacBook's stock answer.
     now = datetime.now(UTC)
+    since = ranges.stamp(now - timedelta(hours=1))
     health = await queries.health_of(ctx)
-    counts = queries.counters(ctx, ranges.stamp(now - timedelta(hours=1)), "")
+    counts = queries.counters(ctx, since, "")
     groups = queries.review_groups(ctx.db.list_review())
     waiting = ", ".join(f"{g['count']} {CAUSES[g['cause']]}" for g in groups) or "nothing"
     systems = "; ".join(f"{SYSTEMS[name]}: {STATES[h['state']]}" for name, h in health.items())
-    hour = (
-        f"{plural(counts['received'], 'order')} in, {counts['reserved']} reserved,"
-        f" {counts['failed']} failed, {plural(counts['retries'], 'call')} retried,"
-        f" {plural(counts['duplicates'], 'duplicate')} ignored"
-    )
     return "\n".join(
         [
             f"Live facts at {local(now, ctx.settings.zone)}, Bucharest time:",
             f"- Systems: {systems}.",
             f"- Waiting for a person: {waiting}.",
-            f"- Last hour: {hour}.",
+            f"- In the last hour {plural(counts['received'], 'order')} came in;"
+            f" {counts['reserved']} of them were reserved at the warehouse.",
+            f"- Glue retried {plural(counts['retries'], 'call')} in the last hour,"
+            " across all orders and systems.",
+            f"- Glue ignored {plural(counts['duplicates'], 'duplicate message')} in the last hour.",
             *stock_lines(ctx),
+            *failed_lines(ctx, since),
         ]
     )
 

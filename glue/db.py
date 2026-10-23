@@ -487,6 +487,19 @@ class Database:
         ).fetchone()
         return dict(row)
 
+    def failed_since(self, since: str) -> list[dict]:
+        # The orders order_counts counts as failed, each with its latest failure's kind and reason.
+        return self.rows(
+            "SELECT o.*, a.action AS kind, json_extract(a.detail, '$.reason') AS reason"
+            " FROM orders o JOIN audit_log a ON a.id = (SELECT MAX(id) FROM audit_log"
+            "  WHERE entity_id = o.order_id AND action IN ('order_failed', 'unfulfillable'))"
+            " WHERE o.received_at >= ? AND NOT EXISTS (SELECT 1 FROM audit_log"
+            "  WHERE entity_id = o.order_id AND action = 'order_allocated')"
+            " ORDER BY o.received_at DESC, o.order_id DESC",
+            (since,),
+            "lines",
+        )
+
     def lost(self, order_ids: list[str]) -> int:
         # Placed orders that are failed, or never got a row, and that no item keeps in front of
         # a person: in practice a failure dismissed without a fix.

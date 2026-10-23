@@ -5,6 +5,7 @@ import httpx
 from openai import APITimeoutError
 
 from common.catalog import PRODUCTS
+from glue import queries
 from glue.ai import llm
 
 QUESTION = "Which orders need a decision?"
@@ -74,8 +75,9 @@ async def test_ask_records_usage(systems):
 
 async def test_the_prompt_carries_live_facts_and_the_words_to_use(systems, sleeps):
     await systems.chaos("warehouse", down=True)
-    await systems.buy_on_shop("MBA-M4")
+    order_id = await systems.buy_on_shop("MBA-M4")
     await systems.run_worker()
+    retried = queries.counters(systems.ctx, "", "")["retries"]
     model = systems.use_model("No, the Bucharest warehouse is not answering.")
 
     await systems.act("/api/assistant/ask", question="Is the warehouse working?")
@@ -84,7 +86,16 @@ async def test_the_prompt_carries_live_facts_and_the_words_to_use(systems, sleep
     assert "the shop (Electronic Market): working" in system
     assert "the Bucharest warehouse: not answering" in system
     assert "Waiting for a person: 1 warehouse outage." in system
-    assert "Last hour: 1 order in, 0 reserved, 1 failed" in system
+    assert "- In the last hour 1 order came in; 0 of them were reserved at the warehouse." in system
+    assert (
+        f"- Glue retried {retried} calls in the last hour, across all orders and systems." in system
+    )
+    assert "- Glue ignored 0 duplicate messages in the last hour." in system
+    assert "- 1 order that came in during the last hour failed:" in system
+    assert (
+        f"  - {order_id} from the shop, 1 × MacBook Air M4. Cause: warehouse outage."
+        " Now: failed, waiting for a person." in system
+    )
     assert "'the shop' is Electronic Market" in system
     assert "never say 'SKU'" in system
     assert "  - MacBook Air M4: 1 free; the shop shows 1; eMAG shows 1; in step." in system
@@ -104,6 +115,31 @@ async def test_the_prompt_carries_every_product_when_nothing_is_out_of_step(syst
     assert "  - MacBook Air M4: 1 free; the shop shows 1; eMAG shows 1; in step." in lines
     assert "If the figures match, say they match and that nothing is out of step" in system
     assert "never invent numbers" in system
+    assert "- No order failed in the last hour." in system
+
+
+async def test_an_order_that_failed_and_was_cancelled_is_still_named_as_failed(systems, sleeps):
+    await systems.chaos("emag", freeze_stock=True)
+    await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    order_id = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    await systems.http.post(f"http://emag/orders/{order_id.removeprefix('emag-')}/cancel")
+    await systems.run_worker()
+    model = systems.use_model("One eMAG order failed.", [("get_summary", {"hours": 1})])
+
+    await systems.act("/api/assistant/ask", question="What failed in the last hour?")
+
+    system = model.requests[0]["messages"][0]["content"]
+    failed = system.index("- 1 order that came in during the last hour failed:")
+    assert system.index("  - MacBook Air M4: ") < failed
+    assert (
+        f"  - {order_id} from eMAG, 1 × MacBook Air M4. Cause: sold on the other channel."
+        " Now: cancelled." in system
+    )
+    summary = json.loads(model.requests[-1]["messages"][-1]["content"])
+    assert summary["failed"] == 1
+    assert [order["order"] for order in summary["failed orders"]] == [order_id]
 
 
 async def test_the_prompt_names_stock_a_channel_shows_differently(systems):

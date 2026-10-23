@@ -36,7 +36,7 @@ def get_summary(ctx: Context, hours: int = 1) -> dict:
     hours = min(max(int(hours), 1), 168)
     since = ranges.stamp(datetime.now(UTC) - timedelta(hours=hours))
     counts = queries.counters(ctx, since, "")
-    failed, _ = ctx.db.list_orders(status="failed", since=since, limit=20)
+    failed = ctx.db.failed_since(since)[:20]
     return {
         "hours": hours,
         "orders in": counts["received"],
