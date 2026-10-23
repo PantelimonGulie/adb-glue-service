@@ -1,6 +1,7 @@
 import json
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -64,6 +65,7 @@ class Systems:
     shop: FastAPI
     emag: FastAPI
     warehouse: FastAPI
+    glue: FastAPI
     ctx: Context
     http: httpx.AsyncClient
     ollama: Ollama
@@ -136,46 +138,59 @@ class Systems:
 
 
 @pytest.fixture
-async def systems(tmp_path, monkeypatch):
+def start_systems(tmp_path, monkeypatch) -> Callable[[str], AbstractAsyncContextManager[Systems]]:
     monkeypatch.setenv("GLUE_URL", "http://glue")
     for source, secret in SECRETS.items():
         monkeypatch.setenv(f"{source.upper()}_WEBHOOK_SECRET", secret)
-    settings = Settings(
-        shop_url="http://shop",
-        emag_url="http://emag",
-        warehouse_url="http://warehouse",
-        shop_webhook_secret=SECRETS["shop"],
-        emag_webhook_secret=SECRETS["emag"],
-        warehouse_webhook_secret=SECRETS["warehouse"],
-        db_path=str(tmp_path / "glue.db"),
-        retry_base_seconds=0,
-        session_secret="test-session",
-        viewer_password="viewer",
-        operator_password="operator",
-        admin_password="admin",
-    )
-    apps = {
-        "shop": shop.main.create_app(),
-        "emag": emag.main.create_app(),
-        "warehouse": warehouse.main.create_app(),
-        "glue": glue.main.create_app(settings),
-    }
-    ollama = Ollama([settings.llm_model])
-    mounts = {f"all://{name}": httpx.ASGITransport(app) for name, app in apps.items()}
-    mounts["all://ollama"] = httpx.MockTransport(ollama.handle)
-    async with httpx.AsyncClient(mounts=mounts) as http:
-        for name in ("shop", "emag", "warehouse"):
-            apps[name].state.http = http
-        # Built here instead of in the lifespan so the worker and reconcile loops never start:
-        # each test drives them one step at a time.
-        ctx = glue.main.build_context(settings, http)
-        apps["glue"].state.ctx = ctx
-        await reconciler.reconcile_all(ctx)
-        systems = Systems(apps["shop"], apps["emag"], apps["warehouse"], ctx, http, ollama)
+
+    @asynccontextmanager
+    async def start(name: str) -> AsyncIterator[Systems]:
+        settings = Settings(
+            shop_url="http://shop",
+            emag_url="http://emag",
+            warehouse_url="http://warehouse",
+            shop_webhook_secret=SECRETS["shop"],
+            emag_webhook_secret=SECRETS["emag"],
+            warehouse_webhook_secret=SECRETS["warehouse"],
+            db_path=str(tmp_path / f"{name}.db"),
+            retry_base_seconds=0,
+            session_secret="test-session",
+            viewer_password="viewer",
+            operator_password="operator",
+            admin_password="admin",
+        )
+        apps = {
+            "shop": shop.main.create_app(),
+            "emag": emag.main.create_app(),
+            "warehouse": warehouse.main.create_app(),
+            "glue": glue.main.create_app(settings),
+        }
+        ollama = Ollama([settings.llm_model])
+        mounts = {f"all://{name}": httpx.ASGITransport(app) for name, app in apps.items()}
+        mounts["all://ollama"] = httpx.MockTransport(ollama.handle)
+        async with httpx.AsyncClient(mounts=mounts) as http:
+            for name in ("shop", "emag", "warehouse"):
+                apps[name].state.http = http
+            # Built here instead of in the lifespan so the worker and reconcile loops never
+            # start: each test drives them one step at a time.
+            ctx = glue.main.build_context(settings, http)
+            apps["glue"].state.ctx = ctx
+            await reconciler.reconcile_all(ctx)
+            systems = Systems(
+                apps["shop"], apps["emag"], apps["warehouse"], apps["glue"], ctx, http, ollama
+            )
+            yield systems
+            systems.ctx.db.close()
+
+    return start
+
+
+@pytest.fixture
+async def systems(start_systems):
+    async with start_systems("glue") as systems:
         # Most tests act as the operator; role tests sign in again as someone else.
         await systems.sign_in("operator")
         yield systems
-        ctx.db.close()
 
 
 @pytest.fixture
