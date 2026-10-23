@@ -144,7 +144,7 @@ def start_systems(tmp_path, monkeypatch) -> Callable[[str], AbstractAsyncContext
         monkeypatch.setenv(f"{source.upper()}_WEBHOOK_SECRET", secret)
 
     @asynccontextmanager
-    async def start(name: str) -> AsyncIterator[Systems]:
+    async def start(db_file: str) -> AsyncIterator[Systems]:
         settings = Settings(
             shop_url="http://shop",
             emag_url="http://emag",
@@ -152,7 +152,7 @@ def start_systems(tmp_path, monkeypatch) -> Callable[[str], AbstractAsyncContext
             shop_webhook_secret=SECRETS["shop"],
             emag_webhook_secret=SECRETS["emag"],
             warehouse_webhook_secret=SECRETS["warehouse"],
-            db_path=str(tmp_path / f"{name}.db"),
+            db_path=str(tmp_path / f"{db_file}.db"),
             retry_base_seconds=0,
             session_secret="test-session",
             viewer_password="viewer",
