@@ -194,6 +194,29 @@ async def test_two_cancels_for_one_order_in_one_batch_cancel_it_once(systems):
     assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
 
 
+async def test_a_repeated_ship_notice_tells_the_channel_once(systems):
+    order_id = await systems.buy_on_shop("WATCH-S10")
+    await systems.run_worker()
+    told = []
+    mark_shipped = systems.ctx.shop.mark_shipped
+
+    async def counted(order_id: str):
+        told.append(order_id)
+        return await mark_shipped(order_id)
+
+    systems.ctx.shop.mark_shipped = counted
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+    # The warehouse may send the same shipment again under a new event id.
+    await systems.send_event("warehouse", "order.shipped", {"order_id": order_id})
+    await systems.run_worker()
+
+    assert told == [order_id]
+    counters = systems.ctx.db.counters()
+    assert (counters["order_shipped"], counters["ship_repeated"]) == (1, 1)
+    assert [row["action"] for row in systems.ctx.db.timeline(order_id)][-1] == "ship_repeated"
+
+
 async def test_an_operator_cancel_and_a_customer_cancel_cancel_the_order_once(systems):
     order_id = await systems.buy_on_shop("APP-3")
     await systems.run_worker()

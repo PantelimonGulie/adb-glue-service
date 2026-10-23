@@ -64,6 +64,12 @@ const ACTIONS: Record<string, Label> = {
     explanation:
       'The order was already cancelled when the cancellation arrived again, so Glue ignored it.',
   },
+  ship_repeated: {
+    label: 'Shipment repeated',
+    tone: 'grey',
+    explanation:
+      'The channel had already been told the order shipped when the shipment arrived again, so Glue ignored it.',
+  },
   emag_acknowledged: {
     label: 'Confirmed to eMAG',
     tone: 'plum',

@@ -24,7 +24,7 @@ KINDS = {
         "warehouse_unreachable",
         "cancel_ignored",
     ],
-    "duplicates": ["duplicate_dropped", "order_known", "cancel_repeated"],
+    "duplicates": ["duplicate_dropped", "order_known", "cancel_repeated", "ship_repeated"],
     "stock": ["stock_pushed", "stock_push_failed"],
     "decisions": [
         "review_decided",

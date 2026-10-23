@@ -24,6 +24,13 @@ describe('action', () => {
     );
   });
 
+  it('tells a repeated shipment apart from a first one', () => {
+    expect(action('ship_repeated').label).toBe('Shipment repeated');
+    expect(action('ship_repeated').explanation).toBe(
+      'The channel had already been told the order shipped when the shipment arrived again, so Glue ignored it.',
+    );
+  });
+
   it('names a review item Glue closed because it was no longer needed', () => {
     expect(action('review_resolved')).toEqual({
       label: 'Closed as no longer needed',

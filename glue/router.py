@@ -187,8 +187,10 @@ async def mark_shipped(ctx: Context, event: dict) -> None:
     order = ctx.db.get_order(order_id)
     if order is None:
         raise Problem(f"the warehouse shipped {order_id}, an order Glue does not know")
-    # order_shipped follows the channel's answer, so a re-run after a stop does not tell it twice.
+    # order_shipped follows the channel's answer, so a repeated notice, or a re-run after a
+    # stop, does not tell it twice.
     if order["status"] == "shipped" and ctx.db.recorded(order_id, "order_shipped"):
+        record(ctx.db, event["event_id"], "order", order_id, "ship_repeated")
         return
     with ctx.db.transaction():
         ctx.db.set_order(order_id, status="shipped")

@@ -12,7 +12,7 @@ from glue.context import Context
 CHANNELS = ("shop", "emag")
 # Counted from the audit log; received, reserved and failed count orders, see db.order_counts().
 COUNTERS = {
-    "duplicates": ("duplicate_dropped", "order_known", "cancel_repeated"),
+    "duplicates": ("duplicate_dropped", "order_known", "cancel_repeated", "ship_repeated"),
     "retries": ("retry_scheduled",),
 }
 FAILED = ("order_failed", "unfulfillable")

@@ -22,6 +22,7 @@ ACTIONS = frozenset(
         "order_shipped",
         "order_cancelled",
         "cancel_repeated",
+        "ship_repeated",
         "cancel_ignored",
         "placed_after_cancel",
         "stock_pushed",
