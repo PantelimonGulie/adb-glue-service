@@ -37,6 +37,10 @@ describe('action', () => {
   });
 });
 
+it('names a failed stock check for what it was, slow or down', () => {
+  expect(action('warehouse_unreachable').label).toBe('Stock check failed');
+});
+
 it('names statuses and causes in plain words', () => {
   expect(status('failed').label).toBe('Needs a decision');
   expect(cause('soldout').label).toBe('Sold out');

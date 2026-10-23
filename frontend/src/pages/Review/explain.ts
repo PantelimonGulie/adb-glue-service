@@ -46,7 +46,7 @@ export function story(item: ReviewItem): string {
       : 'The Bucharest warehouse did not answer, so this order is not reserved yet. Retrying is safe once the warehouse works again.';
   }
   if (cause === 'recount') {
-    const ship = decided ? 'might not have shipped' : 'may not ship';
+    const ship = decided ? 'was at risk of not shipping' : 'may not ship';
     return `The Bucharest warehouse counted fewer units than were promised to customers, so this order ${ship}.`;
   }
   if (cause === 'other') {

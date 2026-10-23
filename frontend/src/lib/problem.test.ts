@@ -21,6 +21,12 @@ it('says which message Glue could not handle, without the URL or the class name'
   expect(plainProblem(raw)).toBe('could not handle an eMAG message: not found');
 });
 
+it('says a short shelf count in words', () => {
+  expect(plainProblem('recount: 2 on hand, 4 reserved')).toBe(
+    'the warehouse counted 2 on the shelf for 4 reserved',
+  );
+});
+
 it('leaves text that is already plain as it is', () => {
   expect(plainProblem('warehouse has no stock: sold on another channel first')).toBe(
     'warehouse has no stock: sold on another channel first',

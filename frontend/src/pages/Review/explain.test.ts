@@ -64,8 +64,26 @@ it('a decided item tells what happened in the past tense', () => {
   );
 });
 
+it('a short shelf count closed later says the order was at risk, not that it did not ship', () => {
+  const recount: ReviewItem = {
+    ...reviewItem,
+    cause: 'recount',
+    status: 'decided',
+    action: 'resolved',
+  };
+
+  expect(story(recount)).toBe(
+    'The Bucharest warehouse counted fewer units than were promised to customers, so this order was at risk of not shipping.',
+  );
+});
+
 it('an item without a saved order says only closing it is possible', () => {
-  const lost = { ...reviewItem, cause: 'other' as const, order: null, allowed: ['dismiss' as const] };
+  const lost = {
+    ...reviewItem,
+    cause: 'other' as const,
+    order: null,
+    allowed: ['dismiss' as const],
+  };
 
   expect(story(lost)).toBe(
     'Glue could not save this order, so there is nothing to retry or cancel. Read what Glue saw, then close the item.',
@@ -91,7 +109,11 @@ it('shows what Glue saw in plain words, and who got the last unit', () => {
 });
 
 it('names the order and the choice once a decision went through', () => {
-  const decided = (action: ReviewItem['action']) => ({ ...reviewItem, status: 'decided' as const, action });
+  const decided = (action: ReviewItem['action']) => ({
+    ...reviewItem,
+    status: 'decided' as const,
+    action,
+  });
 
   expect(done(decided('cancel'))).toBe('Cancelled emag-500124 on eMAG');
   expect(done(decided('retry'))).toBe('Retried emag-500124');

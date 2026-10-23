@@ -80,9 +80,10 @@ const ACTIONS: Record<string, Label> = {
     explanation: 'A channel refused a stock update. Glue tries again on the next stock check.',
   },
   warehouse_unreachable: {
-    label: 'Warehouse not answering',
+    label: 'Stock check failed',
     tone: 'amber',
-    explanation: 'Glue could not reach the warehouse during a stock check. It tries again on the next one.',
+    explanation:
+      'Glue could not read the stock from the warehouse during a stock check. It tries again on the next one.',
   },
   review_opened: {
     label: 'Sent to review',

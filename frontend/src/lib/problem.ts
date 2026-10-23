@@ -35,6 +35,10 @@ export function plainProblem(text: string): string {
       failure(name),
     )
     .replace(/ after (\d+) attempts/g, ' after $1 tries')
+    .replace(
+      /^recount: (\d+) on hand, (\d+) reserved$/,
+      'the warehouse counted $1 on the shelf for $2 reserved',
+    )
     .replace(/unexpected while handling ([\w.]+)/, (_, type) => {
       return `could not handle ${MESSAGES[type] ?? 'a message'}`;
     });
