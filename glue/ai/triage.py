@@ -1,6 +1,7 @@
 import re
 
-from glue import queries, triage_prompt, tuning
+from glue import queries, tuning
+from glue.ai import triage_prompt
 from glue.audit import record
 from glue.context import Context
 

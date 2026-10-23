@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from openai import APIError
 from pydantic import BaseModel, ConfigDict, Field
 
-from glue import assistant, auth, llm, tuning
+from glue import auth, tuning
+from glue.ai import assistant, llm
 from glue.context import Context
 
 log = logging.getLogger(__name__)

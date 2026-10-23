@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from openai import APIError
 from pydantic import BaseModel
 
-from glue import auth, llm, queries, review, triage
+from glue import auth, queries, review
+from glue.ai import llm, triage
 from glue.api.assistant import can_answer
 
 log = logging.getLogger(__name__)

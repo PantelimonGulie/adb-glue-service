@@ -8,8 +8,8 @@ from openai import AsyncOpenAI
 
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.db import Database
+from glue.demo.traffic import Traffic
 from glue.settings import Settings
-from glue.traffic import Traffic
 from glue.tuning import Tuning
 
 

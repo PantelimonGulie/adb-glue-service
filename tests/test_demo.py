@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
-from glue import sample, traffic
 from glue.db import now
+from glue.demo import sample, traffic
 
 ORDER_EVENTS = ("order.placed", "emag.notification")
 

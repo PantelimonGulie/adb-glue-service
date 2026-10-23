@@ -1,4 +1,4 @@
-from glue import triage, triage_prompt
+from glue.ai import triage, triage_prompt
 
 ANSWER = (
     "ACTION: retry\nREASON: The order failed only because the warehouse answered 503 five"

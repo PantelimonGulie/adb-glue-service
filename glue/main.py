@@ -5,11 +5,13 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, FastAPI, Request
 
-from glue import api, inbox, llm, queries, reconciler, settle, traffic, tuning, worker
+from glue import api, inbox, queries, reconciler, settle, tuning, worker
+from glue.ai import llm
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
 from glue.db import Database
+from glue.demo import traffic
 from glue.settings import Settings
 from glue.spa import mount_spa
 

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import httpx
 from openai import APITimeoutError
 
-from glue import llm
+from glue.ai import llm
 
 QUESTION = "Which orders need a decision?"
 

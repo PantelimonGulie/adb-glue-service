@@ -2,7 +2,7 @@ import random
 from datetime import UTC, datetime, timedelta
 
 from glue.context import Context
-from glue.sample_orders import REASONS, History, place
+from glue.demo.sample_orders import REASONS, History, place
 
 SEED = 2026
 DAY = timedelta(days=1)

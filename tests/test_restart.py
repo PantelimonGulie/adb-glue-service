@@ -4,8 +4,10 @@ import sqlite3
 import pytest
 
 import glue.main
-from glue import db, llm, reconciler, review, traffic, worker
+from glue import db, reconciler, review, worker
+from glue.ai import llm
 from glue.db import Database
+from glue.demo import traffic
 
 
 async def test_shutdown_lets_the_background_loops_stop_before_closing_the_db(systems, monkeypatch):

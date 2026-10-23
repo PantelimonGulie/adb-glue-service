@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from common.models import SKU
-from glue import auth, sample, traffic
+from glue import auth
 from glue.context import Context
+from glue.demo import sample, traffic
 
 router = APIRouter()
 can_demo = [Depends(auth.require("demo"))]
