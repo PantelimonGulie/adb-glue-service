@@ -31,7 +31,6 @@ class Context:
     order_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = field(
         default_factory=weakref.WeakValueDictionary
     )
-    sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
     last_reconcile_ok_at: str | None = None
     traffic: Traffic = field(default_factory=Traffic)

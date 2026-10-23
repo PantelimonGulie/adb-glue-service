@@ -39,9 +39,10 @@ async def place_order(ctx: Context, order: Order, correlation_id: str) -> None:
     # Business-level dedupe: eMAG re-notifies, Adobe may redeliver under a new event id.
     if not ctx.db.insert_order_if_new(order):
         existing = ctx.db.get_order(order.id)
-        if existing["status"] == "received" and order.id not in ctx.sending:
-            # Received but nobody sending it: the glue stopped before the warehouse answer was
-            # recorded. The warehouse dedupes on Idempotency-Key, so sending it again is safe.
+        # Every send holds this order's lock, so a received order here is one nobody is sending:
+        # the glue stopped before the warehouse answer was recorded. The warehouse dedupes on
+        # Idempotency-Key, so sending it again is safe.
+        if existing["status"] == "received":
             record(ctx.db, correlation_id, "order", order.id, "allocation_resumed")
             await allocate(ctx, order, correlation_id)
             return
@@ -65,22 +66,14 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
             problem=problem,
         )
 
-    ctx.sending.add(order.id)
     try:
         response = await with_retries(ctx, lambda: ctx.warehouse.create_order(order), on_retry)
     except RetryExhausted as exc:
         return fail(ctx, order.id, correlation_id, "order_failed", str(exc), "place")
-    finally:
-        ctx.sending.discard(order.id)
     if response.status_code == 201:
-        # A cancel handled while the warehouse call was in flight already marked the order
-        # cancelled; the reservation it just got must be released again.
-        cancelled_meanwhile = ctx.db.get_order(order.id)["status"] == "cancelled"
         ctx.db.set_order(order.id, status="allocated", last_error=None)
         lines = [line.model_dump() for line in order.lines]
         record(ctx.db, correlation_id, "order", order.id, "order_allocated", lines=lines)
-        if cancelled_meanwhile:
-            return await cancel_order(ctx, order.id, correlation_id)
         skus = [line.sku for line in order.lines]
         return await reconciler.reconcile_skus(ctx, skus, correlation_id)
     if response.status_code == 409:
