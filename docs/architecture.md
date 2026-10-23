@@ -259,7 +259,7 @@ A day is the business's day, not a UTC day. `BUSINESS_TIMEZONE` (default `Europe
 - **Buckets** (`analytics_series.bucket_starts`). Day buckets are local days, 23 or 25 hours long when the clocks change; hour and minute buckets step in absolute time, so the morning the clocks go back has two "03:00" hours.
 - **Storage and the API** stay in UTC. `/api/me` and the sign-in answer name the zone; the dashboard formats every time, date and day bar in it, whatever the browser's own zone.
 
-The AI token budget is the exception: its day still turns at midnight UTC.
+The AI token budget counts by the same day, so it resets at midnight in that zone.
 
 ## Analytics
 
