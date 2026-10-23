@@ -1,5 +1,7 @@
-import type { Channel, Decision, OrderStatus, ReviewItem, StockRow } from '../../api/types';
+import type { Channel, Decision, Order, OrderStatus, ReviewItem, StockRow } from '../../api/types';
+import { formatTime } from '../../lib/format';
 import { status } from '../../lib/labels';
+import { plainProblem } from '../../lib/problem';
 
 const WHERE: Record<Channel, string> = { shop: 'the shop', emag: 'eMAG' };
 const CUSTOMER: Record<Channel, string> = { shop: 'A shop customer', emag: 'An eMAG customer' };
@@ -17,31 +19,56 @@ const NOT_NOW: Record<OrderStatus, string> = {
 
 export const DECISIONS: Decision[] = ['retry', 'cancel', 'dismiss'];
 
-export function story({ cause, order, payload }: ReviewItem): string {
+const NO_ORDER =
+  'Glue could not save this order, so there is nothing to retry or cancel. Read what Glue saw, then close the item.';
+
+function soldOut(item: ReviewItem, order: Order): string {
+  const ordered = `${CUSTOMER[order.channel]} ordered ${order.qty} × ${order.product}`;
+  const went = `${ordered}, but the last unit went to ${item.winner?.order_id ?? 'another customer'} first.`;
+  return item.status === 'decided' ? went : `${went} The Bucharest warehouse has none left.`;
+}
+
+export function story(item: ReviewItem): string {
+  const { cause, order, payload } = item;
+  const decided = item.status === 'decided';
   if (payload.operation === 'cancel') {
     return 'The customer cancelled, but Glue could not cancel the order at the Bucharest warehouse.';
   }
   if (payload.operation === 'ship') {
     const channel = order ? WHERE[order.channel] : 'its sales channel';
-    return `The Bucharest warehouse shipped this order, but Glue could not tell ${channel}, so the customer does not see it as shipped yet.`;
+    const sees = decided ? 'did not see it as shipped then' : 'does not see it as shipped yet';
+    return `The Bucharest warehouse shipped this order, but Glue could not tell ${channel}, so the customer ${sees}.`;
   }
+  if (!order) return decided ? 'Glue could not save this order.' : NO_ORDER;
   if (cause === 'outage') {
-    return 'The Bucharest warehouse did not answer, so this order is not reserved yet. Retrying is safe once the warehouse works again.';
+    return decided
+      ? 'The Bucharest warehouse did not answer, so this order was not reserved then.'
+      : 'The Bucharest warehouse did not answer, so this order is not reserved yet. Retrying is safe once the warehouse works again.';
   }
   if (cause === 'recount') {
-    return 'The Bucharest warehouse counted fewer units than were promised to customers, so this order may not ship.';
+    const ship = decided ? 'might not have shipped' : 'may not ship';
+    return `The Bucharest warehouse counted fewer units than were promised to customers, so this order ${ship}.`;
   }
-  if (cause === 'other' || !order) {
-    return 'Glue could not finish this order on its own. Check what Glue saw and the order history, then decide.';
+  if (cause === 'other') {
+    return decided
+      ? 'Glue could not finish this order on its own.'
+      : 'Glue could not finish this order on its own. Check what Glue saw and the order history, then decide.';
   }
-  const ordered = `${CUSTOMER[order.channel]} ordered ${order.qty} × ${order.product}`;
-  return `${ordered}, but the last unit went to another customer first. The Bucharest warehouse has none left.`;
+  return soldOut(item, order);
 }
 
-export function facts({ reason, order }: ReviewItem, stock?: StockRow): [string, string][] {
-  const list: [string, string][] = [['What Glue saw', reason]];
+export function facts(item: ReviewItem, stock?: StockRow): [string, string][] {
+  const { order, winner } = item;
+  const list: [string, string][] = [['What Glue saw', plainProblem(item.reason)]];
+  if (winner) {
+    list.push(['Got the unit', `${winner.order_id}, reserved ${formatTime(winner.reserved_at)}`]);
+  }
   if (order) {
-    list.push(['Order now', status(order.status).label], ['Tries', String(order.attempts)]);
+    list.push(['Order now', status(order.status).label]);
+    // The choice on a sold-out or short shelf is about units, not about how often Glue tried.
+    if (item.cause === 'outage' || item.cause === 'other') {
+      list.push(['Tries', String(order.attempts)]);
+    }
   }
   if (stock) {
     const counts = `${stock.on_hand} on hand, ${stock.reserved} reserved, ${stock.free} free`;

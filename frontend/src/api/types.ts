@@ -66,6 +66,8 @@ export interface ReviewItem {
   decided_at: string | null;
   allowed: Decision[];
   suggestion: { action: string | null; reason: string } | null;
+  // Sold-out items only: the order that got the last unit.
+  winner?: { order_id: string; channel: Channel; reserved_at: string } | null;
 }
 
 export interface User {

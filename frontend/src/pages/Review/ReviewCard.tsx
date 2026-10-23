@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useStock } from '../../api/hooks';
 import type { ReviewItem } from '../../api/types';
 import { Tag } from '../../components/Tag/Tag';
+import { decider } from '../../lib/activity';
 import { formatDay, formatTime } from '../../lib/format';
 import { cause, channel } from '../../lib/labels';
 import { Decisions } from './Decisions';
@@ -28,11 +29,12 @@ export function ReviewCard({ item }: { item: ReviewItem }) {
         <Tag tone={kind.tone} title={kind.hint}>
           {kind.label}
         </Tag>
-        {item.order_id && (
+        {item.order_id && order && (
           <Link className={styles.order} to={`/orders/${encodeURIComponent(item.order_id)}`}>
             {item.order_id}
           </Link>
         )}
+        {item.order_id && !order && <span className={styles.lost}>{item.order_id}</span>}
         {source && <Tag tone={source.tone}>{source.label}</Tag>}
         {order && (
           <span className={styles.product}>
@@ -57,7 +59,7 @@ export function ReviewCard({ item }: { item: ReviewItem }) {
         <div className={styles.actions}>
           {decided ? (
             <p className={styles.outcome}>
-              <b>{outcome(item)}</b> by {item.decided_by}
+              <b>{outcome(item)}</b> by {decider(item.decided_by ?? '')}
               {decidedAt}. Saved in the activity log.
             </p>
           ) : (

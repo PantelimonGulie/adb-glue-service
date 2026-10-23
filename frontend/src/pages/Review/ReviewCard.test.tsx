@@ -118,3 +118,12 @@ it('a decided item says who decided, instead of the choices', () => {
   );
   expect(screen.queryByRole('button')).toBeNull();
 });
+
+it('an item without a saved order shows the id without a link to a missing page', () => {
+  stubApi(api);
+  renderCard({ ...reviewItem, cause: 'other', order: null, allowed: ['dismiss'] });
+
+  expect(screen.queryByRole('link', { name: 'emag-500124' })).toBeNull();
+  expect(screen.getByText('emag-500124')).toBeInTheDocument();
+  expect(screen.getByText(/nothing to retry or cancel/)).toBeInTheDocument();
+});

@@ -26,6 +26,13 @@
   text-underline-offset: 2px;
 }
 
+.lost {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+
 .product {
   font-size: 13px;
   color: var(--ink2);
