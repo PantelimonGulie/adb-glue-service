@@ -96,7 +96,7 @@ async def carry_out(ctx: Context, item: dict, action: str, decided_by: str) -> N
         raise Conflict(f"cannot {action}: {state}")
     correlation_id = f"review-{item_id}"
     # No longer open while acting, so a retry that fails again can open a fresh item; a crash
-    # mid-action leaves it acting, and the next start puts it back in the queue.
+    # mid-action leaves it acting for the next start to settle.
     if not ctx.db.start_review(item_id, action, decided_by):
         raise Conflict("already being decided")
     record(

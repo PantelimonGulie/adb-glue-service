@@ -1,3 +1,4 @@
+from glue import review
 from glue.audit import record
 from glue.context import Context
 
@@ -33,3 +34,15 @@ def settle_event(ctx: Context, order_id: str | None, event: dict) -> None:
         failed = item["payload"]
         if (failed.get("source"), failed.get("event_id")) == (event["source"], event["event_id"]):
             resolve(ctx, item, event["event_id"], "its event went through when sent again")
+
+
+def interrupted_decisions(ctx: Context) -> None:
+    # A decision a stop cut short goes back to the queue, as an interrupted event does, unless
+    # the order has moved on and its action is no longer one to take.
+    for item in ctx.db.list_review("acting"):
+        order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
+        if item["action"] in review.allowed_actions({**item, "status": "open"}, order):
+            ctx.db.reopen_review(item["id"])
+        else:
+            why = "the order moved on before Glue stopped mid-decision"
+            resolve(ctx, item, f"review-{item['id']}", why)

@@ -62,13 +62,8 @@ class Database:
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
         for number, step in enumerate(MIGRATIONS[version:], start=version + 1):
             self.conn.executescript(f"BEGIN; {step}; PRAGMA user_version = {number}; COMMIT;")
-        # Events claimed and decisions started by a previous run that never finished go back
-        # to their queues.
+        # Events claimed by a previous run that never finished go back to the queue.
         self.conn.execute("UPDATE events_inbox SET status = 'pending' WHERE status = 'processing'")
-        self.conn.execute(
-            "UPDATE review_queue SET status = 'open', action = NULL, decided_by = NULL"
-            " WHERE status = 'acting'"
-        )
 
     def close(self) -> None:
         self.conn.close()
@@ -269,6 +264,13 @@ class Database:
             (action, decided_by, item_id),
         )
         return cursor.rowcount == 1
+
+    def reopen_review(self, item_id: int) -> None:
+        self.conn.execute(
+            "UPDATE review_queue SET status = 'open', action = NULL, decided_by = NULL"
+            " WHERE id = ?",
+            (item_id,),
+        )
 
     def decide_review(self, item_id: int, action: str, decided_by: str) -> None:
         self.conn.execute(

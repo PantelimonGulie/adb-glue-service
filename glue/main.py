@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, FastAPI, Request
 
-from glue import api, inbox, llm, queries, reconciler, traffic, tuning, worker
+from glue import api, inbox, llm, queries, reconciler, settle, traffic, tuning, worker
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
 from glue.context import Context
@@ -29,7 +29,7 @@ async def metrics(request: Request) -> dict:
 
 def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
     db = Database(settings.db_path)
-    return Context(
+    ctx = Context(
         settings=settings,
         tuning=tuning.load(db, settings),
         db=db,
@@ -41,6 +41,8 @@ def build_context(settings: Settings, http: httpx.AsyncClient) -> Context:
         worker_slots=asyncio.Semaphore(settings.worker_concurrency),
         traffic=traffic.initial(settings.demo_traffic),
     )
+    settle.interrupted_decisions(ctx)
+    return ctx
 
 
 @asynccontextmanager
