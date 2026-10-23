@@ -83,6 +83,51 @@ async def test_an_order_that_ships_resolves_its_recount_item(systems, sleeps):
     assert resolved(systems) == [(order_id, "resolved", "glue")]
 
 
+async def test_a_failed_customer_cancel_stays_open_when_the_order_ships(systems, sleeps):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.chaos("emag", down=True)
+    await systems.http.post(f"http://emag/orders/{order_id.removeprefix('emag-')}/cancel")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+    await systems.chaos("emag", down=False)
+
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+
+    # The customer cancelled but got the parcel anyway: a person has to sort that out.
+    assert systems.ctx.db.get_order(order_id)["status"] == "shipped"
+    assert [i["id"] for i in systems.open_reviews()] == [item["id"]]
+    assert item["payload"]["operation"] == "cancel"
+
+
+async def test_an_item_that_does_not_say_what_failed_is_left_for_a_person(systems, sleeps):
+    order_id = await systems.buy_on_shop("WATCH-S10")
+    await systems.run_worker()
+    # Shaped like an item saved before items recorded their operation.
+    item_id = systems.ctx.db.open_review("order_failed", order_id, {}, "HTTP 503 after 5 attempts")
+
+    await systems.http.post(f"http://shop/orders/{order_id}/cancel")
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "cancelled"
+    assert [i["id"] for i in systems.open_reviews()] == [item_id]
+
+
+async def test_a_redelivered_event_that_fails_again_keeps_its_item_open(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+
+    await systems.chaos("warehouse", down=True)
+    await systems.chaos("emag", down=False, renotify_now=True)
+    await systems.run_worker()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+    assert [i["id"] for i in systems.open_reviews()] == [item["id"]]
+
+
 async def test_a_failed_emag_import_healed_on_renotify_resolves_its_item(systems, sleeps):
     await systems.chaos("emag", down=True)
     order_id = await systems.buy_on_emag("APP-3")

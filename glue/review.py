@@ -21,7 +21,8 @@ OUTAGE_SIGNS = (
 # A retry repeats the operation that failed, which only makes sense from the state it left.
 RETRY_FROM = {"place": "failed", "cancel": "allocated", "ship": "shipped"}
 # Failed operations an order's new status makes moot: it got there another way, or the
-# customer no longer wants it. A failed cancel stays open on a shipped order: it needs a person.
+# customer no longer wants it. A failed cancel stays open on a shipped order: it needs a person,
+# and so does an item that does not say which operation failed.
 SETTLED_BY = {"shipped": ("place",), "cancelled": ("place", "cancel")}
 
 
@@ -68,7 +69,7 @@ def resolve(ctx: Context, item: dict, correlation_id: str, why: str) -> None:
 
 def settle(ctx: Context, order_id: str, status: str, correlation_id: str) -> None:
     for item in ctx.db.open_reviews_for(order_id):
-        if item["payload"].get("operation", "place") in SETTLED_BY[status]:
+        if item["payload"].get("operation") in SETTLED_BY[status]:
             resolve(ctx, item, correlation_id, f"the order is {status}")
 
 
@@ -95,7 +96,7 @@ def allowed_actions(item: dict, order: dict | None) -> set[str]:
     actions = {"dismiss"}
     if order is None:
         return actions
-    if order["status"] == RETRY_FROM[item["payload"].get("operation", "place")]:
+    if order["status"] == RETRY_FROM.get(item["payload"].get("operation", "place")):
         actions.add("retry")
     if order["status"] not in ("shipped", "cancelled"):
         actions.add("cancel")

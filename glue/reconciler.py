@@ -146,7 +146,10 @@ def open_conflicts(ctx: Context, row: dict, correlation_id: str) -> None:
     reason = f"recount: {row['on_hand']} on hand, {row['reserved']} reserved"
     for order in ctx.db.orders_allocated_for(row["sku"]):
         order_id = order["order_id"]
-        if review.queue_item(ctx, "unfulfillable", order_id, reason, correlation_id, payload=order):
+        payload = {**order, "operation": "place"}
+        if review.queue_item(
+            ctx, "unfulfillable", order_id, reason, correlation_id, payload=payload
+        ):
             record(ctx.db, correlation_id, "order", order_id, "unfulfillable", reason=reason)
 
 
