@@ -31,8 +31,8 @@ None of these figures are known yet. The first step of the engagement is to meas
 - **Orders arrive by themselves.** The shop's order events and eMAG's notifications reach Glue as they happen. Glue reserves each order at the warehouse within seconds and confirms eMAG orders, so eMAG stops showing them as new.
 - **Stock follows the warehouse.** After every reservation, cancellation and recount, and every 10 seconds anyway, Glue pushes the warehouse's free figure to both channels. A channel that refused an update is corrected on the next run.
 - **Duplicates and outages are handled.** A message sent twice makes one order. A warehouse that does not answer is retried, and an order it never took goes to a review queue instead of being lost.
-- **People decide what costs money.** When the last unit sold on both channels, Glue reserves it for the first order, sets both channels to 0, and puts the second order in front of a person with the reason. Cancelling a paid order, and on eMAG paying for it in seller rating, stays a business decision.
-- **Everything is on the record.** Every order has a timeline; every decision has a name and a time.
+- **People decide what costs money.** When the last unit sold on both channels, Glue reserves it for the first order, sets both channels to 0, and puts the second order in front of a person with the reason and the order that got the unit. When a recount finds fewer units than were promised, only the newest orders the shelf cannot cover go to a person, and they leave the queue by themselves if a later count covers them. Cancelling a paid order, and on eMAG paying for it in seller rating, stays a business decision.
+- **Everything is on the record.** Every order has a timeline; every decision has a name and a time. Days and times are Bucharest time, so "today" on the dashboard is the reseller's day.
 
 ## What the customer must provide
 
@@ -57,7 +57,7 @@ Shadow mode and the per-stage switches are not built yet; each is a flag checked
 
 Baselines are taken from the months before the rollout.
 
-- **Oversells per week,** counted as review items with the cause "Sold on the other channel". Target: well below the baseline.
+- **Oversells per week,** counted as review items with the cause "Sold out". Target: well below the baseline.
 - **eMAG seller cancellation rate** for the month, from eMAG's seller center. Target: below the baseline and inside eMAG's threshold.
 - **Missed orders: zero.** At month end, every order on both channels has a Glue order, and Flow shows no lost orders.
 - **Time from paid to reserved:** p95 under a minute, from the Flow page.
@@ -68,6 +68,7 @@ Baselines are taken from the months before the rollout.
 ## Risks
 
 - **eMAG's real rate limits are unknown.** A flash sale could push more stock updates than eMAG accepts. Mitigation: measure in the eMAG stage, then coalesce pushes into fewer batches.
+- **Glue sees what a channel accepted, not what it shows.** A channel that accepts a stock update and does not apply it looks in step to Glue. Mitigation: in the eMAG stage, read eMAG's offers back during reconcile and compare.
 - **The warehouse API may not support idempotency.** Then Glue must look up an order before creating it, which is slower and needs testing against lost answers.
 - **Adobe I/O Events signs with its own public-key scheme,** not the shared secret the demo uses. The connector must verify it properly.
 - **The review queue has no owner,** and paid orders wait. Mitigation: an owner and a backup before the orders stage, and an alert on the oldest item.

@@ -35,6 +35,8 @@ The walkthrough below needs the demo controls, so sign in as `admin`.
 
 Stop with `docker compose down`. Glue's SQLite database lives in the `glue-data` volume and survives restarts; its schema upgrades in place (see [Operability](#operability)). The mocks keep their state in memory and restart with seed stock. They number orders from the clock, so a restarted mock never reuses an order number Glue has already seen.
 
+**A clean demo.** Because the mocks forget and Glue remembers, start a demo from a fresh Glue database: `docker compose down`, then `docker volume rm glueservice_glue-data` (Compose prefixes the project folder's name; `docker volume ls` shows it). Never use `docker compose down -v`: it also deletes `ollama-models`, and the model downloads again.
+
 ## Read this first
 
 The sync core is six files. Read them in this order:
@@ -42,8 +44,8 @@ The sync core is six files. Read them in this order:
 1. [`glue/inbox.py`](glue/inbox.py): verifies the signature, validates the payload, saves the event, answers 202. No other work happens in the request.
 2. [`glue/worker.py`](glue/worker.py): claims pending events, takes a per-order lock, runs the handler, turns any unexpected error into a failed event and a review item.
 3. [`glue/router.py`](glue/router.py): the only code that changes an order's status. Places, imports from eMAG, cancels, ships.
-4. [`glue/retry.py`](glue/retry.py): the one retry policy every outbound call goes through.
-5. [`glue/reconciler.py`](glue/reconciler.py): reads the warehouse's stock and pushes it to both channels; a refused push leaves a dirty flag that the next run clears.
+4. [`glue/retry.py`](glue/retry.py): the one retry policy every outbound call goes through; each retry is logged in plain words.
+5. [`glue/reconciler.py`](glue/reconciler.py): reads the warehouse's stock and pushes it to both channels; a refused push leaves a dirty flag that the next run clears. A recount below reserved sends only the newest orders the shelf cannot cover to review.
 6. [`glue/review.py`](glue/review.py) and [`glue/settle.py`](glue/settle.py): a person's decision on a failed order, carried out crash-safe, and the items Glue closes itself when they become moot.
 
 Then [`tests/conftest.py`](tests/conftest.py): all four apps in one process, which is how every test and the load probe run.
@@ -64,21 +66,23 @@ The full note, with the cost of the problem, what the customer must provide, the
 
 About ten minutes. Keep the dashboard open in one tab and the mock you are using in another. Everything under **Demo controls** needs `admin`. **Turn every fault off** on the Simulation card resets all faults.
 
-Compose starts demo traffic (`DEMO_TRAFFIC: slow`): a random order on the shop or eMAG every 5 seconds, a shipment every sixth tick, and a restock when a product runs low.
+Compose starts demo traffic (`DEMO_TRAFFIC: slow`): a random order on the shop or eMAG every 5 seconds, a shipment every sixth tick, and a restock when a product has fewer than 3 free. The restock is a warehouse recount marked "demo restock", so **Activity log** shows it as "Shelf count changed". Traffic never restocks a product someone counted by hand in the last 10 minutes, so the recount steps below hold. The mock pages reload every 4 seconds, except while you type in a field, have changed one, or wait for a form you sent.
 
-1. **Watch it run.** **Overview** on **Live · 15 min** shows the flow map: each dot is one real event from the audit log, moving from a channel through Glue to the Bucharest warehouse. The map's nodes and the sidebar show each system's health; the counters, **Waiting for you** and **Latest activity** sit around it. Click any order on **Orders** for its timeline: the inbound event, retries, the reservation, the stock pushes it caused and any decision. Ctrl+K (Cmd+K on a Mac) opens a command palette that finds orders and pages.
+Every time and date on the dashboard is Bucharest time (see [Architecture](#architecture)).
+
+1. **Watch it run.** **Overview** on **Live · 15 min** shows the flow map: each dot is one real event from the audit log, moving from a channel through Glue to the Bucharest warehouse. The map's nodes and the sidebar show each system's state: working, slow, limiting requests or not answering. The counters, **Waiting for you** and **Latest activity** sit around it. Click any order on **Orders** for its timeline: the inbound event, retries, the reservation, the stock pushes it caused and any decision. Ctrl+K (Cmd+K on a Mac) opens a command palette that finds orders and pages.
 2. **Pause for the scripted steps.** On **Demo controls**, Simulation card, click **Pause new orders** so each step below is easy to follow.
 3. **A shop order.** On the shop (:8001) buy an iPhone 16 128GB. On the dashboard, **Orders** shows it **Reserved**, and **Stock** shows the same lower figure for the warehouse, the shop and eMAG.
 4. **An eMAG order.** On the marketplace (:8002), buy AirPods Pro 3 in the Offers table. The order row starts at "1 · New" and moves to "2 · In progress" once Glue has read the order, reserved it and acknowledged it. The marketplace's API activity log shows the callback to Glue, `order/read` and `order/acknowledge`.
 5. **Duplicates.** Shop card, **Send the same order twice**: the shop re-sends its last event with the same event id. **Activity log** shows "Duplicate ignored" and no second order appears.
 6. **Warehouse outage.** Warehouse card, **Stop answering**, then buy anything on the shop. **Activity log** shows "Retrying" lines that wait the 2 seconds the warehouse asks for in `Retry-After`, then "Failed, needs you". The warehouse terminal (:8003) shows the outage banner and the refused order in its outbox. **Review queue** groups the order under "Warehouse outage". Click **Bring the warehouse back**, then **Retry all** on that group: the order is reserved. (With the auto-retry rule on, under **Rules**, Glue retries by itself when the warehouse answers again.)
-7. **Oversell.** On **Stock**, note how many MacBook Air M4 are reserved, then use the **Warehouse recount** card to set the shelf to that number plus one, so exactly one unit is free. eMAG card, **Ignore stock updates**: eMAG now keeps showing its old figure. Buy the MacBook Air M4 on the shop. eMAG still shows 1, so buy it there too. The warehouse refuses the second order; it lands in **Review queue** under "Sold on the other channel". Click **Cancel on eMAG**: the marketplace shows the order as "0 · Cancelled by seller". Click **Apply stock updates again**.
-8. **eMAG rate limit and a missed ship notice.** eMAG card, **Ask Glue to slow down**: eMAG answers every API call with 429 and `Retry-After: 1`. On the warehouse terminal, click **Ship** on the eMAG order from step 4. Glue marks it shipped, cannot tell eMAG, and opens a review item that says so. **Stock** marks eMAG's figures as refused for the same reason. Click **Stop asking to slow down**, then **Retry** on the item: the marketplace shows "4 · Finalized", and the next reconcile run (every 10 seconds) clears the stock flags.
-9. **Partial batch rejection.** eMAG card, **Refuse updates for MacBook Air M4**. On the next reconcile run the batch applies every other product and only MacBook Air M4 is flagged on **Stock**; the marketplace's Offers table shows "rejected: validation error" for it. **Accept all updates again** clears it on the next run.
-10. **Recount below reserved.** With at least one iPhone 16 128GB reserved, use **Warehouse recount** (or the warehouse terminal) to set it to 0. Both channels drop to 0 and every reserved order for it appears under "Shelf count too low". Retry is not offered: those orders still hold their reservation, so a person decides which to cancel.
+7. **Oversell.** On **Stock**, note how many MacBook Air M4 are reserved, then use the **Warehouse recount** card to set the shelf to that number plus one, so exactly one unit is free. eMAG card, **Ignore stock updates**: eMAG now keeps showing its old figure. Buy the MacBook Air M4 on the shop. eMAG still shows 1, so buy it there too. The warehouse refuses the second order; it lands in **Review queue** under "Sold out", and the card names the shop order that got the last unit. Click **Cancel on eMAG**, then **Yes, cancel it**: the marketplace shows the order as "0 · Cancelled by seller". Click **Apply stock updates again**.
+8. **eMAG rate limit and a missed ship notice.** eMAG card, **Ask Glue to slow down**: eMAG answers every API call with 429 and `Retry-After: 1`, and the sidebar shows eMAG as "limiting requests". On the warehouse terminal, click **Ship** on the eMAG order from step 4. Glue marks it shipped, cannot tell eMAG, and opens a review item that says so. **Stock** marks eMAG's figures as refused for the same reason. Click **Stop asking to slow down**, then **Retry** on the item: the marketplace shows "4 · Finalized", and the next reconcile run (every 10 seconds) clears the stock flags.
+9. **Partial batch rejection.** eMAG card, **Refuse updates for MacBook Air M4**. On the next reconcile run the batch applies every other product and only MacBook Air M4 is flagged on **Stock**; the marketplace's Offers table shows "rejected: validation error" for it. **Accept updates for MacBook Air M4 again** clears it on the next run.
+10. **Recount below reserved.** With at least two iPhone 16 128GB reserved, use **Warehouse recount** (or the warehouse terminal) to set the shelf to one fewer than are reserved. Both channels drop to 0, and only the newest reserved order appears under "Shelf count too low": the shelf is short by one. Retry is not offered: the order still holds its reservation, so a person decides whether to cancel it. Recount the shelf back up and Glue closes the item itself ("Closed as no longer needed").
 11. **A forged message.** Security card, **Send a message with a fake signature**: Glue answers 401, and **Activity log** shows "Fake message blocked".
-12. **History and analytics.** History card, **Load sample history** (30 days of generated orders, the same every time). Open **Flow** on **This month**: the funnel from received to reserved, p50 and p95 time to reserve, retries and failures per bucket, a panel per system (including "Orders lost"), a breakdown by product and **Export CSV**. A banner says sample data is included until **Clear sample history** removes it; real orders stay.
-13. **Assistant and triage.** Once the model is ready, ask the **Assistant** "Which orders need a decision?". The answer cites order ids from the database and lists which read-only lookups it used. On a review card, the triage button asks the model for a suggestion; it is shown on the card and never acts.
+12. **History and analytics.** History card, **Load sample history**: 30 days of generated orders from a fixed seed, about 300 a day. Open **Flow** on **This month**: the funnel from received to reserved, p50 and p95 time to reserve, orders with problems per day, a panel per system (including "Orders lost"), a breakdown by product and **Export CSV**. A banner says sample data is included until **Clear sample history** removes it; real orders stay.
+13. **Assistant and triage.** Once the model is ready, ask the **Assistant** "Which orders need a decision?". It answers from a block of live facts and five read-only lookups, and the page lists the lookups it used. On a review card, **Suggest an action** asks the model for a triage suggestion; it is shown on the card and never acts.
 
 Click **Resume new orders** when done.
 
@@ -92,6 +96,7 @@ Four services from one image: three mocks and Glue. Glue is one FastAPI process 
 - **Reconciler.** Pulls the warehouse's stock and pushes the sellable figure to both channels: at startup, every 10 seconds, after every reservation or cancellation, and on every stock event.
 - **Review queue.** The orders Glue would not decide alone, with retry, cancel and dismiss.
 - **Audit log.** One row per thing that happened, with a correlation id, mirrored as one JSON log line.
+- **Business timezone.** `BUSINESS_TIMEZONE` (default `Europe/Bucharest`) says where a day starts. Today, Last 7 days, This month and custom ranges, and the Flow page's day buckets, are cut at midnight in that zone, so the day the clocks go back has 25 hours. Glue stores and returns UTC; `/api/me` names the zone, and the dashboard shows every time and date in it, whatever the browser's own zone.
 
 What runs in production and what exists for the walkthrough:
 
@@ -112,7 +117,7 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 - **httpx (async).** Explicit timeouts, and `ASGITransport` lets the tests and the load probe run every service in one process.
 - **SQLite (stdlib `sqlite3`, WAL).** A durable inbox, orders, stock, review queue and audit log with no extra service. Migrations are an ordered list counted by `PRAGMA user_version`.
 - **React 18, TypeScript, Vite** for the dashboard. It is an operator console with live views (the flow map, auto-refreshing tables, a command palette), which is easier to build and test as a single-page app. **TanStack Query** for server state and polling, **React Router**, **Recharts** for the Flow charts (loaded only with that page), **cmdk** for the palette, **lucide-react** icons, **CSS Modules** with design tokens in one file, IBM Plex fonts from `@fontsource` bundled into the build.
-- **Jinja2** for the three mock systems: server-rendered pages with plain HTML forms and no JavaScript, fonts vendored in `common/static/fonts/` with their licences.
+- **Jinja2** for the three mock systems: server-rendered pages with plain HTML forms, fonts vendored in `common/static/fonts/` with their licences. Their only script, `common/static/refresh.js`, reloads the page every 4 seconds.
 - **Ollama with `qwen2.5:3b`**, called through the **openai** SDK (Ollama's OpenAI-compatible endpoint). Free, local, no key, nothing leaves the machine.
 - **Docker Compose** with a multi-stage `Dockerfile` (Node builds the dashboard, the Python image serves it). The same first run on any machine.
 - **pytest, pytest-asyncio, ruff** for the backend; **Vitest, Testing Library, ESLint, tsc** for the dashboard.
@@ -121,11 +126,11 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 
 - **A message broker (Kafka, RabbitMQ, SQS).** The inbox table already works as a durable queue (claim, process, mark done or failed) for one reseller's volume. Handlers are idempotent, so a broker can replace the table without touching them.
 - **Postgres.** One file and no service is enough for one instance. All SQL is in `glue/db.py`, so the move is contained.
-- **An ORM or Alembic.** About fifty queries in one file, and two migration steps. The ordered list is the whole mechanism.
+- **An ORM or Alembic.** About sixty queries in one file, and three migration steps. The ordered list is the whole mechanism.
 - **Celery or a task framework.** Four asyncio loops in one process.
 - **WebSockets or server-sent events.** The dashboard polls every 2 seconds; the live map asks only for rows after a cursor. Fine for a handful of operators.
 - **A component library, Tailwind or Redux.** CSS Modules and tokens keep the bundle small and the styles local; TanStack Query already holds the server state.
-- **An agent framework.** The assistant is one tool loop of about forty lines over four read-only functions.
+- **An agent framework.** The assistant is one tool loop of about forty lines over five read-only functions.
 - **A hosted model by default.** A reviewer should not need a key. The usage limits exist for when it points at a paid model.
 
 ## Assumptions
@@ -136,7 +141,7 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 4. **First to reach the warehouse wins.** Neither channel is preferred. Holding units back from one channel is a rule (off by default), not part of the conflict logic.
 5. **Payments are out of scope.** The customer has paid when an order reaches Glue; cancelling means the channel refunds them. Glue never sees payment data.
 6. **One warehouse, one currency, and one order line per mock checkout.** The models and the warehouse accept several lines.
-7. **Signing.** Each source signs with a shared-secret HMAC. Adobe I/O Events uses its own public-key scheme, and whether real eMAG callbacks can be signed is unverified. Because Glue pulls every eMAG order through the authenticated API, a forged eMAG notification could at most trigger a read.
+7. **Signing.** Each source signs with a shared-secret HMAC. Adobe I/O Events uses its own public-key scheme, and whether real eMAG callbacks can be signed is unverified. Because Glue pulls every eMAG order through the authenticated API and acts on the status it reads back, a forged eMAG notification could at most trigger a read: a cancel notice for an order eMAG still shows open is logged as ignored (`cancel_ignored`) and changes nothing.
 8. **SKUs are the same everywhere.** The shop's SKU, eMAG's `part_number` and the warehouse's code are one value. A real rollout needs a mapping table.
 
 ## Trade-offs
@@ -155,25 +160,30 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 
 - **One instance only.** The per-order locks, the reconcile lock and the "warehouse is down" flag live in process memory. A second process on the same file would not share them.
 - **Decisions run inside the request.** **Retry all** with a slow warehouse can take longer than a browser waits. Moving decisions onto the worker is the fix.
-- **In-memory state.** `warehouse_down` and `last_reconcile_ok_at` reset on restart, so an outage that ended while Glue was stopped is not seen as a recovery and auto-retry does not fire for it; **Retry all** covers it.
+- **In-memory state.** `warehouse_down` and `last_reconcile_ok_at` reset on restart, so an outage that ended while Glue was stopped is not seen as a recovery and auto-retry does not fire for it; **Retry all** covers it. A rate limit that Glue's own calls met is remembered for 30 seconds in memory too. Demo traffic is in-memory state as well: restarting the `glue` container turns it back on as `DEMO_TRAFFIC` says, even after **Pause new orders**.
 - **Shutdown does not wait for in-flight event handlers.** The loops are cancelled and awaited, but an event a handler was working on stays `processing` and goes back to `pending` on the next start. Handlers are idempotent, so it is handled once.
-- **The mocks keep state in memory.** A rebuilt warehouse mock forgets its reservations while Glue keeps its orders, so after `docker compose up --build` Glue can show reserved orders the warehouse no longer holds. A real warehouse system is durable; in a long demo this shows as recount items.
+- **The mocks keep state in memory; Glue persists.** A restarted or rebuilt mock comes back with seed stock and no orders, while Glue keeps every order it saw. Glue's reservations then drift from the warehouse's: orders show **Reserved** that the warehouse no longer holds and will never ship. A real warehouse system is durable. For a clean demo, start from a fresh `glue-data` volume, as under [Quickstart](#quickstart), and never delete `ollama-models`.
+- **Glue knows what a channel accepted, not what it shows.** A channel that accepts a figure and does not apply it, like eMAG's **Ignore stock updates** fault, looks in step on **Stock** and to the assistant. Reading eMAG's offers back during reconcile would close this.
+- **"Orders in" and the Flow funnel can differ.** Orders in counts order rows by when they came in; the funnel counts order messages in the window. An eMAG notice whose order Glue could not read (eMAG down, or the order gone) is in the funnel but has no order row. Their reserved counts can also differ at a range's end, for an order that came in during the range and was reserved after it.
+- **A short shelf count comes back if closed early.** Closing a "Shelf count too low" item without changes while the shelf is still short opens it again on the next stock check. Cancelling the order, or a count that covers it, ends it.
 - **The shop mock sends each event once,** and Glue does not poll the shop. An event sent while Glue is down is lost in the demo. Real Adobe Commerce retries delivery.
 - **No retention.** `events_inbox` and `audit_log` grow forever. See [Operability](#operability).
 - **Analytics read the audit log on every request.** Fine for months of one reseller; at scale it needs pre-aggregated buckets, and an index on `review_queue.order_id` for the lost-orders count. "Longest outage" is an estimate from retry rows, because nothing is logged when the warehouse comes back.
 - **Demo sign-in.** Three fixed users with passwords from the environment, no password hashing, no sign-in rate limit, no `Secure` cookie flag (it runs on plain HTTP locally). Real sign-in belongs to the customer's identity provider; the roles and per-route checks would stay.
 - **Demo secrets are in `docker-compose.yml`.** In production they come from a secret store, and webhook secrets need rotation with an overlap window, which is not built.
 - **No real connectors.** API shapes follow the public documentation but are not tested against sandboxes.
+- **A 3B local model is often vague and sometimes wrong.** The assistant runs at temperature 0 with live facts. In the last measured runs, "What failed in the last hour?", "Is the warehouse working?" and "Why is the MacBook different on eMAG?" (with nothing out of step) were right every time. "Which orders need a decision?" named the right order, but for an item stored before reasons were plain words it repeated the raw "404 Not Found" text; the tool now sends the item's plain cause instead, and a test pins that. In an earlier round, when eMAG refused a MacBook update, the figures were right in 8 of 8 answers but the reason ("eMAG refused the update") was given in only 2 and wrong in 1. Answers can still vary between runs, because the facts carry the time to the second. Triage reasons are sensible but wordy; the choice itself comes from code.
+- **The AI token budget resets at midnight UTC,** not at Bucharest midnight like every other day on the dashboard.
 - **Left out on purpose:** courier and AWB, returns and refunds, payments, invoices, several warehouses, catalogue sync. None changes the conflict and retry design.
-- **Small leftovers.** Uvicorn's own access lines are plain text next to the JSON audit lines. `glue/context.py` imports the demo `Traffic` dataclass, so the core depends on one demo type. `router.allocate` still checks for a cancel that landed while the warehouse call was in flight; the per-order lock now prevents that in-process, so the branch is a guard that does not fire.
+- **Small leftovers.** Uvicorn's own access lines are plain text next to the JSON audit lines. `glue/context.py` imports the demo `Traffic` dataclass, so the core depends on one demo type.
 
 ## Testing
 
 ```sh
-# Backend, in the same image Compose runs: lint, format check, 167 tests in about 5 seconds
+# Backend, in the same image Compose runs: lint, format check, 216 tests in about 8 seconds
 docker compose run --rm --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
 
-# Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 169 tests in 41 files
+# Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 222 tests in 44 files
 cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 ```
 
@@ -184,24 +194,26 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 **What they prove**, one failure mode each:
 
 - **Duplicates.** A repeated shop event, a redelivery under a new event id, and eMAG re-notifications each make one order and one reservation; an event id from one sender cannot hide another sender's event.
-- **Retries.** Warehouse 503, 503, 201 reserves on the third try; `Retry-After` is honoured as seconds or an HTTP date, capped at 30 seconds, and ignored when unreadable; 4xx answers are not retried.
+- **Retries.** Warehouse 503, 503, 201 reserves on the third try; `Retry-After` is honoured as seconds or an HTTP date, capped at 30 seconds, and ignored when unreadable; 4xx answers are not retried; a retried eMAG read or acknowledge, warehouse cancel, ship notice or channel cancel each leaves a retry row in the activity log.
 - **Partial failures.** A ship notice the channel missed is retried from review; an acknowledge that fails after the reservation heals on eMAG's next notification; a failed event sent again goes back to the queue; items whose order reached a good state by another path close themselves.
 - **Concurrency.** Two cancels for one order in one batch cancel it once; an operator cancel racing a customer cancel cancels it once; the production worker loop refills a slot as soon as one frees.
-- **Crash recovery.** An event claimed when Glue stopped is handled once after a restart; a decision cut short is reopened or closed depending on where the order got to; a database from before versioning upgrades in place.
-- **Conflicts.** The oversell is queued and the operator's cancel sets the eMAG order to 0; a recount below reserved caps both channels at 0 and queues each affected order once; a rejected SKU in an eMAG batch is flagged and fixed on the next run.
-- **Security.** Unsigned, forged, wrong-source and replayed-under-a-new-id webhooks get 401; a shop order without lines gets 422 and an eMAG order without products is never reserved; an empty secret verifies nothing; dashboard writes without `X-Glue-Request` or from another origin get 403; each role gets 403 on what it may not do.
-- **Console, AI and demo.** Filters, paging, the events cursor, analytics (including lost orders), settings, rules, the model download, budgets, and triage that hands the model the facts and never acts.
+- **Crash recovery.** An event claimed when Glue stopped is handled once after a restart; a decision cut short is reopened or closed depending on where the order got to; a database from before versioning, or from before `received_at`, upgrades in place.
+- **Conflicts.** The oversell is queued, names the order that got the last unit, and the operator's cancel sets the eMAG order to 0; a shelf short by two flags the two newest orders, and a count that covers them closes their items; a two-product order keeps its item while only one product is short; a rejected SKU in an eMAG batch is flagged and fixed on the next run.
+- **Security.** Unsigned, forged, wrong-source and replayed-under-a-new-id webhooks get 401; a shop order without lines gets 422 and an eMAG order without products is never reserved; an eMAG cancel notice changes nothing while eMAG shows the order open, and a new-order notice reserves nothing once eMAG shows it cancelled; an empty secret verifies nothing; a session cookie with a superscript digit in its expiry is refused instead of crashing; dashboard writes without `X-Glue-Request` or from another origin get 403; each role gets 403 on what it may not do.
+- **Business days.** Today starts at midnight in Bucharest, an order at 00:30 local counts for that day, and the day the clocks go back has 25 hourly buckets.
+- **Console, AI and demo.** Filters, paging without gaps when orders arrive in the same millisecond, the events cursor, analytics (including lost orders, and Overview, Flow and Orders agreeing on one day), system states (including a rate limit only Glue's own calls meet), settings, rules, the model download, budgets, an assistant prompt that carries live facts and tools that answer in product names, triage that hands the model the facts, never acts, drops sentences that name internal tools and refuses a missing or decided item before asking the model, and demo restocks that leave a hand-counted product alone.
 
 **A mutation check.** Each of these bugs, planted one at a time, makes the backend suite fail: inbox dedupe off, order-id dedupe off, no `Idempotency-Key`, `Retry-After` ignored, `Retry-After` uncapped, 4xx retried, no per-order lock, `processing` not reset at start, cut-off decisions not settled at start, stale items not settled, event id left out of the signature, an empty secret accepted, dirty flag never set, negative stock pushed, a cancel that does not release stock, ship notices not retryable, eMAG never acknowledged, CSRF header not checked.
 
 The dashboard tests (Vitest, Testing Library, jsdom) cover each page's states, the API client, the events cursor, the flow map's dot mapping and layout, and the formatting helpers.
 
-**Not covered by automated tests:** the assistant against the real model, timeouts (the in-process transport does not enforce them), and the background loops' timing. These were checked by hand in the browser on Docker.
+**Not covered by automated tests:** the assistant against the real model, timeouts (the in-process transport does not enforce them), the background loops' timing, and the mock pages' reload (a test checks only that every mock serves the script). These were checked by hand in a browser.
 
 ## Observability
 
-- **JSON logs.** Every audit row is also one JSON line on stdout with `ts`, `level`, `action`, `entity_type`, `entity_id`, `correlation_id` and the details. The correlation id is the inbound event id (`run-<time>` for a reconcile run, `review-<id>` for a decision), so one `grep` follows a piece of work across retries and stock pushes: `docker compose logs glue | grep emag-notify-500123-new`.
+- **JSON logs.** Every audit row is also one JSON line on stdout with `ts`, `level`, `action`, `entity_type`, `entity_id`, `correlation_id` and the details. Retries, failures and review items carry the raw technical error (`HTTP 503`, `ReadTimeout: …`) in an `error` field; the dashboard shows only the plain reason, and an unexpected error tells the operator the detail is in this log. The correlation id is the inbound event id (`run-<time>` for a reconcile run, `review-<id>` for a decision), so one `grep` follows a piece of work across retries and stock pushes: `docker compose logs glue | grep emag-notify-500123-new`.
 - **Audit log and timelines.** **Activity log** filters by kind, by order id, SKU or correlation id, and by time. Each order's page shows its timeline, including the rows that share its correlation id.
+- **System states.** The sidebar, the live map and Settings show each system as `ok`, `slow`, `rate_limited` or `down` ("working", "slow", "limiting requests", "not answering"). A health check sets the state; a 429 that Glue's own calls met in the last 30 seconds marks a system `rate_limited` even when its health check passes, as eMAG's does.
 - **`GET /health`** is liveness plus a database read. It calls no other system, so a channel outage never restarts Glue. Compose uses it as the health check.
 - **`GET /metrics`** needs a session that can view. In production it would be scraped on an internal port or with a token; it is JSON today, and the Prometheus text format would be a small addition. It returns counts per audit action for the last hour and in total, and these gauges:
 
@@ -232,7 +244,7 @@ The dashboard tests (Vitest, Testing Library, jsdom) cover each page's states, t
 **Troubleshooting "eMAG order 500123 is missing":**
 
 1. Open `/orders/emag-500123`. If it exists, its timeline says where it stopped; "Failed, needs you" or "Sold out, needs you" means it is in **Review queue** with the reason.
-2. If there is no order, search **Activity log** for `emag-500123`. A "Sent to review" row whose reason starts with "unexpected while handling emag.notification" means Glue could not read the order from eMAG. eMAG keeps re-notifying until the order is acknowledged, and the next notification retries it.
+2. If there is no order, search **Activity log** for `emag-500123`. A "Sent to review" row with a reason such as "eMAG no longer knows this order" or "eMAG is not answering (tried 5 times)" means Glue could not read the order from eMAG; the service log line has the raw error. eMAG keeps re-notifying until the order is acknowledged, and the next notification retries it.
 3. If there is nothing at all, the notification never arrived. Look for "Fake message blocked" or "Message refused" (wrong secret or bad payload) and check eMAG's health on **Overview**.
 4. Or ask the assistant: "What happened to emag-500123?"
 
@@ -272,15 +284,15 @@ Every order is queued before the worker starts, so the latency is mostly time wa
 - **Cross-site request guard.** Every non-GET request under `/api` must carry `X-Glue-Request: 1`, and its `Origin`, when present, must match the host ([`glue/guard.py`](glue/guard.py)). A cross-site form cannot set that header, and a cross-site script would need a CORS preflight Glue never grants.
 - **Sessions and roles.** The session cookie is `user:expiry:HMAC-SHA256`, verified in constant time with `SESSION_SECRET`, HttpOnly, SameSite=Lax, 12 hours. Three roles: `viewer` (view), `operator` (view, decide, ask), `admin` (also rules, settings, demo). Every protected route declares its permission with one FastAPI dependency ([`glue/auth.py`](glue/auth.py)), so hiding a button is never the only guard. Sign-ins and refused attempts are audited.
 - **Health and metrics.** `/health` is open and reveals nothing but liveness. `/metrics` needs a viewer session.
-- **Read-only AI.** The assistant's four tools only read, with arguments clamped; only the last 12 turns of history go back, each trimmed. Triage gets facts assembled in code, with text from other systems collapsed to one short line, and its suggestion is kept only if it is an action the item allows and the reason does not name a different order. Neither can change anything.
+- **Read-only AI.** The assistant's five tools only read, with arguments clamped; only the last 12 turns of history go back, each trimmed. Triage gets facts assembled in code, with text from other systems collapsed to one short line. Its suggestion is kept only if it is an action the item allows and the reason does not name a different order; sentences that name internal tools or fields are dropped, and if none is left there is no suggestion. Neither can change anything.
 - **Outbound calls** are built from validated ids and URL-encoded. SQL is parameterised; the only SQL built from strings uses column names and filters written in `glue/db.py`, never request input.
 
 ## Operability
 
-- **Migrations.** `glue/db.py` keeps an ordered list of steps; `PRAGMA user_version` records how many a database has had. On start, each missing step runs in its own transaction together with its version bump. The first step is `glue/schema.sql`, frozen as every existing database already has it; later changes are new steps, never edits to that file. The second step re-keyed the inbox on `(source, event_id)`. An existing `glue-data` volume upgrades in place; `tests/test_restart.py` covers a database from before versioning.
+- **Migrations.** `glue/db.py` keeps an ordered list of steps; `PRAGMA user_version` records how many a database has had. On start, each missing step runs in its own transaction together with its version bump. The first step is `glue/schema.sql`, frozen as every existing database already has it; later changes are new steps, never edits to that file. The second step re-keyed the inbox on `(source, event_id)`. The third added `orders.received_at`, filled from each order's last update, with an index; the Orders range filters by it, and paging sorts by `received_at` then order id. An existing `glue-data` volume upgrades in place; `tests/test_restart.py` covers a database from before versioning and one from before `received_at`.
 - **Recovery on start.** Events left `processing` go back to `pending`. Review items left `acting` are reopened if their action is still possible, or closed if the order has moved on or a newer item holds the same failure.
 - **Shutdown.** The background loops are cancelled and awaited before the database closes.
-- **Configuration is split in two.** Environment variables hold what is fixed per deployment: system URLs, webhook secrets, the database path, the HTTP timeout, worker concurrency, the model, sign-in passwords, demo traffic. The `settings` table holds what an admin tunes live on **Settings**: retry attempts, back-off base, the reconcile interval, and the assistant's effort and token limits. Those are bounded, audited as `settings_changed` and survive restarts; until an admin saves one, the environment or built-in default applies.
+- **Configuration is split in two.** Environment variables hold what is fixed per deployment: system URLs, webhook secrets, the database path, the HTTP timeout, worker concurrency, the model, sign-in passwords, demo traffic, the business timezone (an unknown zone stops the start). The `settings` table holds what an admin tunes live on **Settings**: retry attempts, back-off base, the reconcile interval, and the assistant's effort and token limits. Those are bounded, audited as `settings_changed` and survive restarts; until an admin saves one, the environment or built-in default applies.
 - **Backups (not built).** The database is one WAL-mode file in a volume. Production would run `sqlite3 glue.db ".backup …"` on a schedule, or stream it to object storage with Litestream.
 - **Retention (not built).** A nightly job would delete `done` inbox events older than about 7 days. The audit log is the record, so it would be archived rather than deleted.
 
