@@ -56,10 +56,6 @@ def first_error(exc: ValidationError) -> str:
 
 
 def accept(ctx: Context, event_id: str, source: str, event_type: str, payload: dict) -> None:
-    if ctx.db.insert_event_if_new(event_id, source, event_type, payload):
-        action = "event_received"
-    else:
-        action = "duplicate_dropped"
     about = {}
     order_id = payload.get("id") or payload.get("order_id")
     if order_id is not None:
@@ -68,7 +64,14 @@ def accept(ctx: Context, event_id: str, source: str, event_type: str, payload: d
         about |= {"sku": payload["sku"], "on_hand": payload["on_hand"]}
         if payload["note"]:
             about["note"] = payload["note"]
-    record(ctx.db, event_id, "event", event_id, action, source=source, type=event_type, **about)
+    # The event and its audit row land together before the 202, or neither does and the
+    # sender, with no answer, sends it again.
+    with ctx.db.transaction():
+        if ctx.db.insert_event_if_new(event_id, source, event_type, payload):
+            action = "event_received"
+        else:
+            action = "duplicate_dropped"
+        record(ctx.db, event_id, "event", event_id, action, source=source, type=event_type, **about)
 
 
 @router.post("/events", status_code=202)

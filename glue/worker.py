@@ -52,18 +52,26 @@ async def handle(ctx: Context, event: dict) -> None:
             await HANDLERS[event["type"]](ctx, event)
         except Exception as exc:
             reason, error = explained(exc)
-            ctx.db.finish_event(event["source"], event_id, "failed", error)
-            record(
-                ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
-            )
             payload = {**event, "operation": operation_in(event)}
-            review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload, error)
+            with ctx.db.transaction():
+                ctx.db.finish_event(event["source"], event_id, "failed", error)
+                record(
+                    ctx.db,
+                    event_id,
+                    "event",
+                    event_id,
+                    "event_failed",
+                    type=event["type"],
+                    error=error,
+                )
+                review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload, error)
             return
-        ctx.db.finish_event(event["source"], event_id, "done")
-        # A handler can record an order_failed and still return; that failure may have been
-        # merged into the very item this would close. Other kinds always get their own item.
-        if ctx.db.failures_recorded(order_id, event_id) == failures:
-            settle.settle_event(ctx, order_id, event)
+        with ctx.db.transaction():
+            ctx.db.finish_event(event["source"], event_id, "done")
+            # A handler can record an order_failed and still return; that failure may have been
+            # merged into the very item this would close. Other kinds always get their own item.
+            if ctx.db.failures_recorded(order_id, event_id) == failures:
+                settle.settle_event(ctx, order_id, event)
 
 
 async def process_pending(ctx: Context) -> int:

@@ -9,17 +9,18 @@ SETTLED_BY = {"shipped": ("place",), "cancelled": ("place", "cancel")}
 
 
 def resolve(ctx: Context, item: dict, correlation_id: str, why: str) -> None:
-    ctx.db.decide_review(item["id"], "resolved", "glue")
-    record(
-        ctx.db,
-        correlation_id,
-        "order",
-        item["order_id"] or "-",
-        "review_resolved",
-        review_id=item["id"],
-        kind=item["kind"],
-        why=why,
-    )
+    with ctx.db.transaction():
+        ctx.db.decide_review(item["id"], "resolved", "glue")
+        record(
+            ctx.db,
+            correlation_id,
+            "order",
+            item["order_id"] or "-",
+            "review_resolved",
+            review_id=item["id"],
+            kind=item["kind"],
+            why=why,
+        )
 
 
 def settle(ctx: Context, order_id: str, status: str, correlation_id: str) -> None:

@@ -32,16 +32,18 @@ def fail(
     operation: str,
     error: str = "",
 ) -> None:
-    # Only a failed placement changes the status: a failed cancel leaves the reservation in
-    # place (still allocated), and a failed ship notice leaves the order shipped.
-    if operation == "place":
-        ctx.db.set_order(order_id, status="failed", last_error=reason)
-    else:
-        ctx.db.set_order(order_id, last_error=reason)
-    technical = {"error": error} if error else {}
-    record(ctx.db, correlation_id, "order", order_id, kind, reason=reason, **technical)
-    payload = {**ctx.db.get_order(order_id), "operation": operation}
-    review.queue_item(ctx, kind, order_id, reason, correlation_id, payload=payload, error=error)
+    # A failed order without its item would stay failed for good: a re-run only finds it known.
+    with ctx.db.transaction():
+        # Only a failed placement changes the status: a failed cancel leaves the reservation in
+        # place (still allocated), and a failed ship notice leaves the order shipped.
+        if operation == "place":
+            ctx.db.set_order(order_id, status="failed", last_error=reason)
+        else:
+            ctx.db.set_order(order_id, last_error=reason)
+        technical = {"error": error} if error else {}
+        record(ctx.db, correlation_id, "order", order_id, kind, reason=reason, **technical)
+        payload = {**ctx.db.get_order(order_id), "operation": operation}
+        review.queue_item(ctx, kind, order_id, reason, correlation_id, payload=payload, error=error)
 
 
 async def place_order(ctx: Context, order: Order, correlation_id: str) -> None:
@@ -76,9 +78,10 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
     except RetryExhausted as exc:
         return fail(ctx, order.id, correlation_id, "order_failed", str(exc), "place", exc.error)
     if response.status_code == 201:
-        ctx.db.set_order(order.id, status="allocated", last_error=None)
         lines = [line.model_dump() for line in order.lines]
-        record(ctx.db, correlation_id, "order", order.id, "order_allocated", lines=lines)
+        with ctx.db.transaction():
+            ctx.db.set_order(order.id, status="allocated", last_error=None)
+            record(ctx.db, correlation_id, "order", order.id, "order_allocated", lines=lines)
         skus = [line.sku for line in order.lines]
         return await reconciler.reconcile_skus(ctx, skus, correlation_id)
     if response.status_code == 409:
@@ -131,9 +134,13 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         stub = Order(
             id=order_id, channel=channel, channel_order_id=channel_order_id, lines=[], customer=""
         )
-        ctx.db.insert_order_if_new(stub, status="cancelled")
-        record(ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed")
-        return settle.settle(ctx, order_id, "cancelled", correlation_id)
+        with ctx.db.transaction():
+            ctx.db.insert_order_if_new(stub, status="cancelled")
+            record(
+                ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed"
+            )
+            settle.settle(ctx, order_id, "cancelled", correlation_id)
+        return
     if order["status"] == "cancelled":
         record(ctx.db, correlation_id, "order", order_id, "cancel_repeated")
         return
@@ -149,9 +156,10 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         if response.status_code == 409:
             reason = "already shipped: customer cancelled after dispatch"
             return fail(ctx, order_id, correlation_id, "order_failed", reason, "cancel")
-    ctx.db.set_order(order_id, status="cancelled")
-    record(ctx.db, correlation_id, "order", order_id, "order_cancelled", was=order["status"])
-    settle.settle(ctx, order_id, "cancelled", correlation_id)
+    with ctx.db.transaction():
+        ctx.db.set_order(order_id, status="cancelled")
+        record(ctx.db, correlation_id, "order", order_id, "order_cancelled", was=order["status"])
+        settle.settle(ctx, order_id, "cancelled", correlation_id)
     if releases_stock:
         skus = [line["sku"] for line in order["lines"]]
         await reconciler.reconcile_skus(ctx, skus, correlation_id)
@@ -176,8 +184,9 @@ async def mark_shipped(ctx: Context, event: dict) -> None:
     order_id = event["payload"]["order_id"]
     if ctx.db.get_order(order_id) is None:
         raise Problem(f"the warehouse shipped {order_id}, an order Glue does not know")
-    ctx.db.set_order(order_id, status="shipped")
-    settle.settle(ctx, order_id, "shipped", event["event_id"])
+    with ctx.db.transaction():
+        ctx.db.set_order(order_id, status="shipped")
+        settle.settle(ctx, order_id, "shipped", event["event_id"])
     await notify_shipped(ctx, order_id, event["event_id"])
 
 

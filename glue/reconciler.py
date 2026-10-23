@@ -141,8 +141,9 @@ def recount_conflicts(ctx: Context, row: dict, correlation_id: str) -> None:
         if waiting.pop(order_id, None):
             continue
         payload = {**order, "operation": "place", "sku": sku}
-        if review.queue_item(ctx, "unfulfillable", order_id, reason, correlation_id, payload):
-            record(ctx.db, correlation_id, "order", order_id, "unfulfillable", reason=reason)
+        with ctx.db.transaction():
+            if review.queue_item(ctx, "unfulfillable", order_id, reason, correlation_id, payload):
+                record(ctx.db, correlation_id, "order", order_id, "unfulfillable", reason=reason)
     for item in waiting.values():
         settle.resolve(ctx, item, correlation_id, "a later count covers this order again")
 

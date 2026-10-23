@@ -70,6 +70,8 @@ def record(
     if action not in ACTIONS:
         raise ValueError(f"unknown audit action {action!r}")
     db.audit(correlation_id, entity_type, entity_id, action, detail)
+    # Logged at once, even inside a transaction: a rollback leaves the line without its row and a
+    # re-run logs it again. The audit table is the record; log lines are at-least-once.
     fields = {
         "correlation_id": correlation_id,
         "entity_type": entity_type,

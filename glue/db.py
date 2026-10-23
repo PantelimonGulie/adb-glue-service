@@ -1,5 +1,7 @@
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -76,6 +78,21 @@ class Database:
 
     def close(self) -> None:
         self.conn.close()
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        # Never an await inside: every task shares this one connection, so another task's
+        # statements would join the open transaction.
+        if self.conn.in_transaction:
+            yield
+            return
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+        except BaseException:
+            self.conn.rollback()
+            raise
+        self.conn.commit()
 
     def ping(self) -> None:
         self.conn.execute("SELECT 1 FROM events_inbox LIMIT 1")
@@ -426,8 +443,7 @@ class Database:
         )
 
     def insert_sample(self, orders: list[dict], audit: list[dict]) -> None:
-        with self.conn:
-            self.conn.execute("BEGIN")
+        with self.transaction():
             self.conn.executemany(
                 "INSERT INTO orders (order_id, channel, channel_order_id, lines, customer, status,"
                 " attempts, last_error, updated_at, received_at) VALUES (:order_id, :channel,"
@@ -442,8 +458,7 @@ class Database:
             )
 
     def delete_sample(self) -> int:
-        with self.conn:
-            self.conn.execute("BEGIN")
+        with self.transaction():
             removed = self.conn.execute(f"DELETE FROM orders WHERE {SAMPLE_ORDER}").rowcount
             self.conn.execute(f"DELETE FROM audit_log WHERE {SAMPLE}")
         return removed

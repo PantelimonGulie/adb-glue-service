@@ -42,20 +42,21 @@ def queue_item(
     payload: dict | None = None,
     error: str = "",
 ) -> int | None:
-    item_id = ctx.db.open_review(kind, order_id, payload or {}, reason)
-    if item_id is not None:
-        technical = {"error": error} if error else {}
-        record(
-            ctx.db,
-            correlation_id,
-            "order",
-            order_id or "-",
-            "review_opened",
-            review_id=item_id,
-            kind=kind,
-            reason=reason,
-            **technical,
-        )
+    with ctx.db.transaction():
+        item_id = ctx.db.open_review(kind, order_id, payload or {}, reason)
+        if item_id is not None:
+            technical = {"error": error} if error else {}
+            record(
+                ctx.db,
+                correlation_id,
+                "order",
+                order_id or "-",
+                "review_opened",
+                review_id=item_id,
+                kind=kind,
+                reason=reason,
+                **technical,
+            )
     return item_id
 
 
@@ -107,19 +108,20 @@ async def carry_out(ctx: Context, item: dict, action: str, decided_by: str) -> N
     correlation_id = f"review-{item_id}"
     # No longer open while acting, so a retry that fails again can open a fresh item; a crash
     # mid-action leaves it acting for the next start to settle.
-    if not ctx.db.start_review(item_id, action, decided_by):
-        raise Conflict("already being decided")
-    record(
-        ctx.db,
-        correlation_id,
-        "order",
-        order_id or "-",
-        "review_decided",
-        review_id=item_id,
-        kind=item["kind"],
-        decision=action,
-        decided_by=decided_by,
-    )
+    with ctx.db.transaction():
+        if not ctx.db.start_review(item_id, action, decided_by):
+            raise Conflict("already being decided")
+        record(
+            ctx.db,
+            correlation_id,
+            "order",
+            order_id or "-",
+            "review_decided",
+            review_id=item_id,
+            kind=item["kind"],
+            decision=action,
+            decided_by=decided_by,
+        )
     operation = item["payload"].get("operation")
     try:
         if action == "retry" and operation == "cancel":
@@ -138,10 +140,11 @@ async def carry_out(ctx: Context, item: dict, action: str, decided_by: str) -> N
         elif action == "cancel":
             await router.cancel_on_channel(ctx, order_id, correlation_id)
     except Exception as exc:
-        ctx.db.decide_review(item_id, action, decided_by)
         why, error = explained(exc)
         reason = f"{action} failed: {why}"
-        queue_item(ctx, item["kind"], order_id, reason, correlation_id, item["payload"], error)
+        with ctx.db.transaction():
+            ctx.db.decide_review(item_id, action, decided_by)
+            queue_item(ctx, item["kind"], order_id, reason, correlation_id, item["payload"], error)
         raise Problem(reason, error) from exc
     ctx.db.decide_review(item_id, action, decided_by)
 
