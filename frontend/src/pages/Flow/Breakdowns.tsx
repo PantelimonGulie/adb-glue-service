@@ -8,6 +8,14 @@ import styles from './Breakdowns.module.css';
 
 type ProductRow = Analytics['by_product'][number];
 
+const COLUMNS = [
+  { name: 'Product', hint: undefined },
+  { name: 'Orders', hint: 'Orders that came in' },
+  { name: 'Reserved', hint: 'Reserved at the warehouse' },
+  { name: 'Failed', hint: 'Failed and not reserved' },
+  { name: 'Typical time', hint: 'Typical time from order to reserved' },
+];
+
 const typicalTime = (row: ProductRow) => (row.reserved ? formatLatency(row.p50_seconds) : '—');
 
 function ProductTable({ rows }: { rows: ProductRow[] }) {
@@ -16,11 +24,11 @@ function ProductTable({ rows }: { rows: ProductRow[] }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>Orders</th>
-            <th>Reserved</th>
-            <th>Failed</th>
-            <th>Typical time</th>
+            {COLUMNS.map((column) => (
+              <th key={column.name} title={column.hint}>
+                {column.name}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>

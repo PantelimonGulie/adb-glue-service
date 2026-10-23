@@ -42,3 +42,23 @@ it('keeps the last numbers on screen while a new range loads', async () => {
   expect(screen.getByText('Order messages received')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Flow · This month' })).toBeInTheDocument();
 });
+
+it('says on hover what each by-product column counts', async () => {
+  const row = { sku: 'MBA-M4', product: 'MacBook Air M4', orders: 3, reserved: 2, failed: 1 };
+  const by_product = [{ ...row, p50_seconds: 0.4 }];
+  stubApi({ ...api, '/api/analytics': { ...analytics, by_product } });
+  renderPage(<Flow />, { route: '/flow?range=today' });
+
+  const table = (await screen.findByText('MacBook Air M4')).closest('table') as HTMLElement;
+  const hints = within(table)
+    .getAllByRole('columnheader')
+    .map((header) => header.getAttribute('title'));
+
+  expect(hints).toEqual([
+    null,
+    'Orders that came in',
+    'Reserved at the warehouse',
+    'Failed and not reserved',
+    'Typical time from order to reserved',
+  ]);
+});
