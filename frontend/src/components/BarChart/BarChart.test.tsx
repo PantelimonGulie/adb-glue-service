@@ -62,7 +62,7 @@ it('clicking a bar opens its detail', async () => {
   expect(detail).toHaveTextContent('Shop 2');
   expect(detail).toHaveTextContent('eMAG 4');
   const open = within(detail).getByRole('link', { name: 'Open these events' });
-  expect(open).toHaveAttribute('href', '/activity?bucket=1');
+  expect(open).toHaveAttribute('href', '/activity?bucket=1&range=live');
   expect(bars(EMAG)[1]).toHaveClass(styles.picked);
   expect(bars(EMAG)[0]).toHaveClass(styles.dim);
 
@@ -103,7 +103,7 @@ it('keeps two bars with the same label apart, as on the day clocks go back', asy
   const detail = screen.getByRole('group', { name: 'Numbers for 03:00' });
   expect(detail).toHaveTextContent('Shop 2');
   const open = within(detail).getByRole('link', { name: 'Open these events' });
-  expect(open).toHaveAttribute('href', '/activity?bucket=1');
+  expect(open).toHaveAttribute('href', '/activity?bucket=1&range=live');
   expect(bars(EMAG)[1]).toHaveClass(styles.picked);
   expect(bars(EMAG)[0]).toHaveClass(styles.dim);
   expect(screen.getByRole('button', { name: '03:00: Shop 2, eMAG 4' })).toHaveAttribute(
@@ -133,3 +133,21 @@ it('says so when nothing happened in the period', () => {
   expect(screen.queryByRole('button', { name: /^00:00/ })).toBeNull();
 });
 
+it('the events link keeps the range the chart shows, so clearing the bar goes back to it', async () => {
+  const bars = renderChart(
+    ['00:00', '01:00'],
+    series,
+    '/flow?range=custom&from=2026-10-01&to=2026-10-25',
+  );
+
+  await userEvent.click(bars(EMAG)[1]);
+
+  const open = screen.getByRole('link', { name: 'Open these events' });
+  const link = new URL(open.getAttribute('href')!, 'http://glue').searchParams;
+  expect([link.get('bucket'), link.get('range'), link.get('from'), link.get('to')]).toEqual([
+    '1',
+    'custom',
+    '2026-10-01',
+    '2026-10-25',
+  ]);
+});
