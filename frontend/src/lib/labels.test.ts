@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { action, cause, status } from './labels';
+import { action, cause, status, system } from './labels';
 
 describe('action', () => {
   it('uses the label and explanation from the design', () => {
@@ -43,3 +43,13 @@ it('names statuses and causes in plain words', () => {
   expect(cause('recount').label).toBe('Shelf count too low');
 });
 
+it('names each system state the way the operator would say it', () => {
+  const state = (name: string, ok = true) => system({ ok, state: name, latency_ms: 4 }).label;
+
+  expect(state('ok')).toBe('working');
+  expect(state('slow')).toBe('slow');
+  expect(state('rate_limited')).toBe('limiting requests');
+  expect(state('down', false)).toBe('not answering');
+  expect(state('Answering HTTP 503', false)).toBe('not answering');
+  expect(system({ ok: true, state: 'rate_limited', latency_ms: 4 }).tone).toBe('amber');
+});

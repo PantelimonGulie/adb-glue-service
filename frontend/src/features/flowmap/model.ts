@@ -1,5 +1,6 @@
 import type { Analytics, Counters, Overview, SystemHealth, SystemName } from '../../api/types';
 import { formatNumber } from '../../lib/format';
+import { system } from '../../lib/labels';
 import type { Route } from './layout';
 
 export type Mode = 'live' | 'period';
@@ -37,11 +38,10 @@ const number = (value: number | undefined) => formatNumber(value ?? 0);
 const perMinute = (count: number) =>
   `${(count / LIVE_MINUTES).toLocaleString('en-US', { maximumFractionDigits: 1 })} a minute`;
 
-function health(system: SystemHealth | undefined): Status {
-  if (!system) return { text: 'checking', bad: false };
-  if (!system.ok) return { text: 'not answering', bad: true };
-  const text = system.latency_ms === null ? 'working' : `working · ${system.latency_ms} ms`;
-  return { text, bad: false };
+function health(reported: SystemHealth | undefined): Status {
+  const { label, tone } = system(reported);
+  const latency = tone === 'green' && reported?.latency_ms != null;
+  return { text: latency ? `${label} · ${reported.latency_ms} ms` : label, bad: tone === 'red' };
 }
 
 function periodStatus(warehouse: Status, counters: Counters | undefined): Status {

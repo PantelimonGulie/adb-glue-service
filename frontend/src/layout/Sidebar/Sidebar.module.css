@@ -139,8 +139,10 @@
 }
 
 .light[data-tone='green'] { background: var(--tone-green-dot); }
+.light[data-tone='amber'] { background: var(--tone-amber-dot); }
 .light[data-tone='red'] { background: var(--tone-red-dot); }
 .light[data-tone='grey'] { background: var(--tone-grey-dot); }
+.state[data-tone='amber'] { color: var(--tone-amber-ink); }
 .state[data-tone='red'] { color: var(--bad); }
 
 /* Icon-only: labels stay readable to screen readers, the review count becomes a red dot. */

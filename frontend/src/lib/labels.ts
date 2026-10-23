@@ -244,7 +244,23 @@ export const status = (name: OrderStatus) => STATUSES[name];
 export const cause = (name: Cause) => CAUSES[name];
 export const channel = (name: Channel) => CHANNELS[name];
 
-export function system(health: SystemHealth | undefined): { label: string; tone: Tone } {
-  if (!health) return { label: 'checking', tone: 'grey' };
-  return health.ok ? { label: 'working', tone: 'green' } : { label: 'not answering', tone: 'red' };
+const SYSTEM_STATES: Record<string, Label> = {
+  ok: { label: 'working', tone: 'green', explanation: 'It answers quickly.' },
+  slow: {
+    label: 'slow',
+    tone: 'amber',
+    explanation: 'It answers, but slower than Glue waits for, or a call timed out.',
+  },
+  rate_limited: {
+    label: 'limiting requests',
+    tone: 'amber',
+    explanation: 'It asks Glue to slow down, so Glue waits before it sends more.',
+  },
+  down: { label: 'not answering', tone: 'red', explanation: 'It does not answer at all.' },
+};
+
+export function system(health: SystemHealth | undefined): Label {
+  if (!health) return { label: 'checking', tone: 'grey', explanation: 'Glue is checking it.' };
+  if (Object.hasOwn(SYSTEM_STATES, health.state)) return SYSTEM_STATES[health.state];
+  return health.ok ? SYSTEM_STATES.ok : SYSTEM_STATES.down;
 }
