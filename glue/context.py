@@ -33,6 +33,7 @@ class Context:
     )
     sending: set[str] = field(default_factory=set)
     warehouse_down: bool = False
+    last_reconcile_ok_at: str | None = None
     traffic: Traffic = field(default_factory=Traffic)
     model_status: str = "offline"
     model_progress: float = 0.0

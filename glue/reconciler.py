@@ -45,6 +45,8 @@ async def reconcile_skus(ctx: Context, skus: list[str] | None, correlation_id: s
         for row in rows:
             if row["available"] < 0:
                 open_conflicts(ctx, row, correlation_id)
+        if skus is None:
+            ctx.last_reconcile_ok_at = now()
     # Outside the lock: a retried allocation reconciles its own SKUs.
     if recovered:
         await rules.retry_after_recovery(ctx, correlation_id)

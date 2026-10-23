@@ -138,4 +138,7 @@ def metrics(ctx: Context) -> dict:
         "last_hour": ctx.db.counters(hour_ago),
         "total": ctx.db.counters(),
         "open_review_items": len(ctx.db.list_review()),
+        **ctx.db.gauges(),
+        "warehouse_down": ctx.warehouse_down,
+        "last_reconcile_ok_at": ctx.last_reconcile_ok_at,
     }

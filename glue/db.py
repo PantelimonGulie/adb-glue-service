@@ -54,6 +54,11 @@ def now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
+def age(column: str, where: str) -> str:
+    # Seconds since the oldest row that matches; NULL when none does.
+    return f"ROUND((julianday('now') - julianday(MIN({column}) FILTER (WHERE {where}))) * 86400, 1)"
+
+
 class Database:
     def __init__(self, path: str):
         self.conn = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
@@ -204,8 +209,10 @@ class Database:
         ).fetchone()
         self.conn.execute(
             "INSERT INTO channel_stock (channel, sku, qty, pushed_at, dirty) VALUES (?, ?, ?, ?, ?)"
-            " ON CONFLICT(channel, sku) DO UPDATE SET qty = excluded.qty,"
-            " pushed_at = excluded.pushed_at, dirty = excluded.dirty",
+            " ON CONFLICT(channel, sku) DO UPDATE SET qty = excluded.qty, dirty = excluded.dirty,"
+            # A refused push keeps the time of the last one the channel took, so the age of a
+            # dirty row says how long the channel has been behind.
+            " pushed_at = IIF(excluded.dirty, channel_stock.pushed_at, excluded.pushed_at)",
             (channel, sku, qty, now(), int(dirty)),
         )
         return before is None or (before["qty"], before["dirty"]) != (qty, int(dirty))
@@ -420,6 +427,21 @@ class Database:
             " AND ts >= :since AND (:until = '' OR ts < :until)"
         )
         return self.conn.execute(query, {"since": since, "until": until}).fetchone()[0]
+
+    def gauges(self) -> dict[str, dict]:
+        queries = {
+            "inbox": "SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,"
+            " COUNT(*) FILTER (WHERE status = 'processing') AS processing,"
+            " COUNT(*) FILTER (WHERE status = 'failed') AS failed,"
+            f" {age('received_at', "status = 'pending'")} AS oldest_pending_seconds"
+            " FROM events_inbox",
+            "stock": "SELECT COUNT(*) FILTER (WHERE dirty) AS dirty_rows,"
+            f" {age('pushed_at', 'dirty')} AS oldest_dirty_seconds FROM channel_stock",
+            "review": "SELECT COUNT(*) FILTER (WHERE status = 'open') AS open,"
+            " COUNT(*) FILTER (WHERE status = 'acting') AS acting,"
+            f" {age('created_at', "status = 'open'")} AS oldest_open_seconds FROM review_queue",
+        }
+        return {name: dict(self.conn.execute(sql).fetchone()) for name, sql in queries.items()}
 
     def counters(self, since: str = "", until: str = "") -> dict[str, int]:
         rows = self.rows(
