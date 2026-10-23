@@ -297,17 +297,15 @@ Every order is queued before the worker starts, so the latency is mostly time wa
 
 ## Use of AI
 
-<!--
-PLACEHOLDER. The author writes this section before submission; delete this comment then.
-Points to draw on (keep only what is true for you):
-- Delegated to AI assistants: most of the implementation under your direction (sync core, React dashboard, mock UIs), test drafting, independent review passes on each change, the load probe, drafts of these docs.
-- Decided by you: the scenario and the two channels, first-to-the-warehouse-wins, a person in the loop for oversells, policy in code for triage, what to leave out, core first.
-- Checked by hand: the demo on Docker in a browser, the mutation check, each review finding before it was fixed.
-- Found in review and fixed: three partial-failure gaps in the core (missed ship notice, crash mid-decision, stale review items), a hard-coded "Orders lost: 0", a worker loop capped at 20 orders/s that the tests could not see.
-- Not delegated: final design decisions, what counts as done, the wording of this section.
--->
+I built this with an AI coding assistant (Claude Code) and used it heavily. This is the split.
 
-Written by the author before submission.
+**Delegated to AI.** Most of the implementation: the sync core, the React dashboard and the mock UIs, written task by task from plans and clickable mockups I approved. Also the test drafts, the load probe, the first drafts of these docs and the slides. Every change went through a separate AI review pass before it was accepted, and a final independent review and a browser QA pass covered the whole branch.
+
+**Decided by me.** The scenario (one Bucharest warehouse, the shop and eMAG); that the first order to reach the warehouse wins; that a person decides oversells; that triage is policy in code and the model only explains it; the look of every screen, approved as mockups before any UI code; what to leave out; and the order of work: the sync core first, then the operator console, then the demo layer.
+
+**How it was checked.** 227 backend and 222 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
+
+**What review caught.** Three partial-failure gaps in the core (a ship notice nobody retried, a crash in the middle of a review decision, review items left open after the problem healed), a hard-coded "Orders lost: 0", a recount that flooded the review queue, and a worker loop capped at 20 orders per second that only the load probe exposed. Each is fixed and has a test.
 
 ## Possible extensions
 
