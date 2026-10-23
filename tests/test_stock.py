@@ -72,3 +72,23 @@ async def test_a_shortfall_of_two_flags_the_two_newest_orders_and_a_restock_clos
         (orders[-1], "resolved", "glue"),
     }
     assert systems.shop.state.stock["IPH16-128"] == 2
+
+
+async def test_a_two_product_order_keeps_its_item_while_only_one_product_is_short(systems):
+    lines = [{"sku": "APP-3", "qty": 1}, {"sku": "IPAD-A16", "qty": 1}]
+    order = {"id": "shop-77", "channel": "shop", "channel_order_id": "77", "lines": lines}
+    await systems.send_event("shop", "order.placed", {**order, "customer": "Guest"})
+    await systems.run_worker()
+    await systems.recount("APP-3", 0)
+    await systems.run_worker()
+    # Every periodic run checks IPAD-A16 too, which still covers the order.
+    await systems.reconcile()
+    await systems.reconcile()
+
+    assert flagged(systems) == ["shop-77"]
+    assert systems.ctx.db.counters()["unfulfillable"] == 1
+
+    await systems.recount("APP-3", 1)
+    await systems.run_worker()
+
+    assert flagged(systems) == []

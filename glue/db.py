@@ -201,10 +201,10 @@ class Database:
         )
 
     def open_recount_items(self, sku: str) -> list[dict]:
+        # By the product the item was opened for: another line of the same order may be covered.
         return self.rows(
-            "SELECT * FROM review_queue r WHERE status = 'open' AND kind = 'unfulfillable'"
-            " AND reason LIKE 'recount%' AND EXISTS (SELECT 1 FROM json_each(r.payload, '$.lines')"
-            " WHERE json_extract(value, '$.sku') = ?)",
+            "SELECT * FROM review_queue WHERE status = 'open' AND kind = 'unfulfillable'"
+            " AND reason LIKE 'recount%' AND json_extract(payload, '$.sku') = ?",
             (sku,),
             "payload",
         )
