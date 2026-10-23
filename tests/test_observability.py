@@ -61,3 +61,16 @@ async def test_metrics_when_nothing_waits(systems):
     assert metrics["stock"] == {"dirty_rows": 0, "oldest_dirty_seconds": None}
     assert metrics["review"] == {"open": 0, "acting": 0, "oldest_open_seconds": None}
     assert metrics["warehouse_down"] is False
+
+
+async def test_health_stays_up_and_reports_each_system(systems):
+    await systems.chaos("emag", down=True)
+
+    response = await systems.http.get("http://glue/health")
+
+    assert response.status_code == 200
+    health = response.json()
+    assert (health["status"], health["db"]) == ("ok", "ok")
+    up = {name: system["ok"] for name, system in health["systems"].items()}
+    assert up == {"shop": True, "emag": False, "warehouse": True}
+    assert health["systems"]["emag"]["state"] == "Answering HTTP 503"

@@ -18,8 +18,11 @@ router = APIRouter()
 
 
 @router.get("/health")
-async def health() -> dict:
-    return {"status": "ok"}
+async def health(request: Request) -> dict:
+    ctx: Context = request.app.state.ctx
+    # Only a failing database fails the check; a channel being down is not fixed by restarting Glue.
+    ctx.db.ping()
+    return {"status": "ok", "db": "ok", "systems": await queries.health_of(ctx)}
 
 
 @router.get("/metrics")

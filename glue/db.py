@@ -73,6 +73,9 @@ class Database:
     def close(self) -> None:
         self.conn.close()
 
+    def ping(self) -> None:
+        self.conn.execute("SELECT 1 FROM events_inbox LIMIT 1")
+
     def rows(
         self, sql: str, params: tuple | dict = (), json_column: str | None = None
     ) -> list[dict]:
