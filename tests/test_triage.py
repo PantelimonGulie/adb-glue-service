@@ -1,3 +1,4 @@
+from common.models import StockLevel
 from glue.ai import triage, triage_prompt
 
 ANSWER = (
@@ -127,9 +128,9 @@ async def test_triage_rule_names_only_allowed_choices(systems, sleeps):
     await systems.run_worker()
     await systems.recount("IPH16-128", 0)
     await systems.run_worker()
-    await systems.recount("IPH16-128", 5)
-    await systems.run_worker()
     [item] = systems.open_reviews()
+    # Read a covering count without settling it, as the next stock check would close the item.
+    systems.ctx.db.record_stock([StockLevel(sku="IPH16-128", on_hand=5, reserved=1, available=4)])
     model = systems.use_model("ACTION: dismiss\nREASON: The shelf has the unit again.")
 
     await triage.suggest(systems.ctx, item["id"])

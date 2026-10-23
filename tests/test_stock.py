@@ -19,8 +19,9 @@ async def test_rejected_offer_is_flagged_and_fixed_on_next_run(systems):
     assert dirty_skus(systems, "emag") == set()
 
 
-async def test_recount_below_reserved_caps_channels_and_queues_each_order(systems):
-    shop_order = await systems.buy_on_shop("IPH16-128")
+async def test_recount_below_reserved_caps_channels_and_queues_the_newest_order(systems):
+    await systems.buy_on_shop("IPH16-128")
+    await systems.run_worker()
     emag_order = await systems.buy_on_emag("IPH16-128")
     await systems.run_worker()
     await systems.recount("IPH16-128", 1)
@@ -30,10 +31,44 @@ async def test_recount_below_reserved_caps_channels_and_queues_each_order(system
 
     assert systems.shop.state.stock["IPH16-128"] == 0
     assert systems.emag.state.stock["IPH16-128"] == 0
-    items = systems.open_reviews()
-    assert sorted(item["order_id"] for item in items) == sorted([shop_order, emag_order])
-    assert {item["kind"] for item in items} == {"unfulfillable"}
+    [item] = systems.open_reviews()
+    assert (item["kind"], item["order_id"]) == ("unfulfillable", emag_order)
+    assert "recount" in item["reason"]
 
-    # Both orders still hold their reservation, so there is no allocation to retry.
-    response = await systems.decide(items[0]["id"], "retry")
+    # The order still holds its reservation, so there is no allocation to retry.
+    response = await systems.decide(item["id"], "retry")
     assert response.status_code == 409
+
+
+def flagged(systems) -> list[str]:
+    return [item["order_id"] for item in systems.open_reviews()]
+
+
+async def test_a_shortfall_of_two_flags_the_two_newest_orders_and_a_restock_closes_them(systems):
+    orders = []
+    for _ in range(20):
+        orders.append(await systems.buy_on_shop("IPH16-128"))
+        await systems.run_worker()
+
+    await systems.recount("IPH16-128", 18)
+    await systems.run_worker()
+    await systems.reconcile()
+
+    assert sorted(flagged(systems)) == sorted(orders[-2:])
+    assert systems.ctx.db.counters()["unfulfillable"] == 2
+
+    await systems.recount("IPH16-128", 19)
+    await systems.run_worker()
+
+    assert flagged(systems) == [orders[-1]]
+
+    await systems.recount("IPH16-128", 22)
+    await systems.run_worker()
+
+    assert flagged(systems) == []
+    closed = systems.ctx.db.list_review("decided")
+    assert {(i["order_id"], i["action"], i["decided_by"]) for i in closed} == {
+        (orders[-2], "resolved", "glue"),
+        (orders[-1], "resolved", "glue"),
+    }
+    assert systems.shop.state.stock["IPH16-128"] == 2

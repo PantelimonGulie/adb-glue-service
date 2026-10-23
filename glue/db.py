@@ -198,9 +198,18 @@ class Database:
         return self.rows(
             "SELECT DISTINCT o.* FROM orders o, json_each(o.lines) line"
             " WHERE o.status = 'allocated' AND json_extract(line.value, '$.sku') = ?"
-            " ORDER BY o.updated_at",
+            " ORDER BY o.received_at DESC, o.order_id DESC",
             (sku,),
             "lines",
+        )
+
+    def open_recount_items(self, sku: str) -> list[dict]:
+        return self.rows(
+            "SELECT * FROM review_queue r WHERE status = 'open' AND kind = 'unfulfillable'"
+            " AND reason LIKE 'recount%' AND EXISTS (SELECT 1 FROM json_each(r.payload, '$.lines')"
+            " WHERE json_extract(value, '$.sku') = ?)",
+            (sku,),
+            "payload",
         )
 
     def record_stock(self, rows: list[StockLevel]) -> None:
