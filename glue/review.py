@@ -4,7 +4,7 @@ from common.models import Order
 from glue import router
 from glue.audit import record
 from glue.context import Context
-from glue.retry import Problem, explained
+from glue.retry import SYSTEMS, Problem, explained
 
 log = logging.getLogger(__name__)
 
@@ -22,6 +22,9 @@ OUTAGE_SIGNS = (
     "readerror",
     "remoteprotocolerror",
 )
+# Only the Bucharest warehouse not answering is an outage. A failed call to a channel names it,
+# and a failed ship notice says "channel"; a reason that names no channel came from the warehouse.
+CHANNEL_SIGNS = (SYSTEMS["shop"].lower(), SYSTEMS["emag"].lower(), "channel")
 # A retry repeats the operation that failed, which only makes sense from the state it left.
 RETRY_FROM = {"place": "failed", "cancel": "allocated", "ship": "shipped"}
 
@@ -60,9 +63,9 @@ def cause_of(item: dict) -> str:
     reason = item["reason"].lower()
     if item["kind"] == "unfulfillable":
         return "recount" if reason.startswith("recount") else "soldout"
-    if item["kind"] == "order_failed" and any(sign in reason for sign in OUTAGE_SIGNS):
-        return "outage"
-    return "other"
+    if item["kind"] != "order_failed" or any(name in reason for name in CHANNEL_SIGNS):
+        return "other"
+    return "outage" if any(sign in reason for sign in OUTAGE_SIGNS) else "other"
 
 
 def allowed_actions(item: dict, order: dict | None) -> set[str]:

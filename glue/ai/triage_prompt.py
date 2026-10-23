@@ -13,7 +13,6 @@ CANCELLING = {
 }
 # A failed ship notice leaves the order shipped; retrying tells its sales channel again.
 SHIPPING = {
-    "outage": "the order shipped, but its sales channel did not answer when Glue told it",
     "other": "the order shipped, but Glue could not tell its sales channel",
 }
 CHANNELS = {"shop": "the shop", "emag": "eMAG"}

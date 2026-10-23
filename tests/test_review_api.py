@@ -1,5 +1,6 @@
 import time
 
+import httpx
 import pytest
 
 from glue import review
@@ -171,9 +172,62 @@ async def test_viewer_cannot_decide(systems, sleeps):
         ("ConnectError: All connection attempts failed after 3 attempts", "outage"),
         ("ReadError: connection reset after 5 attempts", "outage"),
         ("RemoteProtocolError: Server disconnected after 5 attempts", "outage"),
+        ("cancellation not delivered: the Bucharest warehouse is not answering", "outage"),
+        ("warehouse cancel not delivered: HTTP 503 after 5 attempts", "outage"),
         ("KeyError: 'sku'", "other"),
         ("warehouse rejected: HTTP 400 bad request", "other"),
+        ("eMAG is not answering (tried 5 times)", "other"),
+        ("cancel failed: the shop could not be reached (tried 5 times)", "other"),
+        ("channel not told it shipped: eMAG took too long to answer (tried 5 times)", "other"),
+        ("channel not told it shipped: HTTP 503 after 5 attempts", "other"),
     ],
 )
 def test_failed_order_cause(reason, cause):
     assert review.cause_of({"kind": "order_failed", "reason": reason}) == cause
+
+
+async def test_a_warehouse_that_timed_out_is_an_outage(systems, sleeps):
+    async def time_out(*args: object) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out")
+
+    systems.ctx.warehouse.create_order = time_out
+    await systems.buy_on_shop("APP-3")
+    await systems.run_worker()
+
+    [item] = systems.open_reviews()
+    assert item["reason"].startswith("the Bucharest warehouse took too long to answer")
+    assert review.cause_of(item) == "outage"
+
+
+async def test_an_emag_read_that_ran_out_of_tries_is_not_a_warehouse_outage(systems, sleeps):
+    await systems.chaos("emag", down=True)
+    await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+
+    [item] = systems.open_reviews()
+    assert item["reason"].startswith("eMAG is not answering")
+    assert review.cause_of(item) == "other"
+
+
+async def test_a_shop_cancel_that_ran_out_of_tries_is_not_a_warehouse_outage(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_shop("APP-3")
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=False)
+    [item] = systems.open_reviews()
+
+    async def refuse(*args: object) -> httpx.Response:
+        return httpx.Response(503, request=httpx.Request("POST", "http://shop"))
+
+    systems.ctx.shop.cancel = refuse
+    response = await systems.decide(item["id"], "cancel")
+
+    assert response.status_code == 502
+    [again] = systems.open_reviews()
+    assert again["reason"].startswith("cancel failed: the shop is not answering")
+    assert review.cause_of(again) == "other"
+    # Retry all re-sends placements to the warehouse; it must not re-place an order whose
+    # cancellation the shop never took.
+    retried = await systems.act("/api/review/retry-all", cause="outage")
+    assert retried.json() == {"retried": 0}
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"

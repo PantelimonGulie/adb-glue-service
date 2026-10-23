@@ -200,7 +200,7 @@ async def test_triage_explains_a_failed_ship_notice(systems, sleeps):
     await triage.suggest(systems.ctx, item["id"])
 
     prompt = model.requests[0]["messages"][-1]["content"]
-    assert "the order shipped, but its sales channel did not answer when Glue told it" in prompt
+    assert "the order shipped, but Glue could not tell its sales channel" in prompt
     assert "- retry: tells eMAG again that the order shipped" in prompt
     assert "the order has shipped and only eMAG still needs telling, so suggest retry" in prompt
 
