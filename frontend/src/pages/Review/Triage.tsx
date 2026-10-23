@@ -17,7 +17,7 @@ export function Triage({ item }: { item: ReviewItem }) {
   if (item.suggestion) {
     return (
       <div className={styles.suggestion}>
-        <span className={styles.kicker}>Triage agent · a suggestion, it does not act</span>
+        <span className={styles.kicker}>Triage suggestion · it does not act</span>
         <p>
           <b>{suggested(item.suggestion.action, item)}.</b> {item.suggestion.reason}
         </p>
@@ -34,7 +34,7 @@ export function Triage({ item }: { item: ReviewItem }) {
         title={blocked}
         onClick={() => triage.mutate(item.id)}
       >
-        Ask the triage agent
+        Suggest an action
       </button>
       {triage.isPending && (
         <span className={text.note}>Thinking… a local model can take a minute.</span>

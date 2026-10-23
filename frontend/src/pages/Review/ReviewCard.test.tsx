@@ -49,7 +49,7 @@ it('a viewer sees every decision disabled with the reason', () => {
   stubApi(api);
   renderCard(reviewItem, users.viewer);
 
-  for (const name of ['Retry', 'Cancel on eMAG', 'Close without changes', 'Ask the triage agent']) {
+  for (const name of ['Retry', 'Cancel on eMAG', 'Close without changes', 'Suggest an action']) {
     const button = screen.getByRole('button', { name });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('title', 'Your role (viewer) cannot do this');
@@ -82,27 +82,27 @@ it('shows the triage suggestion as a suggestion that does not act', () => {
   const suggestion = { action: 'cancel', reason: 'shop-1041 already holds the only unit.' };
   renderCard({ ...reviewItem, suggestion });
 
-  const box = screen.getByText(/a suggestion, it does not act/).parentElement;
+  const box = screen.getByText('Triage suggestion · it does not act').parentElement;
   expect(box).toHaveTextContent('Cancel on eMAG. shop-1041 already holds the only unit.');
-  expect(screen.queryByRole('button', { name: 'Ask the triage agent' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Suggest an action' })).toBeNull();
 });
 
-it('says the local model is downloading instead of asking the triage agent', async () => {
+it('says the local model is downloading instead of suggesting an action', async () => {
   stubApi({ ...api, '/api/assistant': downloading });
   renderCard(reviewItem);
 
   const notice = 'Downloading the local model, about 2 GB, one time · 34%';
   expect(await screen.findByText(notice)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Ask the triage agent' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Suggest an action' })).toBeDisabled();
 });
 
-it('shows why the triage agent could not answer', async () => {
+it('shows why no suggestion could be made', async () => {
   const spent = failure(429, "Today's token budget is spent.");
   const fetch = stubApi({ ...api, '/api/review/7/triage': spent });
   renderCard(reviewItem);
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/assistant', expect.anything()));
 
-  await userEvent.click(screen.getByRole('button', { name: 'Ask the triage agent' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Suggest an action' }));
 
   expect(await screen.findByRole('alert')).toHaveTextContent("Today's token budget is spent.");
 });
