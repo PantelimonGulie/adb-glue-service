@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> open: Glue cannot decide safely (one open item per order and operation)
+    open --> acting: decision
+    acting --> decided: done (a failed action opens a fresh item)
+    acting --> open: restart, action still applies
+    acting --> resolved: restart, order moved on
+    open --> resolved: order got there another way
+    decided --> [*]
+    resolved --> [*]

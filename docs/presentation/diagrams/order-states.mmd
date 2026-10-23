@@ -1,0 +1,20 @@
+stateDiagram-v2
+    [*] --> received: order event or eMAG notification
+    [*] --> cancelled: cancel arrived before the order
+    received --> allocated: warehouse 201
+    received --> cancelled: cancel arrived while the warehouse call was in flight
+    received --> failed: warehouse 409, or retries exhausted
+    failed --> allocated: retry from review, warehouse 201
+    failed --> cancelled: cancel from review
+    allocated --> shipped: warehouse order.shipped
+    allocated --> cancelled: customer or operator cancel, reservation released
+    shipped --> [*]
+    cancelled --> [*]
+    note right of allocated
+        A recount below reserved, or a warehouse cancel
+        that fails, opens a review item and keeps the reservation.
+    end note
+    note right of shipped
+        If the channel was not told, a review item
+        offers Retry; the order stays shipped.
+    end note

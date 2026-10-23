@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1868" height="795" viewBox="0 0 1868 795">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f1115"/></marker>
+<marker id="head-light" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a3abb8"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="570.0" y="22.5" width="727.5" height="510.0" fill="#0f1115"/>
+<text x="600.0" y="62.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#a3abb8">GLUE · ONE FASTAPI PROCESS · :8000</text>
+<rect x="600.0" y="93.0" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="615.0" y="129.5" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Inbox</text>
+<text x="615.0" y="166.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">verify, save,</text>
+<text x="615.0" y="191.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">answer 202</text>
+<rect x="837.5" y="93.0" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="852.5" y="129.5" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Worker</text>
+<text x="852.5" y="166.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">one order</text>
+<text x="852.5" y="191.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">at a time</text>
+<rect x="1075.0" y="93.0" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="1090.0" y="129.5" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Router</text>
+<text x="1090.0" y="166.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">only writer of</text>
+<text x="1090.0" y="191.2" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">order status</text>
+<rect x="600.0" y="265.5" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="615.0" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Audit log</text>
+<text x="615.0" y="338.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">every step, with</text>
+<text x="615.0" y="363.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">a correlation id</text>
+<rect x="837.5" y="265.5" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="852.5" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Reconciler</text>
+<text x="852.5" y="338.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">true stock to</text>
+<text x="852.5" y="363.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">both channels</text>
+<rect x="1075.0" y="265.5" width="192.5" height="127.5" rx="7" fill="#262b33"/>
+<text x="1090.0" y="302.0" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Review queue</text>
+<text x="1090.0" y="338.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">a person</text>
+<text x="1090.0" y="363.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">decides</text>
+<rect x="600.0" y="430.5" width="430.0" height="75.0" rx="7" fill="#262b33"/>
+<text x="615.0" y="474.5" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">SQLite</text>
+<text x="750.0" y="473.7" font-family="Arial, Helvetica, sans-serif" font-size="20.8" font-weight="400" fill="#d5dae1">inbox, orders, stock, audit</text>
+<rect x="1075.0" y="430.5" width="192.5" height="75.0" rx="7" fill="#262b33"/>
+<text x="1090.0" y="474.5" font-family="Arial, Helvetica, sans-serif" font-size="25.0" font-weight="700" fill="#ffffff">Retry policy</text>
+<line x1="797.0" y1="156.8" x2="833.0" y2="156.8" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#head-light)"/>
+<line x1="1034.5" y1="156.8" x2="1070.5" y2="156.8" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#head-light)"/>
+<line x1="933.8" y1="225.0" x2="933.8" y2="261.0" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#head-light)"/>
+<line x1="1171.3" y1="225.0" x2="1171.3" y2="261.0" stroke="#a3abb8" stroke-width="1.5" marker-end="url(#head-light)"/>
+<rect x="22.5" y="45.0" width="330.0" height="157.5" fill="#ffffff" stroke="#b7791f" stroke-width="3"/>
+<text x="46.5" y="83.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#8a5a12">SHOP · ADOBE COMMERCE</text>
+<text x="46.5" y="129.3" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">Electronic Market</text>
+<text x="46.5" y="174.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">mock, :8001</text>
+<rect x="22.5" y="315.0" width="330.0" height="157.5" fill="#ffffff" stroke="#6b2f7e" stroke-width="3"/>
+<text x="46.5" y="353.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b2569">MARKETPLACE · EMAG</text>
+<text x="46.5" y="399.2" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">eMAG</text>
+<text x="46.5" y="444.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">mock, :8002</text>
+<rect x="1512.0" y="165.0" width="330.0" height="195.0" fill="#ffffff" stroke="#8a5a2b" stroke-width="3"/>
+<text x="1536.0" y="203.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#7a4e22">WAREHOUSE</text>
+<text x="1536.0" y="249.3" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">Bucharest</text>
+<text x="1536.0" y="286.7" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">warehouse</text>
+<text x="1536.0" y="330.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">mock, :8003</text>
+<rect x="22.5" y="615.0" width="330.0" height="157.5" fill="#ffffff" stroke="#8a93a1" stroke-width="2.5"/>
+<text x="46.5" y="653.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#3d4552">PEOPLE</text>
+<text x="46.5" y="699.2" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">Operator</text>
+<text x="46.5" y="744.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">viewer, operator, admin</text>
+<rect x="570.0" y="615.0" width="345.0" height="157.5" fill="#ffffff" stroke="#0f1115" stroke-width="3"/>
+<text x="594.0" y="653.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#3d4552">BROWSER</text>
+<text x="594.0" y="699.2" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">React dashboard</text>
+<text x="594.0" y="744.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">served by the glue</text>
+<rect x="952.5" y="615.0" width="345.0" height="157.5" fill="#ffffff" stroke="#8a93a1" stroke-width="2.5"/>
+<text x="976.5" y="653.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#3d4552">OLLAMA CONTAINER</text>
+<text x="976.5" y="699.2" font-family="Arial, Helvetica, sans-serif" font-size="31.3" font-weight="700" fill="#0f1115">Local model</text>
+<text x="976.5" y="744.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">qwen2.5:3b, read-only use</text>
+<line x1="352.5" y1="97.5" x2="570.0" y2="97.5" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="461.2" y="85.2" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">SIGNED EVENTS</text>
+<line x1="570.0" y1="150.0" x2="352.5" y2="150.0" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="461.2" y="181.2" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">STOCK, STATUS</text>
+<line x1="352.5" y1="367.5" x2="570.0" y2="367.5" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="461.2" y="355.2" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">NOTIFY: ID ONLY</text>
+<line x1="570.0" y1="420.0" x2="352.5" y2="420.0" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="461.2" y="451.2" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">READ, ACK, STOCK</text>
+<line x1="1297.5" y1="232.5" x2="1512.0" y2="232.5" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="1404.8" y="220.2" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">RESERVE, CANCEL</text>
+<line x1="1512.0" y1="292.5" x2="1297.5" y2="292.5" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="1404.8" y="323.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">SHIPPED, RECOUNT</text>
+<line x1="352.5" y1="693.8" x2="570.0" y2="693.8" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="461.2" y="680.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472" text-anchor="middle">SIGNS IN</text>
+<line x1="742.5" y1="615.0" x2="742.5" y2="532.5" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="757.5" y="581.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472">JSON API</text>
+<line x1="1125.0" y1="532.5" x2="1125.0" y2="615.0" stroke="#0f1115" stroke-width="2.5" marker-end="url(#head)"/>
+<text x="1140.0" y="581.7" font-family="'Courier New', monospace" font-size="20.8" font-weight="700" fill="#5b6472">OPENAI-COMPATIBLE</text>
+<text x="1512.0" y="651.1" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">Docker Compose: four services</text>
+<text x="1512.0" y="678.6" font-family="Arial, Helvetica, sans-serif" font-size="22.9" font-weight="400" fill="#5b6472">from one image, plus Ollama.</text>
+</svg>

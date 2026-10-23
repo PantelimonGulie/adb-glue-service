@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    actor C as Customer
+    participant S as Electronic Market
+    participant I as Glue inbox
+    participant G as Glue worker and router
+    participant WH as Bucharest warehouse
+    participant E as eMAG
+
+    C->>S: Buy now
+    S->>I: POST /events order.placed, event id, HMAC of id and body
+    I->>I: verify, validate, insert if (source, event id) is new
+    I-->>S: 202 Accepted
+    G->>I: claim pending events
+    G->>G: take the order's lock, insert shop-1001 if new, status received
+    G->>WH: POST /orders, Idempotency-Key shop-1001
+    WH-->>G: 503, Retry-After 2
+    Note over G: retry_scheduled, wait 2 s (Retry-After is capped at 30 s)
+    G->>WH: POST /orders, Idempotency-Key shop-1001
+    alt 201 reserved
+        WH-->>G: 201
+        G->>G: status allocated, order_allocated
+        G->>WH: GET /stock
+        G->>S: new stock for the product
+        G->>E: product_offer/save with the new stock
+    else 409 insufficient stock
+        WH-->>G: 409
+        G->>G: status failed, review item: sold out
+    else still failing after 5 attempts
+        G->>G: status failed, review item: warehouse outage
+    end
+    G->>I: mark event done
