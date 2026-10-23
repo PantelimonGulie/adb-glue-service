@@ -7,10 +7,16 @@ async def test_sign_in_returns_user_and_cookie(systems):
     me = await systems.http.get("http://glue/api/me")
 
     assert response.status_code == 200
-    user = {"name": "operator", "role": "operator", "permissions": ["ask", "decide", "view"]}
+    user = {
+        "name": "operator",
+        "role": "operator",
+        "permissions": ["ask", "decide", "view"],
+        "timezone": "Europe/Bucharest",
+    }
+    # The dashboard keeps the sign-in answer as the signed-in user, so it matches /api/me.
     assert response.json() == user
     assert COOKIE in response.cookies
-    assert me.json() == user | {"timezone": "Europe/Bucharest"}
+    assert me.json() == user
 
 
 async def test_wrong_password_401(systems):

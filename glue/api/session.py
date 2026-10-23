@@ -30,7 +30,7 @@ async def sign_in(request: Request, response: Response, credentials: Credentials
     response.set_cookie(
         auth.COOKIE, token, max_age=auth.SESSION_SECONDS, httponly=True, samesite="lax"
     )
-    return user.as_json()
+    return user.as_json() | {"timezone": settings.business_timezone}
 
 
 @router.delete("/session", status_code=204)
