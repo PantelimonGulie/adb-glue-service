@@ -25,7 +25,7 @@ it('draws every hour on the day clocks go back, though two hours read the same',
   render(<OrdersChart analytics={{ ...analytics, range }} />);
 
   expect(screen.getByTitle('03:00: 15 orders')).toBeInTheDocument();
-  expect(screen.getByTitle('03:00: 25 orders, 4 retries or failures')).toBeInTheDocument();
+  expect(screen.getByTitle('03:00: 25 orders, 4 needed a retry or were not reserved')).toBeInTheDocument();
   expect(consoleError).not.toHaveBeenCalled();
 });
 

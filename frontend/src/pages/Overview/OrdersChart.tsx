@@ -14,10 +14,8 @@ function bars({ range, series }: Analytics, now = Date.now()) {
   const ids = bucketIds(range);
   const labels = bucketLabels(range).slice(0, ids.filter((id) => !(Date.parse(id) > now)).length);
   return labels.map((label, i) => {
-    const trouble = problems.retried[i] + problems.failed[i];
-    // Retries count tries, not orders, so the red part never outgrows the bar.
-    const bad = Math.min(totals[i], trouble);
-    const note = trouble ? `, ${formatNumber(trouble)} retries or failures` : '';
+    const bad = problems.retried[i] + problems.failed[i];
+    const note = bad ? `, ${formatNumber(bad)} needed a retry or were not reserved` : '';
     return {
       id: ids[i],
       label,
@@ -35,7 +33,7 @@ export function OrdersChart({ analytics }: { analytics: Analytics }) {
       <div className={styles.heading}>
         <b>Orders per {analytics.range.unit}</b>
         <span className={styles.note}>
-          grey = handled fine · red = retried or failed · hover a bar
+          grey = reserved first time · red = needed a retry or not reserved · hover a bar
         </span>
       </div>
       <div className={styles.bars} data-dense={items.length > DENSE}>
