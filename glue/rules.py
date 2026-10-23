@@ -49,9 +49,11 @@ async def retry_after_recovery(ctx: Context, correlation_id: str) -> None:
         return
     for item in ctx.db.list_review():
         order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
-        technical = item["kind"] == "order_failed"
+        # Only what the warehouse outage stopped, as Retry all: a failed shop cancel keeps the
+        # placement's payload, and retrying it would place an order someone was cancelling.
+        outage = review.cause_of(item) == "outage"
         placing = item["payload"].get("operation", "place") == "place"
-        if not (technical and placing and "retry" in review.allowed_actions(item, order)):
+        if not (outage and placing and "retry" in review.allowed_actions(item, order)):
             continue
         record(
             ctx.db,

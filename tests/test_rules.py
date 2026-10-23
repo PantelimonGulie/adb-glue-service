@@ -1,5 +1,7 @@
 import asyncio
 
+import httpx
+
 from glue import rules
 
 
@@ -44,6 +46,28 @@ async def test_auto_retry_fires_once_when_the_warehouse_recovers(systems, sleeps
     assert (item["action"], item["decided_by"]) == ("retry", "rule:auto-retry")
     applied = [r for r in systems.ctx.db.audit_for(order_id) if r["action"] == "rule_applied"]
     assert [r["detail"]["rule"] for r in applied] == ["auto-retry"]
+
+
+async def test_auto_retry_does_not_re_place_an_order_whose_shop_cancel_failed(systems, sleeps):
+    rules.save(systems.ctx, "auto-retry", True, {}, "admin")
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_shop("IPAD-A16")
+    await systems.run_worker()
+    await systems.reconcile()
+    [item] = systems.open_reviews()
+
+    async def refuse(*args: object) -> httpx.Response:
+        return httpx.Response(503, request=httpx.Request("POST", "http://shop"))
+
+    systems.ctx.shop.cancel = refuse
+    await systems.decide(item["id"], "cancel")
+    await systems.chaos("warehouse", down=False)
+    await systems.reconcile()
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+    [again] = systems.open_reviews()
+    assert again["reason"].startswith("cancel failed: the shop is not answering")
+    assert not [r for r in systems.ctx.db.audit_for(order_id) if r["action"] == "rule_applied"]
 
 
 async def test_auto_retry_noticed_inside_another_orders_placement_retries_both(systems, sleeps):
