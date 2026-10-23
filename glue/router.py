@@ -118,9 +118,13 @@ async def import_emag_order(ctx: Context, event: dict) -> None:
         await cancel_order(ctx, order.id, correlation_id)
     elif event["payload"]["type"] == "new":
         await place_order(ctx, order, correlation_id)
-        # The row follows eMAG's answer, so a re-run after a stop does not acknowledge twice.
+        # The row follows eMAG's acceptance, so a re-run after a stop does not acknowledge twice.
         if not ctx.db.recorded(order.id, "emag_acknowledged"):
-            await with_retries(ctx, "emag", lambda: ctx.emag.acknowledge(emag_id), log)
+            response = await with_retries(ctx, "emag", lambda: ctx.emag.acknowledge(emag_id), log)
+            # eMAG reports a refusal as HTTP 200 with isError set.
+            if not response.is_success or response.json().get("isError"):
+                error = f"HTTP {response.status_code} {response.text}"[:300]
+                raise Problem("eMAG refused to acknowledge this order", error)
             record(ctx.db, correlation_id, "order", order.id, "emag_acknowledged")
     else:
         shown = EMAG_STATUSES.get(raw.status, f"status {raw.status}")

@@ -396,7 +396,7 @@ Every retried outbound call writes a `retry_scheduled` row: the system, the try,
 | Warehouse refuses the order (409) | Order `failed`, `unfulfillable` item | Operator |
 | Warehouse unreachable during reconcile | Keeps the last known stock, one `warehouse_unreachable` row | Itself, next run |
 | eMAG `order/read` fails | Event failed, review item | Itself: eMAG re-notifies until acknowledged; the item closes when the event goes through |
-| eMAG `acknowledge` fails after the reservation | Event failed, review item | Itself: the re-notification finds the order known, only acknowledges, and the item closes |
+| eMAG `acknowledge` fails after the reservation, or answers `isError` | Event failed, review item | Itself: the re-notification finds the order known, only acknowledges, and the item closes |
 | eMAG sends a cancel notice for an order it still shows open | Nothing changes; a `cancel_ignored` row | Nobody needs to; a real cancel shows status 0 when read |
 | Stock push to the shop fails, eMAG rate limits, or eMAG rejects one SKU in a batch | That channel's row for that SKU is dirty, `stock_push_failed`; the rest of the batch applies | Itself, next run |
 | Warehouse cancel fails, or the order already shipped | Order stays allocated, `order_failed` item for the cancel | Operator: **Retry** the cancel, or handle it as a return |

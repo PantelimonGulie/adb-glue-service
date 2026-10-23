@@ -284,3 +284,32 @@ async def test_an_acknowledge_that_fails_after_the_reservation_heals_on_renotify
     assert systems.warehouse.state.stock["APP-3"]["reserved"] == 1
     assert systems.open_reviews() == []
     assert resolved(systems) == [(order_id, "resolved", "glue")]
+
+
+async def test_an_acknowledge_emag_answers_with_an_error_is_retried_on_renotify(systems, sleeps):
+    acknowledge = systems.ctx.emag.acknowledge
+    calls = []
+
+    async def refused_once(emag_id: int) -> httpx.Response:
+        calls.append(emag_id)
+        if len(calls) == 1:
+            # eMAG reports a refusal as HTTP 200 with isError set.
+            body = {"isError": True, "messages": ["order is locked"]}
+            return httpx.Response(200, json=body, request=httpx.Request("POST", "http://emag/ack"))
+        return await acknowledge(emag_id)
+
+    systems.ctx.emag.acknowledge = refused_once
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+
+    assert "emag_acknowledged" not in systems.ctx.db.counters()
+    assert systems.emag_order(order_id)["status"] == 1
+    [item] = systems.open_reviews()
+    assert item["reason"] == "eMAG refused to acknowledge this order"
+
+    await systems.chaos("emag", renotify_now=True)
+    await systems.run_worker()
+
+    assert systems.emag_order(order_id)["status"] == 2
+    assert systems.ctx.db.counters()["emag_acknowledged"] == 1
+    assert systems.open_reviews() == []
