@@ -6,7 +6,7 @@ import pytest
 import emag.main
 import shop.main
 from common.models import Order
-from glue import review
+from glue import review, worker
 
 
 async def test_duplicate_shop_events_create_one_order(systems):
@@ -199,3 +199,23 @@ async def test_an_operator_cancel_and_a_customer_cancel_cancel_the_order_once(sy
 
     assert sent == [order_id]
     assert systems.ctx.db.counters()["order_cancelled"] == 1
+
+
+async def test_the_worker_loop_refills_a_slot_as_soon_as_it_frees(systems):
+    orders = [await systems.buy_on_shop("APP-3") for _ in range(25)]
+    loop = asyncio.create_task(worker.run_forever(systems.ctx))
+
+    async def drained() -> None:
+        inbox = systems.ctx.db.gauges()["inbox"]
+        while inbox["pending"] or inbox["processing"]:
+            await asyncio.sleep(0.01)
+            inbox = systems.ctx.db.gauges()["inbox"]
+
+    # 25 events through 10 slots: waiting the 0.5 s poll interval whenever every slot is busy
+    # would take at least a second.
+    try:
+        await asyncio.wait_for(drained(), 0.5)
+    finally:
+        loop.cancel()
+        await asyncio.gather(loop, return_exceptions=True)
+    assert {systems.ctx.db.get_order(order_id)["status"] for order_id in orders} == {"allocated"}

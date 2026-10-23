@@ -87,5 +87,8 @@ async def run_forever(ctx: Context) -> None:
             task = asyncio.create_task(handle(ctx, event))
             tasks.add(task)
             task.add_done_callback(tasks.discard)
-        if not events:
+        if len(tasks) == ctx.settings.worker_concurrency:
+            # Every slot is busy: claim again as soon as one frees, not after the poll interval.
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        elif not events:
             await asyncio.sleep(0.5)
