@@ -103,6 +103,33 @@ async def test_a_decision_cut_short_after_it_took_effect_is_closed_after_a_resta
     restarted.db.close()
 
 
+async def test_a_retry_cut_short_after_it_failed_again_leaves_one_item(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_shop("IPH16-256")
+    await systems.run_worker()
+    [item] = systems.open_reviews()
+
+    def killed(*args):
+        raise asyncio.CancelledError
+
+    # The retry fails again and opens a fresh item; Glue stops before it closes the old one.
+    systems.ctx.db.decide_review = killed
+    with pytest.raises(asyncio.CancelledError):
+        await review.decide(systems.ctx, item["id"], "retry")
+
+    restarted = glue.main.build_context(systems.ctx.settings, systems.http)
+    [fresh] = restarted.db.list_review()
+    assert fresh["id"] != item["id"]
+    [closed] = restarted.db.list_review("decided")
+    assert (closed["id"], closed["action"], closed["decided_by"]) == (
+        item["id"],
+        "resolved",
+        "glue",
+    )
+    assert restarted.db.get_order(order_id)["status"] == "failed"
+    restarted.db.close()
+
+
 def test_a_database_from_before_versioning_upgrades_in_place(tmp_path):
     path = str(tmp_path / "glue.db")
     # What every existing volume holds: schema.sql as first shipped, user_version 0.

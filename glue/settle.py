@@ -41,7 +41,14 @@ def interrupted_decisions(ctx: Context) -> None:
     # the order has moved on and its action is no longer one to take.
     for item in ctx.db.list_review("acting"):
         order = ctx.db.get_order(item["order_id"]) if item["order_id"] else None
-        if item["action"] in review.allowed_actions({**item, "status": "open"}, order):
+        failure = (item["kind"], item["payload"].get("operation"))
+        # A retry that failed again opened a newer item for the same failure before the stop.
+        if any(
+            (other["kind"], other["payload"].get("operation")) == failure
+            for other in ctx.db.open_reviews_for(item["order_id"])
+        ):
+            resolve(ctx, item, f"review-{item['id']}", "a newer item holds the same failure")
+        elif item["action"] in review.allowed_actions({**item, "status": "open"}, order):
             ctx.db.reopen_review(item["id"])
         else:
             why = "the order moved on before Glue stopped mid-decision"
