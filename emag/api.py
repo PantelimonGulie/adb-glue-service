@@ -67,10 +67,11 @@ async def notify(app: FastAPI, order_id: int, kind: str) -> None:
     record(app, f"callback → Glue · order {order_id} · {kind} · {response.status_code}")
 
 
-async def renotify(app: FastAPI) -> None:
+async def renotify(app: FastAPI) -> int:
     unacknowledged = [o["id"] for o in app.state.orders.values() if o["status"] == 1]
     for order_id in unacknowledged:
         await notify(app, order_id, "new")
+    return len(unacknowledged)
 
 
 async def renotify_forever(app: FastAPI) -> None:

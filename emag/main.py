@@ -54,13 +54,12 @@ async def current_chaos(request: Request) -> dict:
 
 
 @router.post("/chaos")
-async def chaos(request: Request, body: Chaos) -> Chaos:
+async def chaos(request: Request, body: Chaos) -> dict:
     state = request.app.state
     changes = body.model_dump(exclude_unset=True, exclude={"renotify_now"})
     state.chaos = state.chaos.model_copy(update=changes)
-    if body.renotify_now:
-        await renotify(request.app)
-    return state.chaos
+    renotified = await renotify(request.app) if body.renotify_now else 0
+    return state.chaos.model_dump(exclude={"renotify_now"}) | {"renotified": renotified}
 
 
 @asynccontextmanager

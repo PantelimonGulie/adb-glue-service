@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from dataclasses import replace
 
 import httpx
@@ -10,8 +11,10 @@ from glue import auth
 from glue.context import Context
 from glue.demo import sample, traffic
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 can_demo = [Depends(auth.require("demo"))]
+NAMES = {"shop": "shop", "emag": "eMAG marketplace", "warehouse": "warehouse"}
 
 ALL_FAULTS_OFF = [
     ("emag", {"rate_limit": False, "reject_sku": None, "freeze_stock": False, "down": False}),
@@ -33,7 +36,7 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
     ),
     "emag-freeze-off": ("eMAG accepts stock updates again.", [("emag", {"freeze_stock": False})]),
     "emag-rate-limit-on": (
-        "eMAG answers every API call with 429 and Retry-After: 1.",
+        "eMAG now asks Glue to slow down on every call and to wait a second.",
         [("emag", {"rate_limit": True})],
     ),
     "emag-rate-limit-off": ("eMAG stopped rate limiting.", [("emag", {"rate_limit": False})]),
@@ -46,13 +49,13 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
         [("emag", {"reject_sku": None})],
     ),
     "emag-renotify": (
-        "eMAG re-sent the notification for every order not yet acknowledged.",
+        "eMAG sent every order Glue has not confirmed again.",
         [("emag", {"renotify_now": True})],
     ),
-    "warehouse-down": ("The warehouse answers 503 to every call.", [("warehouse", {"down": True})]),
+    "warehouse-down": ("The warehouse now refuses every call.", [("warehouse", {"down": True})]),
     "warehouse-up": ("The warehouse is answering again.", [("warehouse", {"down": False})]),
     "warehouse-slow-on": (
-        "The warehouse waits 3 s before answering. Calls time out after 2 s.",
+        "The warehouse now waits 3 seconds before it answers; Glue gives up on a call after 2.",
         [("warehouse", {"slow_seconds": 3})],
     ),
     "warehouse-slow-off": (
@@ -60,7 +63,7 @@ ACTIONS: dict[str, tuple[str, list[tuple[str, dict]]]] = {
         [("warehouse", {"slow_seconds": 0})],
     ),
     "warehouse-fail-2": (
-        "The next 2 order placements at the warehouse fail with 503.",
+        "The warehouse will refuse the next 2 orders it is sent.",
         [("warehouse", {"fail_next": 2})],
     ),
     "reset": ("All faults are off.", ALL_FAULTS_OFF),
@@ -121,9 +124,9 @@ async def fake_signature(request: Request) -> dict:
         body = {"type": "order.placed", "data": {}}
         response = await client.post("/events", json=body, headers={"x-source": "shop"})
     if response.status_code == 401:
-        return {"ok": True, "message": "Glue refused an unsigned message (HTTP 401) and logged it."}
-    message = f"Glue did not refuse the unsigned message: HTTP {response.status_code}."
-    return {"ok": False, "message": message}
+        message = "Glue refused a message without a valid signature and logged it."
+        return {"ok": True, "message": message}
+    return {"ok": False, "message": "Glue did not refuse the message without a signature."}
 
 
 @router.post("/demo/{action}", dependencies=can_demo)
@@ -151,5 +154,14 @@ async def run(request: Request, action: str) -> dict:
             response = await ctx.http.post(f"{urls[system]}/chaos", json=body, timeout=10)
             response.raise_for_status()
         except httpx.HTTPError as exc:
-            return {"ok": False, "message": f"The {system} mock did not take the change: {exc}"}
+            log.warning("demo %s: %s did not take the change: %s", action, system, exc)
+            return {"ok": False, "message": f"The {NAMES[system]} did not take the change."}
+    if action == "emag-renotify":
+        message = renotified(response.json()["renotified"])
     return {"ok": True, "message": message}
+
+
+def renotified(count: int) -> str:
+    if count == 0:
+        return "eMAG had nothing to send again: Glue has confirmed every order."
+    return f"eMAG sent {count} unconfirmed order{'' if count == 1 else 's'} again."

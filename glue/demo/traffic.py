@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import httpx
@@ -19,6 +20,8 @@ SHOP_SHARE = 0.64
 SHIP_EVERY = 6
 LOW_STOCK = 3
 RESTOCK = 20
+# A shelf someone counted on purpose, e.g. to set up a demo story, is left as they set it.
+HANDS_OFF = timedelta(minutes=10)
 
 
 @dataclass
@@ -38,7 +41,7 @@ def initial(setting: str) -> Traffic:
 
 def problem(exc: httpx.HTTPError) -> str:
     if isinstance(exc, httpx.HTTPStatusError):
-        return f"it answered HTTP {exc.response.status_code}"
+        return "it refused the request"
     if isinstance(exc, httpx.TimeoutException):
         return "it took too long to answer"
     return "it could not be reached"
@@ -70,7 +73,7 @@ async def ship_oldest(ctx: "Context") -> tuple[bool, str]:
     except httpx.HTTPError as exc:
         return False, f"The warehouse shipped nothing: {problem(exc)}."
     if response.is_error:
-        return False, f"The warehouse did not ship {order_id}: HTTP {response.status_code}."
+        return False, f"The warehouse refused to ship {order_id}."
     return True, f"The warehouse shipped {order_id}."
 
 
@@ -87,29 +90,32 @@ async def customer_cancel(ctx: "Context") -> tuple[bool, str]:
     except httpx.HTTPError as exc:
         return False, f"Electronic Market cancelled nothing: {problem(exc)}."
     if response.is_error:
-        return False, f"Electronic Market did not cancel {order_id}: HTTP {response.status_code}."
+        return False, f"Electronic Market refused to cancel {order_id}."
     return True, f"A customer cancelled {order_id} on Electronic Market."
 
 
-async def recount(ctx: "Context", sku: str, on_hand: int) -> tuple[bool, str]:
+async def recount(ctx: "Context", sku: str, on_hand: int, note: str = "") -> tuple[bool, str]:
     url = f"{ctx.settings.warehouse_url}/stock/{segment(sku)}/recount"
     try:
-        response = await ctx.http.post(url, data={"on_hand": on_hand})
+        response = await ctx.http.post(url, data={"on_hand": on_hand, "note": note})
     except httpx.HTTPError as exc:
         return False, f"The warehouse did not take the count: {problem(exc)}."
     if response.status_code == 404:
         return False, f"The warehouse does not stock {sku}."
     if response.is_error:
-        return False, f"The warehouse did not take the count: HTTP {response.status_code}."
+        return False, "The warehouse refused the count."
     return True, f"The warehouse now counts {on_hand} {product_name(sku)} on the shelf."
 
 
 async def restock(ctx: "Context") -> None:
+    # Through the warehouse's own recount, so the activity log shows it as a demo restock.
     response = await ctx.warehouse.stock()
     response.raise_for_status()
+    since = (datetime.now(UTC) - HANDS_OFF).isoformat(timespec="milliseconds")
+    counted = ctx.db.counted_by_hand(since)
     for row in response.json():
-        if row["available"] < LOW_STOCK:
-            await recount(ctx, row["sku"], row["on_hand"] + RESTOCK)
+        if row["available"] < LOW_STOCK and row["sku"] not in counted:
+            await recount(ctx, row["sku"], row["on_hand"] + RESTOCK, note="demo restock")
 
 
 async def tick(ctx: "Context") -> None:

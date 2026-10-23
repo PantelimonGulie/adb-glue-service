@@ -3,18 +3,20 @@ from datetime import UTC, datetime, timedelta
 
 from glue.context import Context
 from glue.demo.sample_orders import REASONS, History, place
+from glue.ranges import midnight
 
 SEED = 2026
 DAY = timedelta(days=1)
-# Orders per UTC hour relative to the day's mean: quiet nights, a lunch bump, an evening peak.
+# Orders per local hour relative to the day's mean: quiet nights, a lunch bump, an evening peak.
 HOURLY = [0.15] * 7 + [0.7] * 3 + [1.4] * 3 + [1.0] * 5 + [1.6] * 4 + [0.6] * 2
-ORDERS_PER_DAY = 70
+# Enough to read next to live demo traffic, which runs at a few hundred orders a day too.
+ORDERS_PER_DAY = 300
 WEEKEND = 1.4
 SHOP_SHARE = 0.64
 
 
-def outage(h: History, midnight: datetime) -> None:
-    start = h.later(midnight, 9 * 3600, 21 * 3600)
+def outage(h: History, day_start: datetime) -> None:
+    start = h.later(day_start, 9 * 3600, 21 * 3600)
     end = h.later(start, 8 * 60, 30 * 60)
     h.outages.append((start, end))
     run = f"sample-run-{start:%Y%m%d%H%M}"
@@ -30,16 +32,17 @@ def load(ctx: Context, days: int = 30) -> int:
     ctx.db.delete_sample()
     now = datetime.now(UTC)
     h = History(random.Random(SEED), now)
-    first = now.replace(hour=0, minute=0, second=0, microsecond=0) - (days - 1) * DAY
-    for day in range(days):
+    zone = ctx.settings.zone
+    first = now.astimezone(zone).date() - (days - 1) * DAY
+    starts = [midnight(first + day * DAY, zone) for day in range(days)]
+    for day, start in enumerate(starts):
         if (days - 1 - day) % 9 == 4:
-            outage(h, first + day * DAY)
-    for day in range(days):
-        midnight = first + day * DAY
-        busy = (WEEKEND if midnight.weekday() >= 5 else 1) * h.rng.uniform(0.8, 1.2)
+            outage(h, start)
+    for day_start in starts:
+        busy = (WEEKEND if day_start.weekday() >= 5 else 1) * h.rng.uniform(0.8, 1.2)
         for hour, weight in enumerate(HOURLY):
             expected = ORDERS_PER_DAY * busy * weight / sum(HOURLY)
-            start = midnight + timedelta(hours=hour)
+            start = day_start + timedelta(hours=hour)
             times = [
                 h.later(start, 0, 3600) for _ in range(round(expected * h.rng.uniform(0.6, 1.4)))
             ]

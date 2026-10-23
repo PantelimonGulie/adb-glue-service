@@ -105,10 +105,16 @@ async def ship(request: Request, order_id: str):
 
 
 @router.post("/stock/{sku}/recount")
-async def recount(request: Request, sku: str, on_hand: Annotated[int, Form(ge=0)]):
+async def recount(
+    request: Request,
+    sku: str,
+    on_hand: Annotated[int, Form(ge=0)],
+    note: Annotated[str, Form(max_length=40)] = "",
+):
     stock = request.app.state.stock
     if sku not in stock:
         raise HTTPException(404, "unknown sku")
     stock[sku]["on_hand"] = on_hand
-    await send(request, "stock.adjusted", {"sku": sku, **stock[sku]}, f"{sku} on hand {on_hand}")
+    subject = f"{sku} on hand {on_hand}" + (f" · {note}" if note else "")
+    await send(request, "stock.adjusted", {"sku": sku, **stock[sku], "note": note}, subject)
     return RedirectResponse("/", status_code=303)

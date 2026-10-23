@@ -59,7 +59,7 @@ async def test_only_admin_runs_demo_controls(systems):
     done = await systems.act("/api/demo/warehouse-down")
 
     assert refused.status_code == 403
-    assert done.json() == {"ok": True, "message": "The warehouse answers 503 to every call."}
+    assert done.json() == {"ok": True, "message": "The warehouse now refuses every call."}
     assert systems.warehouse.state.chaos.down is True
 
 

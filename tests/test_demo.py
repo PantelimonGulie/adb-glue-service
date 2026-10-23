@@ -1,9 +1,14 @@
+import time
 from datetime import UTC, datetime, timedelta
 
 from glue.db import now
 from glue.demo import sample, traffic
 
 ORDER_EVENTS = ("order.placed", "emag.notification")
+
+
+def minutes_ago(minutes: int) -> str:
+    return (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat(timespec="milliseconds")
 
 
 def inbox(systems) -> list[str]:
@@ -26,13 +31,49 @@ async def test_traffic_tick_buys(systems):
     assert sum(kind in ORDER_EVENTS for kind in inbox(systems)) == 1
 
 
-async def test_traffic_restocks_low_product(systems):
+async def test_traffic_restocks_low_product_through_a_recount_marked_as_demo(systems):
     await traffic.tick(systems.ctx)
+    await systems.run_worker()
 
     stock = systems.warehouse.state.stock
     assert stock["MBA-M4"]["on_hand"] == 21
     assert stock["APP-3"]["on_hand"] == 40
     assert inbox(systems).count("stock.adjusted") == 1
+    [counted] = [
+        row["detail"]
+        for row in audit_rows(systems)
+        if row["action"] == "event_received" and row["detail"]["type"] == "stock.adjusted"
+    ]
+    assert counted == {
+        "source": "warehouse",
+        "type": "stock.adjusted",
+        "sku": "MBA-M4",
+        "on_hand": 21,
+        "note": "demo restock",
+    }
+
+
+async def test_traffic_leaves_a_product_counted_by_hand_alone_for_ten_minutes(systems):
+    await systems.recount("MBA-M4", 1)
+    await systems.run_worker()
+
+    await traffic.tick(systems.ctx)
+    held = systems.warehouse.state.stock["MBA-M4"]["on_hand"]
+    systems.ctx.db.conn.execute(
+        "UPDATE audit_log SET ts = ? WHERE action = 'event_received'", (minutes_ago(11),)
+    )
+    await traffic.tick(systems.ctx)
+
+    assert (held, systems.warehouse.state.stock["MBA-M4"]["on_hand"]) == (1, 21)
+
+
+async def test_sample_history_is_a_few_hundred_orders_a_day_and_loads_fast(systems):
+    started = time.perf_counter()
+    loaded = sample.load(systems.ctx)
+    seconds = time.perf_counter() - started
+
+    assert 250 * 30 <= loaded <= 500 * 30
+    assert seconds < 5
 
 
 async def test_traffic_ships_every_sixth_tick(systems):
@@ -92,9 +133,23 @@ async def test_fake_signature_is_rejected(systems):
     await systems.sign_in("admin")
     response = await systems.act("/api/demo/fake-signature")
 
-    assert response.json()["ok"] is True
-    assert "401" in response.json()["message"]
+    assert response.json() == {
+        "ok": True,
+        "message": "Glue refused a message without a valid signature and logged it.",
+    }
     assert systems.ctx.db.counters()["signature_rejected"] == 1
+
+
+async def test_renotify_says_how_many_orders_emag_sent_again(systems):
+    await systems.sign_in("admin")
+    nothing = await systems.act("/api/demo/emag-renotify")
+    await systems.buy_on_emag("APP-3")
+    one = await systems.act("/api/demo/emag-renotify")
+
+    assert nothing.json()["message"] == (
+        "eMAG had nothing to send again: Glue has confirmed every order."
+    )
+    assert one.json()["message"] == "eMAG sent 1 unconfirmed order again."
 
 
 async def test_demo_needs_admin(systems):

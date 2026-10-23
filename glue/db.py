@@ -438,6 +438,16 @@ class Database:
             self.conn.execute(f"DELETE FROM audit_log WHERE {SAMPLE}")
         return removed
 
+    def counted_by_hand(self, since: str) -> set[str]:
+        rows = self.rows(
+            "SELECT DISTINCT json_extract(detail, '$.sku') AS sku FROM audit_log"
+            " WHERE ts >= ? AND action = 'event_received'"
+            " AND json_extract(detail, '$.type') = 'stock.adjusted'"
+            " AND json_extract(detail, '$.note') IS NULL",
+            (since,),
+        )
+        return {row["sku"] for row in rows}
+
     def has_sample(self) -> bool:
         query = f"SELECT EXISTS (SELECT 1 FROM audit_log WHERE {SAMPLE})"
         return bool(self.conn.execute(query).fetchone()[0])

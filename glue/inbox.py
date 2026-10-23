@@ -60,12 +60,14 @@ def accept(ctx: Context, event_id: str, source: str, event_type: str, payload: d
         action = "event_received"
     else:
         action = "duplicate_dropped"
+    about = {}
     order_id = payload.get("id") or payload.get("order_id")
-    about = (
-        {}
-        if order_id is None
-        else {"order_id": f"emag-{order_id}" if source == "emag" else order_id}
-    )
+    if order_id is not None:
+        about["order_id"] = f"emag-{order_id}" if source == "emag" else order_id
+    if event_type == "stock.adjusted":
+        about |= {"sku": payload["sku"], "on_hand": payload["on_hand"]}
+        if payload["note"]:
+            about["note"] = payload["note"]
     record(ctx.db, event_id, "event", event_id, action, source=source, type=event_type, **about)
 
 
