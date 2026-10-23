@@ -35,15 +35,20 @@
   stroke-dasharray: 6 5;
 }
 
+/* Lines break only where the label says; the stacked phone drawing gives each label a width. */
 .label {
   position: absolute;
-  max-width: 150px;
   padding: 2px 4px;
+  white-space: pre;
   border-radius: 3px;
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--muted);
   text-decoration: none;
+}
+
+.label[data-wrap='true'] {
+  white-space: pre-line;
 }
 
 a.label:hover {

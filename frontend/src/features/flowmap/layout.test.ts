@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { COMPACT, fit } from './layout';
+import { fit } from './layout';
 
 it('keeps the mockup drawing at the base width', () => {
   const { geometry, scale } = fit(1000);
@@ -31,10 +31,23 @@ it('spreads the columns instead of magnifying past 1.25', () => {
 it('stacks the four systems on a phone so none is cut off', () => {
   const { geometry, scale } = fit(276);
 
-  expect(geometry).toBe(COMPACT);
+  expect(geometry.width).toBe(320);
   expect(scale).toBeCloseTo(0.8625);
   for (const box of Object.values(geometry.nodes)) {
     expect(box.left + box.width).toBeLessThanOrEqual(geometry.width);
     expect(box.top + box.height).toBeLessThanOrEqual(geometry.height);
+  }
+});
+
+it('widens the stacked drawing on a tablet instead of leaving half the width empty', () => {
+  const { geometry, scale } = fit(690);
+
+  expect(scale).toBe(1.25);
+  expect(geometry.width * scale).toBeGreaterThan(685);
+  expect(geometry.width * scale).toBeLessThanOrEqual(690);
+  expect(geometry.nodes.emag.left + geometry.nodes.emag.width).toBe(geometry.width);
+  expect(geometry.nodes.glue.width).toBe(geometry.width - 80);
+  for (const box of Object.values(geometry.nodes)) {
+    expect(box.left + box.width).toBeLessThanOrEqual(geometry.width);
   }
 });

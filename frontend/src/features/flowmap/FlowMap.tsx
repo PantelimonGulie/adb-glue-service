@@ -17,15 +17,23 @@ interface Props {
 }
 
 function EdgeLabel({ edge, at, to }: { edge: Edge; at?: Spot; to: string }) {
+  const wrap = at?.width !== undefined;
   if (!edge.main) {
     return (
-      <span className={styles.label} style={at}>
+      <span className={styles.label} style={at} data-wrap={wrap}>
         {edge.label}
       </span>
     );
   }
   return (
-    <Link to={to} className={styles.label} style={at} title={edge.hint} data-bad={edge.bad}>
+    <Link
+      to={to}
+      className={styles.label}
+      style={at}
+      title={edge.hint}
+      data-bad={edge.bad}
+      data-wrap={wrap}
+    >
       {edge.label}
     </Link>
   );

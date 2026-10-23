@@ -26,7 +26,6 @@ export interface MapView {
   stockCheck: string;
 }
 
-const LIVE_MINUTES = 15;
 const LIVE_WIDTH = 2;
 const RETURN_WIDTH = 1.5;
 
@@ -35,8 +34,15 @@ const lineWidth = (volume: number) =>
 
 const number = (value: number | undefined) => formatNumber(value ?? 0);
 
-const perMinute = (count: number) =>
-  `${(count / LIVE_MINUTES).toLocaleString('en-US', { maximumFractionDigits: 1 })} a minute`;
+const perMinute = (count: number, minutes: number) =>
+  `${(count / minutes).toLocaleString('en-US', { maximumFractionDigits: 1 })}/min`;
+
+// Minutes in the live window when an order came in. Rates average over these, so a window that
+// started after a restart, or traffic that was paused, does not water them down.
+function busyMinutes(totals: Analytics | undefined): number {
+  const { shop, emag } = totals?.series.orders ?? { shop: [], emag: [] };
+  return shop.filter((count, i) => count + emag[i] > 0).length;
+}
 
 function health(reported: SystemHealth | undefined): Status {
   const { label, tone } = system(reported);
@@ -53,9 +59,14 @@ function periodStatus(warehouse: Status, counters: Counters | undefined): Status
   };
 }
 
-function edges(live: boolean, parts: Analytics['parts'] | undefined, warehouse: Status): Edge[] {
-  const amount = (base: string, count: number | undefined) =>
-    count === undefined ? base : `${base} · ${live ? perMinute(count) : formatNumber(count)}`;
+function edges(totals: Analytics | undefined, live: boolean, warehouse: Status): Edge[] {
+  const parts = totals?.parts;
+  const busy = busyMinutes(totals);
+  // The number goes on its own line, so a label never wraps in the middle of a phrase.
+  function amount(base: string, count: number | undefined) {
+    if (count === undefined || (live && busy === 0)) return base;
+    return `${base}\n${live ? perMinute(count, busy) : formatNumber(count)}`;
+  }
   const main = (route: Route, label: string, hint: string, count = 0, bad = false): Edge => ({
     route,
     label,
@@ -109,7 +120,7 @@ export function mapView(
   const counters = totals?.totals;
   const warehouse = health(overview?.systems.warehouse);
   return {
-    edges: edges(live, totals?.parts, warehouse),
+    edges: edges(totals, live, warehouse),
     status: {
       shop: health(overview?.systems.shop),
       emag: health(overview?.systems.emag),
@@ -124,6 +135,6 @@ export function mapView(
         { label: 'waiting for you', value: number(overview?.open_reviews), tone: 'red' },
       ],
     },
-    stockCheck: reconcileSeconds ? `STOCK CHECK EVERY ${reconcileSeconds} SECONDS` : 'STOCK CHECK',
+    stockCheck: reconcileSeconds ? `STOCK CHECK EVERY ${reconcileSeconds} S` : 'STOCK CHECK',
   };
 }
