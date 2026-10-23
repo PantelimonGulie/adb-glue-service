@@ -60,6 +60,12 @@ def longest_outage_minutes(rows: list[dict], until: str) -> int:
     return round(longest / 60)
 
 
+def sold_out_on_emag(row: dict) -> bool:
+    # A short shelf count is unfulfillable too, but not a sale after the stock ran out.
+    recount = str(row["detail"].get("reason", "")).startswith("recount")
+    return row["action"] == "unfulfillable" and channel_of(row) == "emag" and not recount
+
+
 def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, lost: int) -> dict:
     tally = Counter((channel_of(row), row["action"]) for row in rows)
     duplicates = Counter(channel_of(row) for row in rows if duplicate(row))
@@ -79,7 +85,7 @@ def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, los
             "renotified": duplicates["emag"],
             "slowdowns": sum(1 for row in slowdowns if limited(row["detail"])),
             "refused_updates": tally["emag", "stock_push_failed"],
-            "sold_out": tally["emag", "unfulfillable"],
+            "sold_out": sum(1 for row in rows if sold_out_on_emag(row)),
         },
         "glue": {
             "handled": steps["received"],

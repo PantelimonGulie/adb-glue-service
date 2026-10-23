@@ -151,6 +151,19 @@ async def test_overview_flow_and_orders_page_agree_on_one_day(systems, sleeps):
     assert {first_try, after_retry, recounted} <= {r["order_id"] for r in orders["rows"]}
 
 
+async def test_an_emag_order_short_on_the_shelf_is_not_one_sold_after_it_ran_out(systems):
+    await systems.buy_on_emag("WATCH-S10")
+    await systems.run_worker()
+    await systems.recount("WATCH-S10", 0)
+    await systems.run_worker()
+
+    report = await get(systems, range="today")
+
+    [item] = systems.open_reviews()
+    assert "recount" in item["reason"]
+    assert report["parts"]["emag"]["sold_out"] == 0
+
+
 async def test_by_product_leaves_out_orders_without_lines(systems, sleeps):
     await systems.buy_on_shop("APP-3")
     await systems.chaos("emag", down=True)
