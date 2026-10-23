@@ -15,11 +15,18 @@ export function RecountCard() {
   const { run, busy, result, denied, lock } = useDemoRun();
   const { data: stock } = useStock();
   const [chosen, setChosen] = useState<string>();
-  const [typed, setTyped] = useState('');
+  // Until something is typed, the field shows what the warehouse counts now.
+  const [typed, setTyped] = useState<string>();
   const rows = stock?.rows ?? [];
   const product = rows.find((row) => row.sku === chosen) ?? rows[0];
-  const onHand = numberIn(typed, SHELF);
-  const wrong = typed !== '' && onHand === undefined;
+  const units = typed ?? (product ? String(product.on_hand) : '');
+  const onHand = numberIn(units, SHELF);
+  const wrong = units !== '' && onHand === undefined;
+
+  function choose(sku: string) {
+    setChosen(sku);
+    setTyped(undefined);
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -42,7 +49,7 @@ export function RecountCard() {
             value={product?.sku ?? ''}
             disabled={Boolean(denied)}
             title={denied}
-            onChange={(event) => setChosen(event.target.value)}
+            onChange={(event) => choose(event.target.value)}
           >
             {rows.map((row) => (
               <option key={row.sku} value={row.sku}>
@@ -53,7 +60,7 @@ export function RecountCard() {
         </label>
         <NumberField
           label="Units on the shelf"
-          value={typed}
+          value={units}
           min={SHELF.min}
           max={SHELF.max}
           step={1}

@@ -197,3 +197,42 @@ it('focus goes back to Clear sample history when the question closes', async () 
   await userEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
   expect(screen.getByRole('button', { name: 'Clear sample history' })).toHaveFocus();
 });
+
+it('the recount starts from the count the warehouse has now', async () => {
+  stubApi({ '/api/demo': demo, '/api/stock': stock });
+  renderPage(<Demo />, { user: users.admin });
+  const recount = await screen.findByRole('region', { name: 'Warehouse recount' });
+
+  const units = await within(recount).findByRole('spinbutton', { name: 'Units on the shelf' });
+
+  await waitFor(() => expect(units).toHaveValue(1));
+  expect(within(recount).getByRole('button', { name: 'Save the count' })).toBeEnabled();
+});
+
+it('shows only the answer to the latest action, so messages do not pile up', async () => {
+  stubApi({
+    '/api/demo': demo,
+    '/api/stock': stock,
+    '/api/demo/warehouse-down': said('The warehouse stops answering.'),
+    '/api/demo/shop-duplicate': said('The shop sent the same order twice.'),
+  });
+  renderPage(<Demo />, { user: users.admin });
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Stop answering' }));
+  expect(await within(card('Warehouse')).findByRole('status')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Send the same order twice' }));
+
+  expect(await within(card('Shop')).findByRole('status')).toHaveTextContent('twice');
+  expect(within(card('Warehouse')).queryByRole('status')).toBeNull();
+});
+
+it('tells the presenter to pause new orders before staging a story', async () => {
+  stubApi({ '/api/demo': demo, '/api/stock': stock });
+  renderPage(<Demo />, { user: users.admin });
+
+  expect(
+    await screen.findByText(
+      'New orders keep running; pause them before staging an oversell or a recount.',
+    ),
+  ).toBeInTheDocument();
+});

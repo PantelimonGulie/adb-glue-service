@@ -3,8 +3,20 @@
   color: var(--warn-ink);
 }
 
+.hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink2);
+}
+
+/* The last row stretches, so it never leaves an empty slot. */
 .cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 14px;
+}
+
+.cards > * {
+  flex: 1 1 280px;
+  min-width: 0;
 }

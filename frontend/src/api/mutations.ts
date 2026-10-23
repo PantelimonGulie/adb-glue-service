@@ -69,6 +69,6 @@ export const useDemoAction = () =>
   useCommand((command: DemoCommand) => {
     const body = command.action === 'recount' ? command.body : undefined;
     return post<DemoResult>(`/api/demo/${command.action}`, body);
-  });
+  }, ['demo']);
 
 export const usePushStock = () => useCommand(() => post<null>('/api/stock/push'));

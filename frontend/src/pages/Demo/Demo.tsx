@@ -26,6 +26,11 @@ export function Demo() {
       {denied && (
         <p className={text.note}>You can see the demo controls. Only admins can use them.</p>
       )}
+      {data?.traffic.running && (
+        <p className={styles.hint}>
+          New orders keep running; pause them before staging an oversell or a recount.
+        </p>
+      )}
       {error && (
         <section className={table.box} aria-label="Demo controls">
           <EmptyState title="The demo controls could not be loaded">{error.message}</EmptyState>
