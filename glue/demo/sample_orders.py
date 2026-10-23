@@ -13,7 +13,7 @@ EVENTS = {
 CUSTOMERS = {"shop": "Guest", "emag": "eMAG customer"}
 ATTEMPTS = 5
 REASONS = {
-    "order_failed": f"HTTP 503 after {ATTEMPTS} attempts",
+    "order_failed": f"the Bucharest warehouse is not answering (tried {ATTEMPTS} times)",
     "unfulfillable": "warehouse has no stock: sold on another channel first",
 }
 
@@ -66,7 +66,8 @@ def send(
     while attempt < ATTEMPTS and ((down and at < down) or attempt <= blips):
         # A down warehouse sends Retry-After: 2; a single failed call gets the doubling backoff.
         delay = 2.0 if down else 0.5 * 2 ** (attempt - 1) * (1 + 0.2 * h.rng.random())
-        retry = {"attempt": attempt, "delay_seconds": round(delay, 2), "problem": "HTTP 503"}
+        retry = {"system": "warehouse", "attempt": attempt, "delay_seconds": round(delay, 1)}
+        retry |= {"problem": "the Bucharest warehouse is not answering", "error": "HTTP 503"}
         h.order(at, event_id, order_id, "retry_scheduled", **retry)
         at += timedelta(seconds=delay)
         attempt += 1

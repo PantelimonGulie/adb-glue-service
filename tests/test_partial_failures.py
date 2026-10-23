@@ -1,6 +1,6 @@
 import httpx
 
-from glue import review
+from glue import review, router
 
 
 async def shipped_while_emag_down(systems) -> tuple[str, dict]:
@@ -48,6 +48,65 @@ async def test_a_ship_notice_behind_a_failed_cancel_still_gets_its_own_retry(sys
     assert response.status_code == 200
     assert systems.emag_order(order_id)["status"] == 4
     assert [i["id"] for i in systems.open_reviews()] == [cancel["id"]]
+
+
+def busy_once(client: object, name: str) -> None:
+    send = getattr(client, name)
+    calls = []
+
+    async def busy_the_first_time(*args: object) -> httpx.Response:
+        calls.append(args)
+        if len(calls) == 1:
+            return httpx.Response(503, request=httpx.Request("POST", "http://busy"))
+        return await send(*args)
+
+    setattr(client, name, busy_the_first_time)
+
+
+def retries(systems) -> list[tuple[str, str, int, str]]:
+    rows = systems.ctx.db.rows(
+        "SELECT * FROM audit_log WHERE action = 'retry_scheduled' ORDER BY id", (), "detail"
+    )
+    return [
+        (
+            row["entity_id"],
+            row["detail"]["system"],
+            row["detail"]["attempt"],
+            row["detail"]["problem"],
+        )
+        for row in rows
+    ]
+
+
+async def test_every_retried_call_is_in_the_activity_log(systems, sleeps):
+    ctx = systems.ctx
+    busy_once(ctx.emag, "read_order")
+    busy_once(ctx.emag, "acknowledge")
+    emag_order = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    cancelled, shipped, by_operator = [await systems.buy_on_shop("IPAD-A16") for _ in range(3)]
+    await systems.run_worker()
+    busy_once(ctx.warehouse, "cancel_order")
+    await systems.http.post(f"http://shop/orders/{cancelled}/cancel")
+    await systems.run_worker()
+    busy_once(ctx.shop, "mark_shipped")
+    await systems.http.post(f"http://warehouse/orders/{shipped}/ship")
+    await systems.run_worker()
+    busy_once(ctx.shop, "cancel")
+    await router.cancel_on_channel(ctx, by_operator, "test")
+
+    not_answering = "is not answering"
+    assert retries(systems) == [
+        (emag_order, "emag", 1, f"eMAG {not_answering}"),
+        (emag_order, "emag", 1, f"eMAG {not_answering}"),
+        (cancelled, "warehouse", 1, f"the Bucharest warehouse {not_answering}"),
+        (shipped, "shop", 1, f"the shop {not_answering}"),
+        (by_operator, "shop", 1, f"the shop {not_answering}"),
+    ]
+    statuses = [
+        ctx.db.get_order(o)["status"] for o in (emag_order, cancelled, shipped, by_operator)
+    ]
+    assert statuses == ["allocated", "cancelled", "shipped", "cancelled"]
 
 
 def resolved(systems) -> list[tuple[str, str, str]]:

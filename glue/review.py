@@ -4,16 +4,20 @@ from common.models import Order
 from glue import router
 from glue.audit import record
 from glue.context import Context
+from glue.retry import Problem, explained
 
 log = logging.getLogger(__name__)
 
 ACTIONS = ("retry", "cancel", "dismiss")
 CAUSES = ("outage", "soldout", "recount", "other")
+# The first three are how Glue words it now; the rest match reasons saved before that.
 OUTAGE_SIGNS = (
+    "not answering",
+    "took too long",
+    "could not be reached",
     "http 5",
     "timeout",
     "unreachable",
-    "not answering",
     "connecterror",
     "readerror",
     "remoteprotocolerror",
@@ -33,9 +37,11 @@ def queue_item(
     reason: str,
     correlation_id: str,
     payload: dict | None = None,
+    error: str = "",
 ) -> int | None:
     item_id = ctx.db.open_review(kind, order_id, payload or {}, reason)
     if item_id is not None:
+        technical = {"error": error} if error else {}
         record(
             ctx.db,
             correlation_id,
@@ -45,6 +51,7 @@ def queue_item(
             review_id=item_id,
             kind=kind,
             reason=reason,
+            **technical,
         )
     return item_id
 
@@ -129,9 +136,10 @@ async def carry_out(ctx: Context, item: dict, action: str, decided_by: str) -> N
             await router.cancel_on_channel(ctx, order_id, correlation_id)
     except Exception as exc:
         ctx.db.decide_review(item_id, action, decided_by)
-        reason = f"{action} failed: {exc}"
-        queue_item(ctx, item["kind"], order_id, reason, correlation_id, payload=item["payload"])
-        raise
+        why, error = explained(exc)
+        reason = f"{action} failed: {why}"
+        queue_item(ctx, item["kind"], order_id, reason, correlation_id, item["payload"], error)
+        raise Problem(reason, error) from exc
     ctx.db.decide_review(item_id, action, decided_by)
 
 

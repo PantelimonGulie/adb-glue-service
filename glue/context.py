@@ -31,6 +31,8 @@ class Context:
     order_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = field(
         default_factory=weakref.WeakValueDictionary
     )
+    # The last failed call to each system and when, until a call to it gets an answer.
+    trouble: dict[str, tuple[str, float]] = field(default_factory=dict)
     warehouse_down: bool = False
     last_reconcile_ok_at: str | None = None
     traffic: Traffic = field(default_factory=Traffic)

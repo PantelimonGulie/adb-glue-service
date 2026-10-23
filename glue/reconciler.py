@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from collections.abc import Callable
 from functools import partial
 
 from common.models import StockLevel
@@ -8,7 +7,7 @@ from glue import review, rules
 from glue.audit import record
 from glue.context import Context
 from glue.db import now
-from glue.retry import RetryExhausted, with_retries
+from glue.retry import RetryExhausted, retry_logger, with_retries
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ async def reconcile_sku(ctx: Context, event: dict) -> None:
 async def reconcile_skus(ctx: Context, skus: list[str] | None, correlation_id: str) -> None:
     async with ctx.reconcile_lock:
         try:
-            response = await with_retries(ctx, ctx.warehouse.stock)
+            response = await with_retries(ctx, "warehouse", ctx.warehouse.stock)
         except RetryExhausted as exc:
             if not ctx.warehouse_down:
                 record(
@@ -34,6 +33,7 @@ async def reconcile_skus(ctx: Context, skus: list[str] | None, correlation_id: s
                     "warehouse",
                     "warehouse_unreachable",
                     problem=str(exc),
+                    error=exc.error,
                 )
             ctx.warehouse_down = True
             return
@@ -68,13 +68,14 @@ async def push_shop(
     ctx: Context, pending: dict[str, int], correlation_id: str, held: dict[str, int]
 ) -> None:
     for sku, qty in pending.items():
-        on_retry = retry_logger(ctx, correlation_id, "shop", [sku])
+        on_retry = retry_logger(ctx, correlation_id, "stock", "shop", skus=[sku])
+        send = partial(ctx.shop.set_stock, sku, qty)
         try:
-            response = await with_retries(ctx, partial(ctx.shop.set_stock, sku, qty), on_retry)
+            response = await with_retries(ctx, "shop", send, on_retry)
         except RetryExhausted as exc:
             note_push(ctx, correlation_id, "shop", sku, qty, str(exc), held[sku])
             continue
-        problem = None if response.is_success else f"HTTP {response.status_code}"
+        problem = None if response.is_success else "the shop refused the update"
         note_push(ctx, correlation_id, "shop", sku, qty, problem, held[sku])
 
 
@@ -82,9 +83,9 @@ async def push_emag(
     ctx: Context, pending: dict[str, int], correlation_id: str, held: dict[str, int]
 ) -> None:
     offers = list(pending.items())
-    on_retry = retry_logger(ctx, correlation_id, "emag", list(pending))
+    on_retry = retry_logger(ctx, correlation_id, "stock", "emag", skus=list(pending))
     try:
-        response = await with_retries(ctx, partial(ctx.emag.save_offers, offers), on_retry)
+        response = await with_retries(ctx, "emag", partial(ctx.emag.save_offers, offers), on_retry)
     except RetryExhausted as exc:
         for sku, qty in offers:
             note_push(ctx, correlation_id, "emag", sku, qty, str(exc), held[sku])
@@ -92,28 +93,9 @@ async def push_emag(
     body = response.json() if response.is_success else {}
     results = {result["part_number"]: result for result in body.get("results", [])}
     for sku, qty in offers:
-        result = results.get(sku, {"ok": False, "message": f"HTTP {response.status_code}"})
+        result = results.get(sku, {"ok": False, "message": "eMAG refused the update"})
         problem = None if result["ok"] else result["message"]
         note_push(ctx, correlation_id, "emag", sku, qty, problem, held[sku])
-
-
-def retry_logger(
-    ctx: Context, correlation_id: str, channel: str, skus: list[str]
-) -> Callable[[int, float, str], None]:
-    def on_retry(attempt: int, delay: float, problem: str) -> None:
-        record(
-            ctx.db,
-            correlation_id,
-            "stock",
-            channel,
-            "retry_scheduled",
-            attempt=attempt,
-            delay_seconds=round(delay, 2),
-            problem=problem,
-            skus=skus,
-        )
-
-    return on_retry
 
 
 def note_push(

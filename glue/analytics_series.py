@@ -37,6 +37,18 @@ def placement(row: dict) -> bool:
     return row["detail"].get("type") == "order.placed" or row["entity_id"].endswith("-new")
 
 
+def system_of(row: dict) -> str:
+    # Retries saved before they named their system: on an order they were warehouse placements.
+    detail = row["detail"]
+    return detail.get("system") or (
+        "warehouse" if row["entity_type"] == "order" else row["entity_id"]
+    )
+
+
+def warehouse_retry(row: dict) -> bool:
+    return row["action"] == "retry_scheduled" and system_of(row) == "warehouse"
+
+
 def duplicate(row: dict) -> bool:
     # Order placements only, like the funnel's "received"; a repeated cancel is not one.
     return row["action"] == "order_known" or (
@@ -61,7 +73,7 @@ def trips(rows: list[dict]) -> dict[str, Trip]:
             continue
         if row["action"] == "order_allocated":
             trip.reserved = row["ts"]
-        elif row["action"] == "retry_scheduled":
+        elif warehouse_retry(row):
             trip.retried = True
         elif row["action"] in COUNTERS["failed"]:
             trip.failed = True

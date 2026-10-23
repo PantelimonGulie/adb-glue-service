@@ -53,8 +53,36 @@ async def test_exhausted_retries_raise(sleeps):
     with pytest.raises(RetryExhausted) as caught:
         await send_with_retries(send, attempts=3, base_seconds=0)
 
-    assert (caught.value.problem, caught.value.attempts) == ("HTTP 503", 3)
+    assert str(caught.value) == "the Bucharest warehouse is not answering (tried 3 times)"
+    assert (caught.value.error, caught.value.attempts) == ("HTTP 503", 3)
     assert len(sleeps) == 2
+
+
+@pytest.mark.parametrize(
+    ("reply", "system", "problem"),
+    [
+        (
+            httpx.ReadTimeout("timed out"),
+            "warehouse",
+            "the Bucharest warehouse took too long to answer",
+        ),
+        (httpx.ConnectError("refused"), "shop", "the shop could not be reached"),
+        (httpx.Response(429), "emag", "eMAG asked Glue to slow down"),
+        (httpx.Response(500), "emag", "eMAG is not answering"),
+    ],
+)
+async def test_each_retry_is_described_in_plain_words(sleeps, reply, system, problem):
+    seen = []
+    send = scripted(reply, httpx.Response(200))
+
+    await send_with_retries(
+        send, system=system, attempts=2, base_seconds=0.5, on_retry=lambda *a: seen.append(a)
+    )
+
+    [(attempt, delay, trouble)] = seen
+    assert (attempt, trouble.problem) == (1, problem)
+    assert delay == sleeps[0]
+    assert type(reply).__name__ not in trouble.problem
 
 
 def http_date(seconds_from_now: int) -> str:

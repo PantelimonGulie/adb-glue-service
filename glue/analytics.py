@@ -12,7 +12,9 @@ from glue.analytics_series import (
     placement,
     seconds_between,
     series,
+    system_of,
     trips,
+    warehouse_retry,
 )
 from glue.context import Context
 
@@ -37,11 +39,16 @@ def funnel(rows: list[dict], found: dict[str, Trip]) -> dict:
     }
 
 
+def limited(detail: dict) -> bool:
+    # `error` since retries were worded for people; `problem` held the status code before.
+    return detail.get("error", detail.get("problem")) == "HTTP 429"
+
+
 def longest_outage_minutes(rows: list[dict], until: str) -> int:
     # Nothing is logged when the warehouse comes back; the next thing it answers ends the outage.
     longest, started = 0.0, None
     for row in rows:
-        retried = row["action"] == "retry_scheduled" and row["entity_type"] == "order"
+        retried = warehouse_retry(row)
         if started is None and (retried or row["action"] == "warehouse_unreachable"):
             started = row["ts"]
         elif started and row["action"] in WAREHOUSE_ANSWERED:
@@ -59,7 +66,7 @@ def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, los
     orders = Counter(trip.channel for trip in found.values())
     seconds = [trip.seconds for trip in found.values() if trip.reserved]
     retries = [row for row in rows if row["action"] == "retry_scheduled"]
-    slowdowns = [row for row in retries if row["entity_id"] == "emag"]
+    slowdowns = [row for row in retries if system_of(row) == "emag"]
     sent = steps["sent"]
     return {
         "shop": {
@@ -70,7 +77,7 @@ def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, los
         "emag": {
             "orders": orders["emag"],
             "renotified": duplicates["emag"],
-            "slowdowns": sum(1 for row in slowdowns if row["detail"].get("problem") == "HTTP 429"),
+            "slowdowns": sum(1 for row in slowdowns if limited(row["detail"])),
             "refused_updates": tally["emag", "stock_push_failed"],
             "sold_out": tally["emag", "unfulfillable"],
         },
@@ -84,7 +91,7 @@ def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, los
         "warehouse": {
             "received": sent,
             "first_try_pct": round(steps["first_try"] / sent * 100, 1) if sent else 0.0,
-            "retries": sum(1 for row in retries if row["entity_type"] == "order"),
+            "retries": sum(1 for row in retries if warehouse_retry(row)),
             "failed": steps["failed"],
             "longest_outage_minutes": longest_outage_minutes(rows, until),
         },

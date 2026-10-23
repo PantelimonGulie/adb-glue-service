@@ -90,7 +90,8 @@ async def test_a_failed_decision_puts_the_order_back_in_review(systems, sleeps):
     assert systems.ctx.db.get_review(item["id"])["status"] == "decided"
     [again] = systems.open_reviews()
     assert (again["order_id"], again["status"]) == (emag_order, "open")
-    assert again["reason"].startswith("cancel failed: HTTP 503")
+    assert again["reason"] == "cancel failed: eMAG is not answering (tried 5 times)"
+    assert response.json()["detail"] == again["reason"]
 
 
 async def test_a_decision_on_an_item_claimed_since_it_was_read_is_refused(
@@ -125,6 +126,9 @@ async def test_viewer_cannot_decide(systems, sleeps):
 @pytest.mark.parametrize(
     "reason, cause",
     [
+        ("the Bucharest warehouse is not answering (tried 5 times)", "outage"),
+        ("the Bucharest warehouse took too long to answer (tried 5 times)", "outage"),
+        ("the Bucharest warehouse could not be reached (tried 5 times)", "outage"),
         ("HTTP 503 after 5 attempts", "outage"),
         ("ReadTimeout: timed out after 5 attempts", "outage"),
         ("ConnectError: All connection attempts failed after 3 attempts", "outage"),

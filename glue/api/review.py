@@ -85,5 +85,5 @@ async def decide(
     except Exception as exc:
         # The operator needs to see why; review.decide has already re-queued the order.
         log.warning("review %s %s failed: %s", item_id, action, exc)
-        raise HTTPException(502, f"{action} failed: {exc}") from None
+        raise HTTPException(502, str(exc)) from None
     return queries.review_item(ctx, ctx.db.get_review(item_id))

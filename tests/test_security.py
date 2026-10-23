@@ -106,7 +106,24 @@ async def test_an_emag_order_without_products_is_not_reserved(systems):
     assert systems.warehouse.state.stock["APP-3"]["reserved"] == 0
     [item] = systems.open_reviews()
     assert (item["order_id"], item["payload"]["status"]) == (order_id, "processing")
-    assert "List should have at least 1 item" in item["reason"]
+    assert item["reason"] == "eMAG sent this order in a form Glue cannot read"
+    [failed] = [
+        row for row in systems.ctx.db.audit_for(order_id) if row["action"] == "review_opened"
+    ]
+    assert "List should have at least 1 item" in failed["detail"]["error"]
+
+
+async def test_an_order_emag_no_longer_knows_gets_a_plain_reason(systems):
+    order_id = await systems.buy_on_emag("APP-3")
+    del systems.emag.state.orders[int(order_id.removeprefix("emag-"))]
+    await systems.run_worker()
+
+    [item] = systems.open_reviews()
+    assert item["reason"] == "eMAG no longer knows this order (it answered not found)"
+    [failed] = [
+        row for row in systems.ctx.db.audit_for(order_id) if row["action"] == "review_opened"
+    ]
+    assert "404" in failed["detail"]["error"]
 
 
 async def test_an_event_id_from_one_sender_does_not_hide_another_senders_event(systems):

@@ -5,6 +5,7 @@ from common.models import Order
 from glue import reconciler, review, router, settle
 from glue.audit import record
 from glue.context import Context
+from glue.retry import explained
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +51,13 @@ async def handle(ctx: Context, event: dict) -> None:
         try:
             await HANDLERS[event["type"]](ctx, event)
         except Exception as exc:
-            error = f"{type(exc).__name__}: {exc}"
+            reason, error = explained(exc)
             ctx.db.finish_event(event["source"], event_id, "failed", error)
             record(
                 ctx.db, event_id, "event", event_id, "event_failed", type=event["type"], error=error
             )
-            reason = f"unexpected while handling {event['type']}: {error}"
             payload = {**event, "operation": operation_in(event)}
-            review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload=payload)
+            review.queue_item(ctx, "order_failed", order_id, reason, event_id, payload, error)
             return
         ctx.db.finish_event(event["source"], event_id, "done")
         # A handler can record an order_failed and still return; that failure may have been
