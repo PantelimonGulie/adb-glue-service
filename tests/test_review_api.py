@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from glue import review
@@ -83,6 +85,17 @@ async def test_retry_all_refused_while_down(systems, sleeps):
     assert response.status_code == 409
     assert response.json() == {"detail": "The warehouse is still not answering"}
     assert len(systems.open_reviews()) == 3
+
+
+async def test_retry_all_names_the_state_the_warehouse_is_in(systems, sleeps):
+    await oversell_then_outage(systems)
+    await systems.chaos("warehouse", down=False)
+    systems.ctx.trouble["warehouse"] = ("rate_limited", time.monotonic())
+
+    response = await systems.act("/api/review/retry-all", cause="outage")
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "The warehouse is still limiting requests"}
 
 
 async def test_decide_returns_item(systems, sleeps):

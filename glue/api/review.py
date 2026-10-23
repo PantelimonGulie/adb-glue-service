@@ -6,7 +6,7 @@ from openai import APIError
 from pydantic import BaseModel
 
 from glue import auth, queries, review
-from glue.ai import llm, triage
+from glue.ai import facts, llm, triage
 from glue.api.assistant import can_answer
 
 log = logging.getLogger(__name__)
@@ -40,8 +40,9 @@ async def retry_all(
     request: Request, body: RetryAll, user: Annotated[auth.User, can_decide]
 ) -> dict:
     ctx = request.app.state.ctx
-    if not (await queries.health_of(ctx))["warehouse"]["ok"]:
-        raise HTTPException(409, "The warehouse is still not answering")
+    warehouse = (await queries.health_of(ctx))["warehouse"]
+    if not warehouse["ok"]:
+        raise HTTPException(409, f"The warehouse is still {facts.STATES[warehouse['state']]}")
     return {"retried": await review.retry_all(ctx, body.cause, user.name)}
 
 
