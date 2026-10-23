@@ -83,6 +83,10 @@ export function choice(action: Decision, { order }: ReviewItem): string {
   return order ? `Cancel on ${WHERE[order.channel]}` : 'Cancel the order';
 }
 
+export function cancelQuestion({ order_id, order }: ReviewItem): string {
+  return `Cancel ${order_id ?? 'this order'}${order ? ` on ${WHERE[order.channel]}` : ''}?`;
+}
+
 export function consequence(action: Decision, { order, payload }: ReviewItem): string {
   if (action === 'dismiss') return 'Closes this item and leaves the order as it is.';
   if (action === 'cancel') return order ? CANCELLING[order.channel] : 'Cancels the order.';
@@ -105,6 +109,15 @@ export function outcome(item: ReviewItem): string {
   if (item.action === 'resolved') return 'Closed as no longer needed';
   if (item.action !== 'cancel') return 'Closed without changes';
   return item.order ? `Cancelled on ${WHERE[item.order.channel]}` : 'Cancelled';
+}
+
+export function done(item: ReviewItem): string {
+  const name = item.order_id ?? 'the item';
+  if (item.action === 'retry') return `Retried ${name}`;
+  if (item.action === 'cancel') {
+    return item.order ? `Cancelled ${name} on ${WHERE[item.order.channel]}` : `Cancelled ${name}`;
+  }
+  return `Closed ${name} without changes`;
 }
 
 export function suggested(action: string | null, item: ReviewItem): string {

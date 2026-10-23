@@ -10,3 +10,9 @@
   font-size: var(--text-sm);
   color: var(--bad);
 }
+
+.good {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--good);
+}

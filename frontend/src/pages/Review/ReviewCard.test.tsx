@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ReviewItem } from '../../api/types';
@@ -57,10 +57,28 @@ it('a viewer sees every decision disabled with the reason', () => {
 });
 
 it('sends an operator decision for this item', async () => {
+  const fetch = stubApi({ ...api, '/api/review/7/retry': { ...reviewItem, status: 'decided' } });
+  renderCard(reviewItem);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+  const post = expect.objectContaining({ method: 'POST' });
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/review/7/retry', post));
+});
+
+it('asks before it cancels, since cancelling refunds the customer', async () => {
   const fetch = stubApi({ ...api, '/api/review/7/cancel': { ...reviewItem, status: 'decided' } });
   renderCard(reviewItem);
 
   await userEvent.click(screen.getByRole('button', { name: 'Cancel on eMAG' }));
+
+  const question = screen.getByRole('group', { name: 'Cancel emag-500124 on eMAG?' });
+  expect(fetch).not.toHaveBeenCalledWith('/api/review/7/cancel', expect.anything());
+  await userEvent.click(within(question).getByRole('button', { name: 'Keep the order' }));
+  expect(screen.queryByRole('group', { name: /Cancel emag-500124/ })).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel on eMAG' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Yes, cancel it' }));
 
   const post = expect.objectContaining({ method: 'POST' });
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/review/7/cancel', post));
@@ -72,6 +90,7 @@ it('shows why a decision failed on the card', async () => {
   renderCard(reviewItem);
 
   await userEvent.click(screen.getByRole('button', { name: 'Cancel on eMAG' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Yes, cancel it' }));
 
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('cancel failed: eMAG refused the cancellation');

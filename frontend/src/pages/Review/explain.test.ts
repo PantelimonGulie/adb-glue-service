@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import type { ReviewItem } from '../../api/types';
 import { formatTime } from '../../lib/format';
 import { order, reviewItem } from '../../test/fixtures';
-import { consequence, facts, outcome, story, suggested, unavailable } from './explain';
+import { consequence, done, facts, outcome, story, suggested, unavailable } from './explain';
 
 const cancelling = {
   ...reviewItem,
@@ -90,3 +90,10 @@ it('shows what Glue saw in plain words, and who got the last unit', () => {
   ]);
 });
 
+it('names the order and the choice once a decision went through', () => {
+  const decided = (action: ReviewItem['action']) => ({ ...reviewItem, status: 'decided' as const, action });
+
+  expect(done(decided('cancel'))).toBe('Cancelled emag-500124 on eMAG');
+  expect(done(decided('retry'))).toBe('Retried emag-500124');
+  expect(done(decided('dismiss'))).toBe('Closed emag-500124 without changes');
+});

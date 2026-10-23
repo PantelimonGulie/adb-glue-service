@@ -12,6 +12,7 @@ import text from '../../styles/text.module.css';
 import cards from './cards.module.css';
 import { ReviewCard } from './ReviewCard';
 import { ReviewGroup } from './ReviewGroup';
+import { useDone } from './useDone';
 
 type Show = 'open' | Cause | 'decided';
 
@@ -31,6 +32,7 @@ export function Review() {
   const show = oneOf(options, params.get('show'));
   const decided = show === 'decided';
   const { data, error, isPending } = useReview({ status: decided ? 'decided' : 'open' });
+  const done = useDone();
   const items = data?.items ?? [];
   const groups = (decided ? [] : (data?.groups ?? []))
     .filter((group) => show === 'open' || group.cause === show)
@@ -58,6 +60,11 @@ export function Review() {
           value={show}
           onChange={(value) => change({ show: value === 'open' ? null : value })}
         />
+        {done && (
+          <p className={text.good} role="status">
+            {done}
+          </p>
+        )}
       </div>
       {(error || empty) && (
         <section className={table.box} aria-label="Review queue">

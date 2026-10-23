@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type MutationKey } from '@tanstack/react-query';
 import { api } from './client';
 import type {
   Answer,
@@ -20,22 +20,31 @@ export type DemoCommand =
   | { action: DemoAction }
   | { action: 'recount'; body: { sku: string; on_hand: number } };
 
-function useCommand<V = void, R = unknown>(run: (variables: V) => Promise<R>) {
+// The key lets a page read how a command ended after the component that sent it is gone.
+function useCommand<V = void, R = unknown>(
+  run: (variables: V) => Promise<R>,
+  mutationKey?: MutationKey,
+) {
   const client = useQueryClient();
   // Any change can move counters, queues and stock at once, so everything is reloaded.
-  return useMutation({ mutationFn: run, onSettled: () => client.invalidateQueries() });
+  return useMutation({ mutationKey, mutationFn: run, onSettled: () => client.invalidateQueries() });
 }
 
 const post = <R>(path: string, body?: unknown) => api<R>(path, { method: 'POST', body });
 const put = <R>(path: string, body: unknown) => api<R>(path, { method: 'PUT', body });
 
 export const useDecide = () =>
-  useCommand(({ id, action }: { id: number; action: Decision }) =>
-    post<ReviewItem>(`/api/review/${id}/${action}`),
+  useCommand(
+    ({ id, action }: { id: number; action: Decision }) =>
+      post<ReviewItem>(`/api/review/${id}/${action}`),
+    ['review', 'decide'],
   );
 
 export const useRetryAll = () =>
-  useCommand(() => post<{ retried: number }>('/api/review/retry-all', { cause: 'outage' }));
+  useCommand(
+    () => post<{ retried: number }>('/api/review/retry-all', { cause: 'outage' }),
+    ['review', 'retry-all'],
+  );
 
 export const useTriage = () =>
   useCommand((id: number) => post<ReviewItem>(`/api/review/${id}/triage`));

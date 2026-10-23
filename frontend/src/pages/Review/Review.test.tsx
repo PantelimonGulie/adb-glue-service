@@ -76,6 +76,25 @@ it('shows every order of one cause', async () => {
   expect(screen.queryByRole('region', { name: 'Sold out' })).toBeNull();
 });
 
+it('says what a decision did after its card has gone', async () => {
+  const cancelled = { ...reviewItem, status: 'decided', action: 'cancel', allowed: [] };
+  renderReview('/review', { ...api, '/api/review/7/cancel': cancelled });
+
+  const card = await screen.findByRole('article', { name: 'Review of emag-500124' });
+  await userEvent.click(within(card).getByRole('button', { name: 'Cancel on eMAG' }));
+  await userEvent.click(within(card).getByRole('button', { name: 'Yes, cancel it' }));
+
+  expect(await screen.findByText('Cancelled emag-500124 on eMAG')).toHaveAttribute('role', 'status');
+});
+
+it('says how many orders Retry all sent again', async () => {
+  renderReview('/review', { ...api, '/api/review/retry-all': { retried: 4 } });
+
+  await userEvent.click(await screen.findByRole('button', { name: 'Retry all 4' }));
+
+  expect(await screen.findByText('Sent 4 orders again')).toHaveAttribute('role', 'status');
+});
+
 it('shows why the warehouse outage could not be retried', async () => {
   const down = failure(409, 'The warehouse is still not answering');
   renderReview('/review', { ...api, '/api/review/retry-all': down });

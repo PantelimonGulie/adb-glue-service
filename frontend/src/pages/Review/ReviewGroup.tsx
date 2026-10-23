@@ -30,7 +30,6 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
   const { label, hint } = cause(name);
   const orders = `${formatNumber(count)} order${count === 1 ? '' : 's'}`;
   const more = count - items.length;
-  const retried = retryAll.data?.retried;
 
   return (
     <section className={styles.group} aria-labelledby={id}>
@@ -44,11 +43,6 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
             {retryAll.error && (
               <span className={text.error} role="alert">
                 {retryAll.error.message}
-              </span>
-            )}
-            {retried !== undefined && (
-              <span className={text.note} role="status">
-                Sent {formatNumber(retried)} again
               </span>
             )}
             <button
