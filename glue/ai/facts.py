@@ -60,16 +60,14 @@ def told(ctx: Context, row: dict, channel: str) -> str:
     return f"shows {sent['qty']}" + (f" ({held} held back by a rule)" if held else "")
 
 
-def stock_line(ctx: Context) -> str:
-    rows = [row for row in queries.stock_rows(ctx) if row["state"] != "in_sync"]
-    if not rows:
-        return f"- Stock: {STOCK_STATES['in_sync']}."
-    differ = "; ".join(
-        f"{row['product']}, {row['free']} free: the shop {told(ctx, row, 'shop')};"
-        f" eMAG {told(ctx, row, 'emag')}"
-        for row in rows
-    )
-    return f"- Stock not in step: {differ}."
+def stock_lines(ctx: Context) -> list[str]:
+    # Every product, in step or not: with no line for a product, a small model makes one up.
+    return ["- Stock (free to sell at the warehouse; what Glue last sent each channel):"] + [
+        f"  - {row['product']}: {row['free']} free; the shop {told(ctx, row, 'shop')};"
+        f" eMAG {told(ctx, row, 'emag')};"
+        f" {'in step' if row['state'] in ('in_sync', 'held') else 'out of step'}."
+        for row in queries.stock_rows(ctx)
+    ]
 
 
 async def live(ctx: Context) -> str:
@@ -92,7 +90,7 @@ async def live(ctx: Context) -> str:
             f"- Systems: {systems}.",
             f"- Waiting for a person: {waiting}.",
             f"- Last hour: {hour}.",
-            stock_line(ctx),
+            *stock_lines(ctx),
         ]
     )
 
