@@ -175,3 +175,25 @@ def test_orders_saved_before_received_at_existed_take_their_last_update(tmp_path
 
     assert upgraded.get_order("shop-1")["received_at"] == "2026-10-22T10:00:00.000+00:00"
     upgraded.close()
+
+
+def test_a_commit_that_fails_rolls_the_transaction_back(tmp_path):
+    db = Database(str(tmp_path / "glue.db"))
+    real = db.conn
+
+    class DiskFull:
+        def __getattr__(self, name: str) -> object:
+            return getattr(real, name)
+
+        def commit(self) -> None:
+            raise sqlite3.OperationalError("database or disk is full")
+
+    db.conn = DiskFull()
+    with pytest.raises(sqlite3.OperationalError), db.transaction():
+        db.set_setting("retry_attempts", "3", "admin")
+    db.conn = real
+
+    # Left open, the next transaction would only join it.
+    assert not real.in_transaction
+    assert db.settings() == {}
+    db.close()

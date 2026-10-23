@@ -89,10 +89,10 @@ class Database:
         self.conn.execute("BEGIN IMMEDIATE")
         try:
             yield
+            self.conn.commit()
         except BaseException:
             self.conn.rollback()
             raise
-        self.conn.commit()
 
     def ping(self) -> None:
         self.conn.execute("SELECT 1 FROM events_inbox LIMIT 1")
