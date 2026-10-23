@@ -170,7 +170,7 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 - **Glue knows what a channel accepted, not what it shows.** A channel that accepts a figure and does not apply it, like eMAG's **Ignore stock updates** fault, looks in step on **Stock** and to the assistant. Reading eMAG's offers back during reconcile would close this.
 - **"Orders in" and the Flow funnel can differ.** Orders in counts order rows by when they came in; the funnel counts order messages in the window. An eMAG notice whose order Glue could not read (eMAG down, or the order gone) is in the funnel but has no order row. Their reserved counts can also differ at a range's end, for an order that came in during the range and was reserved after it.
 - **A short shelf count comes back if closed early.** Closing a "Shelf count too low" item without changes while the shelf is still short opens it again on the next stock check. Cancelling the order, or a count that covers it, ends it.
-- **The shop mock sends each event once,** and Glue does not poll the shop. An event sent while Glue is down is lost in the demo. Real Adobe Commerce retries delivery.
+- **The shop and warehouse mocks send each event once.** Neither retries a webhook Glue did not answer, and Glue does not poll the shop or read shipments from the warehouse. An order, cancel or shipment sent while Glue is down is lost in the demo; a recount heals on the next stock pull. Real Adobe Commerce retries delivery, and a real warehouse link would need to. eMAG's mock re-notifies.
 - **No retention.** `events_inbox` and `audit_log` grow forever. See [Operability](#operability).
 - **Analytics read the audit log on every request.** Fine for months of one reseller; at scale it needs pre-aggregated buckets, and an index on `review_queue.order_id` for the lost-orders count. "Longest outage" is an estimate from retry rows, because nothing is logged when the warehouse comes back.
 - **Demo sign-in.** Three fixed users with passwords from the environment, no password hashing, no sign-in rate limit, no `Secure` cookie flag (it runs on plain HTTP locally). Real sign-in belongs to the customer's identity provider; the roles and per-route checks would stay.
@@ -183,10 +183,10 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 ## Testing
 
 ```sh
-# Backend, in the same image Compose runs: lint, format check, 238 tests in about 22 seconds
+# Backend, in the same image Compose runs: lint, format check, 242 tests in about 20 seconds
 docker compose run --rm --no-deps --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
 
-# Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 222 tests in 44 files
+# Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 223 tests in 44 files
 cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 ```
 
@@ -206,7 +206,7 @@ cd frontend && npm ci && npm run lint && npm run typecheck && npm test
 - **Business days.** Today starts at midnight in Bucharest, an order at 00:30 local counts for that day, and the day the clocks go back has 25 hourly buckets.
 - **Console, AI and demo.** Filters, paging without gaps when orders arrive in the same millisecond, the events cursor, analytics (including lost orders, and Overview, Flow and Orders agreeing on one day), system states (including a rate limit only Glue's own calls meet), settings, rules, the model download, budgets, an assistant prompt that carries live facts and tools that answer in product names, triage that hands the model the facts, never acts, drops sentences that name internal tools and refuses a missing or decided item before asking the model, and demo restocks that leave a hand-counted product alone.
 
-**The crash-point test.** [`tests/test_crash_points.py`](tests/test_crash_points.py) runs 11 flows: a shop order reserved, refused with 409, or failed in an outage; a cancel; a shipment; an eMAG order; a retry from review; an eMAG order Glue cannot read; a cancel of a failed order; a cancel from review that fails; and a short recount. It counts each flow's database writes, then reruns the flow on fresh systems once per write and stops Glue just before it: 132 crash points in about 6 seconds (10 in Docker). After each restart it checks that the warehouse holds exactly Glue's allocated orders, that every order ends as in the run without a crash, that every failed order has one open item, that every state change has its audit row once, and that every event ends done or failed with an item. Before the fixes this test led to, 31 of the 132 points failed. How it stops and restarts Glue is under [Crash safety](docs/architecture.md#crash-safety).
+**The crash-point test.** [`tests/test_crash_points.py`](tests/test_crash_points.py) runs 11 flows: a shop order reserved, refused with 409, or failed in an outage; a cancel; a shipment; an eMAG order; a retry from review; an eMAG order Glue cannot read; a cancel of a failed order; a cancel from review that fails; and a short recount. It counts each flow's database writes, then reruns the flow on fresh systems once per write and stops Glue just before it: 132 crash points in about 6 seconds (9 in Docker). After each restart it sends again any webhook Glue never answered, as a sender that retries would, and checks that the warehouse holds exactly Glue's allocated orders, that every order ends as in the run without a crash, that every failed order has one open item, that every state change has its audit row once, and that every event ends done or failed with an item. Before the fixes this test led to, 41 of the 132 points failed. How it stops and restarts Glue is under [Crash safety](docs/architecture.md#crash-safety).
 
 **A mutation check.** Each of these bugs, planted one at a time, makes the backend suite fail: inbox dedupe off, order-id dedupe off, no `Idempotency-Key`, `Retry-After` ignored, `Retry-After` uncapped, 4xx retried, no per-order lock, `processing` not reset at start, cut-off decisions not settled at start, stale items not settled, event id left out of the signature, an empty secret accepted, dirty flag never set, negative stock pushed, a cancel that does not release stock, ship notices not retryable, eMAG never acknowledged, CSRF header not checked.
 
@@ -309,7 +309,7 @@ I built this with an AI coding assistant (Claude Code) and used it heavily. This
 
 **Decided by me.** The scenario (one Bucharest warehouse, the shop and eMAG); that the first order to reach the warehouse wins; that a person decides oversells; that triage is policy in code and the model only explains it; the look of every screen, approved as mockups before any UI code; what to leave out; and the order of work: the sync core first, then the operator console, then the demo layer.
 
-**How it was checked.** 238 backend and 222 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
+**How it was checked.** 242 backend and 223 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
 
 **What review caught.** Three partial-failure gaps in the core (a ship notice nobody retried, a crash in the middle of a review decision, review items left open after the problem healed), a hard-coded "Orders lost: 0", a recount that flooded the review queue, and a worker loop capped at 20 orders per second that only the load probe exposed. Each is fixed and has a test.
 
