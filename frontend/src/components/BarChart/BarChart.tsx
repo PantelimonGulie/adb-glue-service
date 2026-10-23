@@ -14,6 +14,7 @@ import { useFrameWidth } from '../../lib/useFrameWidth';
 import { BarDetail, BarTip } from './BarDetail';
 import { BarKeys } from './BarKeys';
 import styles from './BarChart.module.css';
+import { started } from './started';
 
 export interface Series {
   key: string;
@@ -43,13 +44,13 @@ const CURSOR = { fill: 'var(--hover)' };
 export function BarChart({
   title,
   note,
-  ids,
-  labels,
-  series,
   grouped,
   format = formatNumber,
   eventsLink,
+  ...all
 }: Props) {
+  const { ids, labels, series } = started(all);
+  const empty = series.every((one) => one.values.every((value) => value === 0));
   const [frame, width] = useFrameWidth(480);
   const [hidden, setHidden] = useState<string[]>([]);
   // Kept by id: in the live range the same minute moves left as new minutes arrive.
@@ -98,7 +99,7 @@ export function BarChart({
           ))}
         </div>
       </div>
-      <div ref={frame} className={styles.plot}>
+      <div ref={frame} className={styles.plot} hidden={empty}>
         <Chart
           width={width}
           height={HEIGHT}
@@ -133,6 +134,7 @@ export function BarChart({
           onPick={pick}
         />
       </div>
+      {empty && <p className={styles.empty}>Nothing in this period</p>}
       <div className={styles.axis}>
         <span>{labels[0]}</span>
         <span>{labels.at(-1)}</span>

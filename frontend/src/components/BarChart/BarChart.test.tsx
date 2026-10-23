@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renderPage } from '../../test/render';
 import { BarChart, type Series } from './BarChart';
 import styles from './BarChart.module.css';
@@ -12,16 +12,27 @@ const series: Series[] = [
   { key: 'emag', name: 'eMAG', color: EMAG, values: [3, 4] },
 ];
 
-function renderChart(labels = ['00:00', '01:00']) {
+// Every bar has started unless a test moves the clock back.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-26T00:00:00.000Z'));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+function renderChart(labels = ['00:00', '01:00'], values = series, route = '/flow') {
   const { container } = renderPage(
     <BarChart
       title="Orders per hour"
       note="by channel"
       ids={['2026-10-25T00:00:00.000Z', '2026-10-25T01:00:00.000Z']}
       labels={labels}
-      series={series}
+      series={values}
       eventsLink={(index) => `/activity?bucket=${index}`}
     />,
+    { route },
   );
   return (color: string) => container.querySelectorAll(`.recharts-rectangle[fill="${color}"]`);
 }
@@ -104,3 +115,21 @@ it('keeps two bars with the same label apart, as on the day clocks go back', asy
     'false',
   );
 });
+
+it('leaves off the hours that have not started yet, so the bars use the width', () => {
+  vi.setSystemTime(new Date('2026-10-25T00:30:00.000Z'));
+  const bars = renderChart();
+
+  expect(bars(EMAG)).toHaveLength(1);
+  expect(screen.getByRole('button', { name: '00:00: Shop 1, eMAG 3' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^01:00/ })).toBeNull();
+});
+
+it('says so when nothing happened in the period', () => {
+  const quiet = series.map((one) => ({ ...one, values: [0, 0] }));
+  renderChart(['00:00', '01:00'], quiet);
+
+  expect(screen.getByText('Nothing in this period')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^00:00/ })).toBeNull();
+});
+

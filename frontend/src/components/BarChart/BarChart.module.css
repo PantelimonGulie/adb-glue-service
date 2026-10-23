@@ -58,7 +58,18 @@
 
 .plot {
   position: relative;
+  border-bottom: 1px solid var(--line2);
   cursor: pointer;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  height: 120px;
+  margin: 0;
+  border-bottom: 1px solid var(--line2);
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 /* Recharts makes its inner layers focusable, so a click would outline the whole plot. */

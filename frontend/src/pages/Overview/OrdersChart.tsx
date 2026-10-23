@@ -6,12 +6,14 @@ import styles from './OrdersChart.module.css';
 // Past this many bars the gaps alone would be wider than a phone.
 const DENSE = 60;
 
-function bars({ range, series }: Analytics) {
+// Hours or days that have not started yet are left off, so the bars use the width.
+function bars({ range, series }: Analytics, now = Date.now()) {
   const { orders, problems } = series;
   const totals = orders.shop.map((count, i) => count + orders.emag[i]);
   const max = Math.max(1, ...totals);
   const ids = bucketIds(range);
-  return bucketLabels(range).map((label, i) => {
+  const labels = bucketLabels(range).slice(0, ids.filter((id) => !(Date.parse(id) > now)).length);
+  return labels.map((label, i) => {
     const trouble = problems.retried[i] + problems.failed[i];
     // Retries count tries, not orders, so the red part never outgrows the bar.
     const bad = Math.min(totals[i], trouble);
