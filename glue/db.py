@@ -218,9 +218,12 @@ class Database:
     def open_review(
         self, kind: str, order_id: str | None, payload: dict, reason: str
     ) -> int | None:
+        # One open item per failed operation: a failed ship notice must not hide behind a
+        # failed cancel of the same order, since each needs its own decision.
         existing = self.conn.execute(
-            "SELECT id FROM review_queue WHERE kind = ? AND order_id = ? AND status = 'open'",
-            (kind, order_id),
+            "SELECT id FROM review_queue WHERE kind = ? AND order_id = ? AND status = 'open'"
+            " AND json_extract(payload, '$.operation') IS ?",
+            (kind, order_id, payload.get("operation")),
         ).fetchone()
         if existing:
             return None

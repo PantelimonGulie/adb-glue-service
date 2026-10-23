@@ -28,6 +28,28 @@ async def test_a_ship_notice_the_channel_missed_is_retried_from_review(systems, 
     assert systems.open_reviews() == []
 
 
+async def test_a_ship_notice_behind_a_failed_cancel_still_gets_its_own_retry(systems, sleeps):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=True)
+    await systems.http.post(f"http://emag/orders/{order_id.removeprefix('emag-')}/cancel")
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=False)
+    await systems.chaos("emag", down=True)
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+
+    cancel, ship = systems.open_reviews()
+    assert (cancel["payload"]["operation"], ship["payload"]["operation"]) == ("cancel", "ship")
+
+    await systems.chaos("emag", down=False)
+    response = await systems.decide(ship["id"], "retry")
+
+    assert response.status_code == 200
+    assert systems.emag_order(order_id)["status"] == 4
+    assert [i["id"] for i in systems.open_reviews()] == [cancel["id"]]
+
+
 def resolved(systems) -> list[tuple[str, str, str]]:
     decided = systems.ctx.db.list_review("decided")
     return [(item["order_id"], item["action"], item["decided_by"]) for item in decided]
