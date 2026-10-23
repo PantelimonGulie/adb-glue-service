@@ -1,6 +1,8 @@
 import itertools
 import json
 
+import httpx
+
 from common import signing
 
 STOCK = {"sku": "MBA-M4", "on_hand": 0, "reserved": 0}
@@ -26,6 +28,29 @@ async def test_unsigned_and_forged_webhooks_are_rejected(systems):
     counters = systems.ctx.db.counters()
     assert counters["signature_rejected"] == 3
     assert "event_received" not in counters
+
+
+async def test_a_captured_event_replayed_under_a_new_event_id_is_rejected(systems):
+    captured: list[httpx.Request] = []
+
+    async def capture(request: httpx.Request) -> None:
+        if request.url.path == "/events":
+            captured.append(request)
+
+    systems.http.event_hooks["request"].append(capture)
+    await systems.buy_on_shop("APP-3")
+    [placed] = captured
+    headers = {name: placed.headers[name] for name in ("content-type", "x-source", "x-signature")}
+
+    replayed = await systems.http.post(
+        "http://glue/events",
+        content=placed.content,
+        headers={**headers, "x-adobe-event-id": "replayed-1"},
+    )
+
+    assert replayed.status_code == 401
+    counters = systems.ctx.db.counters()
+    assert (counters["event_received"], counters["signature_rejected"]) == (1, 1)
 
 
 async def test_signed_but_invalid_event_is_rejected(systems):
@@ -89,8 +114,10 @@ async def test_an_event_id_from_one_sender_does_not_hide_another_senders_event(s
     shop_order = await systems.buy_on_shop("APP-3")
     body = json.dumps({"type": "order.placed", "data": systems.shop.state.orders[shop_order]})
     # A shop event whose id is the one Glue gives eMAG's notice about order 777.
-    headers = {"x-adobe-event-id": "emag-notify-777-new", "x-source": "shop"}
-    headers |= signing.headers(systems.ctx.settings.shop_webhook_secret, body.encode())
+    event_id = "emag-notify-777-new"
+    message = signing.event_message(event_id, body.encode())
+    headers = {"x-adobe-event-id": event_id, "x-source": "shop"}
+    headers |= signing.headers(systems.ctx.settings.shop_webhook_secret, message)
     await systems.http.post("http://glue/events", content=body, headers=headers)
     emag_order = await systems.buy_on_emag("APP-3")
     await systems.run_worker()

@@ -102,10 +102,11 @@ class Systems:
         self, source: str, event_type: str, data: dict, secret: str | None = None
     ) -> httpx.Response:
         body = json.dumps({"type": event_type, "data": data}).encode()
+        event_id = str(uuid.uuid4())
         headers = {
-            "x-adobe-event-id": str(uuid.uuid4()),
+            "x-adobe-event-id": event_id,
             "x-source": source,
-            **signing.headers(secret or SECRETS[source], body),
+            **signing.headers(secret or SECRETS[source], signing.event_message(event_id, body)),
         }
         return await self.http.post("http://glue/events", content=body, headers=headers)
 

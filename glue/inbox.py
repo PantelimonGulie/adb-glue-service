@@ -32,11 +32,12 @@ SOURCES = {
 }
 
 
-async def verified_body(request: Request, source: str) -> bytes:
+async def verified_body(request: Request, source: str, event_id: str | None = None) -> bytes:
     ctx: Context = request.app.state.ctx
     body = await request.body()
+    signed = body if event_id is None else signing.event_message(event_id, body)
     secret = ctx.settings.webhook_secret(source)
-    if not signing.verify(secret, body, request.headers.get(signing.HEADER)):
+    if not signing.verify(secret, signed, request.headers.get(signing.HEADER)):
         known = source if source in SOURCES else "unknown"
         record(ctx.db, "-", "webhook", known, "signature_rejected", path=request.url.path)
         raise HTTPException(401, "missing or invalid signature")
@@ -69,7 +70,7 @@ async def events(
     x_source: Annotated[str, Header()] = "",
 ) -> dict:
     ctx: Context = request.app.state.ctx
-    body = await verified_body(request, x_source)
+    body = await verified_body(request, x_source, x_adobe_event_id)
     if not EVENT_ID.match(x_adobe_event_id):
         raise rejected(ctx, "-", x_source, "x-adobe-event-id: missing or malformed")
     try:
@@ -87,6 +88,7 @@ async def events(
 @router.post("/emag/notifications", status_code=202)
 async def emag_notifications(request: Request) -> dict:
     ctx: Context = request.app.state.ctx
+    # No event id to sign: Glue builds it from the order id and type in the signed body.
     body = await verified_body(request, "emag")
     try:
         notification = EmagNotification.model_validate_json(body)
