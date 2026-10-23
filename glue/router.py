@@ -69,6 +69,8 @@ async def allocate(ctx: Context, order: Order, correlation_id: str) -> None:
         log(attempt, delay, trouble)
 
     send = partial(ctx.warehouse.create_order, order)
+    # Tries counts this send only; the audit log keeps every earlier one.
+    ctx.db.set_order(order.id, attempts=1)
     try:
         response = await with_retries(ctx, "warehouse", send, on_retry)
     except RetryExhausted as exc:

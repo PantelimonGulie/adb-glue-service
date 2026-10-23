@@ -123,7 +123,8 @@ async def test_warehouse_down_queues_order_until_operator_retries(systems, sleep
     order_id = await systems.buy_on_shop("IPH16-256")
     await systems.run_worker()
 
-    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+    failed = systems.ctx.db.get_order(order_id)
+    assert (failed["status"], failed["attempts"]) == ("failed", 5)
     assert sleeps == [2.0] * 4
     [item] = systems.open_reviews()
     assert (item["kind"], item["order_id"]) == ("order_failed", order_id)
@@ -131,7 +132,9 @@ async def test_warehouse_down_queues_order_until_operator_retries(systems, sleep
     await systems.chaos("warehouse", down=False)
     await systems.decide(item["id"], "retry")
 
-    assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    # Tries counts the latest send; the activity log keeps the earlier ones.
+    reserved = systems.ctx.db.get_order(order_id)
+    assert (reserved["status"], reserved["attempts"]) == ("allocated", 1)
     assert systems.open_reviews() == []
 
 
