@@ -12,3 +12,4 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 docs/presentation/interview-prep.md
+.local/
