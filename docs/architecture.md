@@ -440,7 +440,7 @@ Two rows record a call to another system and are written after it answers: `orde
 4. Every state change has its audit row exactly once: `event_received` per event, `review_opened` per item, `review_resolved` per item Glue closed, and per order as many `order_allocated`, `order_failed`, `unfulfillable`, `order_cancelled`, `order_shipped` and `emag_acknowledged` rows as without a crash.
 5. Every inbox event ends `done`, or `failed` with an open review item.
 
-The file runs in about 6 seconds. Before the fixes this test led to, 31 of the 132 crash points broke an invariant: for example, a stop between a failure and its review item left a failed order that nothing would bring back to a person, and a stop just before an event's done mark made a ship notice tell the channel twice.
+The file runs in about 6 seconds, 10 in Docker. Before the fixes this test led to, 31 of the 132 crash points broke an invariant: for example, a stop between a failure and its review item left a failed order that nothing would bring back to a person, and a stop just before an event's done mark made a ship notice tell the channel twice.
 
 ## Concurrency
 
