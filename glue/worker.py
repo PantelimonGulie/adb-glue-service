@@ -3,7 +3,7 @@ import logging
 from contextlib import nullcontext
 
 from common.models import Order
-from glue import reconciler, review, router
+from glue import reconciler, review, router, settle
 from glue.audit import record
 from glue.context import Context
 
@@ -70,7 +70,7 @@ async def handle(ctx: Context, event: dict) -> None:
         ctx.db.finish_event(event["source"], event_id, "done")
         # A handler that queued a failure still returns normally; that failure stands.
         if ctx.db.failures_recorded(order_id, event_id) == failures:
-            review.settle_event(ctx, order_id, event)
+            settle.settle_event(ctx, order_id, event)
 
 
 async def process_pending(ctx: Context) -> int:

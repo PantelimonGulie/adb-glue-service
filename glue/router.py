@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from common.models import Order, OrderLine
-from glue import reconciler, review
+from glue import reconciler, review, settle
 from glue.audit import record
 from glue.context import Context
 from glue.retry import RetryExhausted, with_retries
@@ -119,7 +119,7 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
         )
         ctx.db.insert_order_if_new(stub, status="cancelled")
         record(ctx.db, correlation_id, "order", order_id, "order_cancelled", note="before placed")
-        return review.settle(ctx, order_id, "cancelled", correlation_id)
+        return settle.settle(ctx, order_id, "cancelled", correlation_id)
     if order["status"] == "cancelled":
         record(ctx.db, correlation_id, "order", order_id, "order_known", note="already cancelled")
         return
@@ -135,7 +135,7 @@ async def cancel_order(ctx: Context, order_id: str, correlation_id: str) -> None
             return fail(ctx, order_id, correlation_id, "order_failed", reason, "cancel")
     ctx.db.set_order(order_id, status="cancelled")
     record(ctx.db, correlation_id, "order", order_id, "order_cancelled", was=order["status"])
-    review.settle(ctx, order_id, "cancelled", correlation_id)
+    settle.settle(ctx, order_id, "cancelled", correlation_id)
     if releases_stock:
         skus = [line["sku"] for line in order["lines"]]
         await reconciler.reconcile_skus(ctx, skus, correlation_id)
@@ -157,7 +157,7 @@ async def mark_shipped(ctx: Context, event: dict) -> None:
     if ctx.db.get_order(order_id) is None:
         raise LookupError(f"warehouse shipped unknown order {order_id}")
     ctx.db.set_order(order_id, status="shipped")
-    review.settle(ctx, order_id, "shipped", event["event_id"])
+    settle.settle(ctx, order_id, "shipped", event["event_id"])
     await notify_shipped(ctx, order_id, event["event_id"])
 
 
