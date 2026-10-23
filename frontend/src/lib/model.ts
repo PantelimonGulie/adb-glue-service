@@ -29,7 +29,7 @@ export function modelState({ status, progress }: Assistant['model']): ModelState
       return {
         label: 'Not answering',
         tone: 'red',
-        notice: 'The local model server is not answering. Check that its container is running.',
+        notice: 'The local model server is not answering. Start Ollama, or its Docker container.',
       };
   }
 }

@@ -52,7 +52,7 @@ def not_ready(model: dict) -> str:
         )
     if model["status"] == "missing":
         return f"The local model is not downloaded yet. Glue retries every {RETRY_SECONDS} s."
-    return "The local model server (Ollama) is not answering. Check that its container is running."
+    return "The local model server (Ollama) is not answering. Start Ollama, or its Docker container."
 
 
 def failure(exc: APIError) -> str:
