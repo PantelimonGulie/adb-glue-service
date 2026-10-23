@@ -1,4 +1,4 @@
-from glue.auth import COOKIE
+from glue.auth import COOKIE, user_from_token
 
 
 async def test_sign_in_returns_user_and_cookie(systems):
@@ -61,3 +61,8 @@ async def test_only_admin_runs_demo_controls(systems):
     assert refused.status_code == 403
     assert done.json() == {"ok": True, "message": "The warehouse answers 503 to every call."}
     assert systems.warehouse.state.chaos.down is True
+
+
+def test_a_superscript_digit_in_the_expiry_is_refused_not_a_crash(systems):
+    # str.isdigit() accepts "²", which int() refuses.
+    assert user_from_token(systems.ctx.settings, "viewer:²:x") is None

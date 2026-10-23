@@ -40,7 +40,7 @@ def user_from_token(settings: Settings, token: str | None) -> User | None:
         return None
     payload, _, signature = token.rpartition(":")
     username, _, expires = payload.partition(":")
-    if username not in USERS or not expires.isdigit() or int(expires) < time.time():
+    if username not in USERS or not expires.isdecimal() or int(expires) < time.time():
         return None
     if not signing.verify(settings.session_secret, payload.encode(), signature):
         return None
