@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
+import httpx
+
 from glue.db import now
 
 
@@ -63,14 +65,25 @@ async def test_metrics_when_nothing_waits(systems):
     assert metrics["warehouse_down"] is False
 
 
-async def test_health_stays_up_and_reports_each_system(systems):
-    await systems.chaos("emag", down=True)
+async def test_metrics_need_a_session_that_can_view(systems):
+    systems.http.cookies.clear()
+    anonymous = await systems.http.get("http://glue/metrics")
+    await systems.sign_in("viewer")
+    viewer = await systems.http.get("http://glue/metrics")
 
+    assert (anonymous.status_code, viewer.status_code) == (401, 200)
+
+
+async def test_health_is_liveness_only_and_calls_no_other_system(systems):
+    systems.http.cookies.clear()
+    called: list[str] = []
+
+    async def note(request: httpx.Request) -> None:
+        called.append(request.url.host)
+
+    systems.http.event_hooks["request"].append(note)
     response = await systems.http.get("http://glue/health")
 
     assert response.status_code == 200
-    health = response.json()
-    assert (health["status"], health["db"]) == ("ok", "ok")
-    up = {name: system["ok"] for name, system in health["systems"].items()}
-    assert up == {"shop": True, "emag": False, "warehouse": True}
-    assert health["systems"]["emag"]["state"] == "Answering HTTP 503"
+    assert response.json() == {"status": "ok", "db": "ok"}
+    assert called == ["glue"]

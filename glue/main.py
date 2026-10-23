@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 
-from glue import api, inbox, queries, reconciler, settle, tuning, worker
+from glue import api, auth, inbox, queries, reconciler, settle, tuning, worker
 from glue.ai import llm
 from glue.audit import configure_logging
 from glue.clients import EmagClient, ShopClient, WarehouseClient
@@ -21,13 +21,13 @@ router = APIRouter()
 
 @router.get("/health")
 async def health(request: Request) -> dict:
-    ctx: Context = request.app.state.ctx
-    # Only a failing database fails the check; a channel being down is not fixed by restarting Glue.
-    ctx.db.ping()
-    return {"status": "ok", "db": "ok", "systems": await queries.health_of(ctx)}
+    # Liveness only, and open to anyone, so it calls no other system; channel state is on the
+    # signed-in overview.
+    request.app.state.ctx.db.ping()
+    return {"status": "ok", "db": "ok"}
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(auth.require("view"))])
 async def metrics(request: Request) -> dict:
     return queries.metrics(request.app.state.ctx)
 
