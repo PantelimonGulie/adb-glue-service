@@ -66,6 +66,27 @@ async def test_funnel_counts(systems):
     }
 
 
+async def test_an_order_dismissed_without_a_fix_counts_as_lost(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    await systems.chaos("emag", down=True)
+    await systems.buy_on_shop("APP-3")
+    # eMAG cannot be read, so this order never even gets a row in Glue.
+    await systems.buy_on_emag("IPAD-A16")
+    await systems.run_worker()
+    waiting = await get(systems, range="today")
+    for item in systems.open_reviews():
+        await systems.decide(item["id"], "dismiss")
+    dismissed = await get(systems, range="today")
+    await systems.chaos("warehouse", down=False)
+    await systems.chaos("emag", down=False)
+    await systems.chaos("emag", renotify_now=True)
+    await systems.run_worker()
+    healed = await get(systems, range="today")
+
+    lost = [report["parts"]["glue"]["lost"] for report in (waiting, dismissed, healed)]
+    assert lost == [0, 2, 1]
+
+
 async def test_totals_count_order_placements_only(systems):
     shop_order = await systems.buy_on_shop("IPH16-128")
     await systems.buy_on_emag("APP-3")

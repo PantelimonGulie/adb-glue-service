@@ -431,6 +431,18 @@ class Database:
         )
         return self.conn.execute(query, {"since": since, "until": until}).fetchone()[0]
 
+    def lost(self, order_ids: list[str]) -> int:
+        # Placed orders that are failed, or never got a row, and that no item keeps in front of
+        # a person: in practice a failure dismissed without a fix.
+        return self.conn.execute(
+            "SELECT COUNT(*) FROM json_each(?) placed"
+            " WHERE NOT EXISTS (SELECT 1 FROM orders"
+            "  WHERE order_id = placed.value AND status != 'failed')"
+            " AND NOT EXISTS (SELECT 1 FROM review_queue"
+            "  WHERE order_id = placed.value AND status IN ('open', 'acting'))",
+            (json.dumps(order_ids),),
+        ).fetchone()[0]
+
     def gauges(self) -> dict[str, dict]:
         queries = {
             "inbox": "SELECT COUNT(*) FILTER (WHERE status = 'pending') AS pending,"

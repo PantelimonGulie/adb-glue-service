@@ -53,7 +53,7 @@ def longest_outage_minutes(rows: list[dict], until: str) -> int:
     return round(longest / 60)
 
 
-def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str) -> dict:
+def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str, lost: int) -> dict:
     tally = Counter((channel_of(row), row["action"]) for row in rows)
     duplicates = Counter(channel_of(row) for row in rows if duplicate(row))
     orders = Counter(trip.channel for trip in found.values())
@@ -79,7 +79,7 @@ def parts(rows: list[dict], found: dict[str, Trip], steps: dict, until: str) -> 
             "duplicates": steps["duplicates"],
             "p50_seconds": percentile(seconds, 0.5),
             "p95_seconds": percentile(seconds, 0.95),
-            "lost": 0,
+            "lost": lost,
         },
         "warehouse": {
             "received": sent,
@@ -130,7 +130,7 @@ def report(ctx: Context, window: ranges.Window, compare: bool) -> dict:
         "previous": previous,
         "funnel": steps,
         "series": series(rows, found, keys, window.unit),
-        "parts": parts(rows, found, steps, window.until),
+        "parts": parts(rows, found, steps, window.until, ctx.db.lost(list(found))),
         "by_product": by_product(found),
         "failure_causes": queries.review_groups(opened),
         "sample": any(row["detail"].get("sample") is True for row in rows),
