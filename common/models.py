@@ -35,8 +35,6 @@ class StockAdjusted(BaseModel):
     reserved: int = Field(ge=0)
     # Why the shelf was counted, when it was not a person, e.g. "demo restock".
     note: str = Field("", max_length=40)
-    # Why the shelf was counted, when it was not a person, e.g. "demo restock".
-    note: str = Field("", max_length=40)
 
 
 class EmagNotification(BaseModel):
