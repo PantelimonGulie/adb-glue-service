@@ -273,6 +273,16 @@ class Database:
             "payload",
         )
 
+    def last_reservation(self, skus: list[str], other_than: str, before: str) -> dict | None:
+        rows = self.rows(
+            "SELECT * FROM audit_log a WHERE ts <= ? AND action = 'order_allocated'"
+            " AND entity_id != ? AND EXISTS (SELECT 1 FROM json_each(a.detail, '$.lines')"
+            " WHERE json_extract(value, '$.sku') IN (SELECT value FROM json_each(?)))"
+            " ORDER BY ts DESC, id DESC LIMIT 1",
+            (before, other_than, json.dumps(skus)),
+        )
+        return rows[0] if rows else None
+
     def failures_recorded(self, order_id: str | None, correlation_id: str) -> int:
         return self.conn.execute(
             "SELECT COUNT(*) FROM audit_log WHERE entity_id = ? AND correlation_id = ?"

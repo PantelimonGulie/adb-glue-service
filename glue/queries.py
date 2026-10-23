@@ -125,13 +125,25 @@ def review_item(ctx: Context, item: dict) -> dict:
     suggestion = None
     if item["suggested_reason"] is not None:
         suggestion = {"action": item["suggested_action"], "reason": item["suggested_reason"]}
+    cause = review.cause_of(item)
     return {
         **{key: item[key] for key in REVIEW_KEYS},
-        "cause": review.cause_of(item),
+        "cause": cause,
         "order": order_item(order) if order else None,
         "allowed": sorted(review.allowed_actions(item, order)),
         "suggestion": suggestion,
+        "winner": winner(ctx, item, order) if cause == "soldout" and order else None,
     }
+
+
+def winner(ctx: Context, item: dict, order: dict) -> dict | None:
+    # The last reservation of the product before the refusal took the unit.
+    skus = [line["sku"] for line in order["lines"]]
+    row = ctx.db.last_reservation(skus, order["order_id"], item["created_at"])
+    if row is None:
+        return None
+    channel = row["entity_id"].split("-")[0]
+    return {"order_id": row["entity_id"], "channel": channel, "reserved_at": row["ts"]}
 
 
 def review_groups(items: list[dict]) -> list[dict]:

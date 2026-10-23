@@ -25,9 +25,8 @@ async def list_review(
     cause: Literal["outage", "soldout", "recount", "other", ""] = "",
 ) -> dict:
     ctx = request.app.state.ctx
-    items = ctx.db.list_review(status)
-    if status == "decided":
-        items.reverse()
+    # Newest first for people; retries and rules work through the queue oldest first.
+    items = ctx.db.list_review(status)[::-1]
     return {
         "items": [
             queries.review_item(ctx, item) for item in items if cause in ("", review.cause_of(item))

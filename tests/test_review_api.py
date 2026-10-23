@@ -33,6 +33,30 @@ async def test_review_groups_by_cause(systems, sleeps):
     assert soldout["order"]["product"] == "MacBook Air M4"
     assert soldout["allowed"] == ["cancel", "dismiss", "retry"]
     assert soldout["suggestion"] is None
+    ids = [item["id"] for item in review["items"]]
+    assert ids == sorted(ids, reverse=True)
+
+
+async def test_a_sold_out_item_names_the_order_that_got_the_last_unit(systems, sleeps):
+    await systems.chaos("emag", freeze_stock=True)
+    shop_order = await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=True)
+    await systems.buy_on_shop("APP-3")
+    await systems.run_worker()
+
+    items = (await open_items(systems))["items"]
+
+    [reserved] = [
+        r for r in systems.ctx.db.audit_for(shop_order) if r["action"] == "order_allocated"
+    ]
+    winners = {item["cause"]: item["winner"] for item in items}
+    assert winners == {
+        "soldout": {"order_id": shop_order, "channel": "shop", "reserved_at": reserved["ts"]},
+        "outage": None,
+    }
 
 
 async def test_retry_all_outage(systems, sleeps):
