@@ -1,5 +1,27 @@
+/* Fixed widths, so a long state does not push the columns around while the numbers update. */
 .table {
-  min-width: 820px;
+  min-width: 900px;
+  table-layout: fixed;
+}
+
+.table th {
+  white-space: normal;
+}
+
+.product {
+  width: auto;
+}
+
+.count {
+  width: 104px;
+}
+
+.channel {
+  width: 124px;
+}
+
+.state {
+  width: 220px;
 }
 
 .table tr[data-ok='false'] {
@@ -16,11 +38,11 @@
   font-weight: 600;
 }
 
-.state {
+.stateText {
   color: var(--good);
   cursor: help;
 }
 
-tr[data-ok='false'] .state {
+tr[data-ok='false'] .stateText {
   color: var(--warn-ink);
 }

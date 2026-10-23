@@ -11,15 +11,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('shows each product against what each channel shows, read-only', async () => {
+it('shows each product against the last number Glue sent each channel, read-only', async () => {
   stubApi(api);
   renderPage(<Stock />, { user: users.operator });
 
-  const state = await screen.findByText('eMAG not updated yet');
+  const state = await screen.findByText('eMAG behind');
   const row = state.closest('tr')!;
   expect(state).toHaveAttribute('title', expect.stringMatching(/next stock check/));
   expect(within(row).getByText('MacBook Air M4')).toBeInTheDocument();
-  expect(within(row).getByTitle('eMAG has not applied the last update yet')).toHaveTextContent('1');
+  const sent = within(row).getByTitle('Glue has not sent the latest number to eMAG yet');
+  expect(sent).toHaveTextContent('1');
+  expect(screen.getByRole('columnheader', { name: 'Last sent to eMAG' })).toHaveAttribute(
+    'title',
+    expect.stringMatching(/does not read back/),
+  );
+  expect(screen.queryByText(/shows/)).toBeNull();
   expect(screen.getByText(/every 10 s/)).toBeInTheDocument();
   expect(screen.queryByRole('spinbutton')).toBeNull();
 });
@@ -32,6 +38,8 @@ it('an operator can send the warehouse numbers to both channels now', async () =
 
   const post = expect.objectContaining({ method: 'POST' });
   await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/stock/push', post));
+  const sent = await screen.findByText('Sent the warehouse numbers to both channels');
+  expect(sent).toHaveAttribute('role', 'status');
 });
 
 it('a viewer sees why they cannot update the channels', () => {

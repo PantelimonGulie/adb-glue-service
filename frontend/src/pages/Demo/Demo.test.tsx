@@ -37,7 +37,7 @@ it('the cards follow the faults, traffic and speed that are on now', async () =>
     ...demo,
     traffic: { running: false, speed: 'fast' },
     faults: {
-      emag: { ...demo.faults.emag!, freeze_stock: true },
+      emag: { ...demo.faults.emag!, freeze_stock: true, reject_sku: 'MBA-M4' },
       warehouse: { down: true, slow_seconds: 0, fail_next: 2 },
     },
   };
@@ -51,6 +51,9 @@ it('the cards follow the faults, traffic and speed that are on now', async () =>
   );
   expect(screen.getByRole('button', { name: /Apply stock updates again/ })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Ask Glue to slow down' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: /Accept updates for MacBook Air M4 again/ }),
+  ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Resume new orders' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Fast' })).toHaveAttribute('aria-pressed', 'true');
 });

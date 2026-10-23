@@ -5,6 +5,30 @@ import { CHANNELS, shown, stockState } from '../../lib/stock';
 import table from '../../styles/table.module.css';
 import styles from './StockTable.module.css';
 
+const SENT = (where: string) =>
+  `The last number ${where} accepted from Glue. Glue does not read back what ${where} displays.`;
+const COLUMNS = [
+  { name: 'Product', hint: undefined, width: styles.product },
+  { name: 'On the shelf', hint: 'Units the Bucharest warehouse counted', width: styles.count },
+  {
+    name: 'Reserved for orders',
+    hint: 'Units set aside for orders not shipped yet',
+    width: styles.count,
+  },
+  {
+    name: 'Free to sell',
+    hint: 'On the shelf minus reserved: the number Glue sends',
+    width: styles.count,
+  },
+  { name: 'Last sent to the shop', hint: SENT('the shop'), width: styles.channel },
+  { name: 'Last sent to eMAG', hint: SENT('eMAG'), width: styles.channel },
+  {
+    name: 'State',
+    hint: 'What Glue knows about the last update to each channel',
+    width: styles.state,
+  },
+];
+
 export function StockTable({ stock }: { stock: StockRow[] }) {
   const rows = stock.map((row) => ({
     row,
@@ -14,15 +38,18 @@ export function StockTable({ stock }: { stock: StockRow[] }) {
   return (
     <div className={table.scroll}>
       <table className={`${table.table} ${styles.table}`}>
+        <colgroup>
+          {COLUMNS.map((column) => (
+            <col key={column.name} className={column.width} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>On the shelf</th>
-            <th>Reserved for orders</th>
-            <th>Free to sell</th>
-            <th>Shop shows</th>
-            <th>eMAG shows</th>
-            <th>State</th>
+            {COLUMNS.map((column) => (
+              <th key={column.name} title={column.hint}>
+                {column.name}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -44,7 +71,7 @@ export function StockTable({ stock }: { stock: StockRow[] }) {
                   {shows.text}
                 </td>
               ))}
-              <td className={styles.state} title={state.explanation}>
+              <td className={styles.stateText} title={state.explanation}>
                 {state.label}
               </td>
             </tr>

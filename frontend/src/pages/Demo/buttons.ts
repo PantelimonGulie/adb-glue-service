@@ -48,7 +48,7 @@ export function emagButtons(faults: Faults['emag']): DemoButton[] {
     ),
     toggle(
       Boolean(faults?.reject_sku),
-      { action: 'emag-reject-off', label: 'Accept all updates again' },
+      { action: 'emag-reject-off', label: 'Accept updates for MacBook Air M4 again' },
       { action: 'emag-reject-on', label: 'Refuse updates for MacBook Air M4' },
     ),
     { action: 'emag-renotify', label: 'Send unconfirmed orders again' },

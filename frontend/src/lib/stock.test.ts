@@ -11,26 +11,27 @@ const base: StockRow = {
   state: 'in_sync',
 };
 
-it('says in plain words whether both channels show the warehouse numbers', () => {
+it('says what Glue knows about the last number it sent, not what a channel shows', () => {
   const label = (row: Partial<StockRow>) => {
     const state = stockState({ ...base, ...row });
     return [state.label, state.ok];
   };
 
-  expect(label({})).toEqual(['in sync', true]);
+  expect(label({})).toEqual(['sent to both', true]);
   expect(
     label({ state: 'held', emag: { qty: 4, dirty: false }, held_back: { shop: 0, emag: 1 } }),
-  ).toEqual(['1 held back on eMAG (rule)', true]);
+  ).toEqual(['sent · 1 held back on eMAG', true]);
   expect(label({ state: 'behind', emag: { qty: 7, dirty: false } })).toEqual([
-    'eMAG not updated yet',
+    'eMAG behind',
     false,
   ]);
   expect(label({ state: 'behind', shop: null, emag: { qty: 7, dirty: false } })).toEqual([
-    'Shop and eMAG not updated yet',
+    'Shop and eMAG behind',
     false,
   ]);
   expect(label({ state: 'refused', shop: { qty: 9, dirty: true } })).toEqual([
-    'Shop refused the update, retrying',
+    'Shop refused',
     false,
   ]);
+  expect(stockState({ ...base, state: 'refused' }).explanation).not.toMatch(/retry/i);
 });

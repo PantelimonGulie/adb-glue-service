@@ -6,6 +6,7 @@ import { Tag } from '../../components/Tag/Tag';
 import controls from '../../styles/controls.module.css';
 import page from '../../styles/page.module.css';
 import table from '../../styles/table.module.css';
+import text from '../../styles/text.module.css';
 import styles from './Stock.module.css';
 import { StockTable } from './StockTable';
 
@@ -29,6 +30,12 @@ export function Stock() {
           {push.error && (
             <span className={styles.error} role="alert">
               {push.error.message}
+            </span>
+          )}
+          {push.isPending && <span className={text.note}>Sending…</span>}
+          {push.isSuccess && (
+            <span className={text.good} role="status">
+              Sent the warehouse numbers to both channels
             </span>
           )}
           <button

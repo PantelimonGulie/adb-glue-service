@@ -25,6 +25,12 @@
   white-space: nowrap;
 }
 
+.table th[title] {
+  cursor: help;
+  text-decoration: underline dotted var(--faint);
+  text-underline-offset: 3px;
+}
+
 .table td {
   padding: 10px 14px;
   border-top: 1px solid var(--line3);
