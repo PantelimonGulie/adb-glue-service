@@ -96,7 +96,8 @@ function edges(totals: Analytics | undefined, live: boolean, warehouse: Status):
     ),
     main(
       'mktIn',
-      amount('NOTIFY · FETCH · CONFIRM', parts?.emag.orders),
+      // Commas, not the map's middle dots: the label has to fit between the eMAG box and Glue.
+      amount('NOTIFY, FETCH, CONFIRM', parts?.emag.orders),
       'eMAG sends only the order number, Glue fetches the order, then confirms it',
       parts?.emag.orders,
     ),

@@ -53,7 +53,7 @@ it('period mode shows totals instead of dots', async () => {
   const { dots } = renderMap(<FlowMap mode="period" totals={analytics} />);
 
   expect(await screen.findByText('ORDERS 2,180')).toBeInTheDocument();
-  expect(screen.getByText('NOTIFY · FETCH · CONFIRM 1,226')).toBeInTheDocument();
+  expect(screen.getByText('NOTIFY, FETCH, CONFIRM 1,226')).toBeInTheDocument();
   expect(screen.getByText('SENT 3,266')).toBeInTheDocument();
   expect(screen.getByText('3,246 reserved')).toBeInTheDocument();
   expect(dots()).toHaveLength(0);

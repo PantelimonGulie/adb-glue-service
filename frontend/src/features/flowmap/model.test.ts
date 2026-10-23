@@ -19,7 +19,7 @@ it('averages a live rate over the minutes orders came in, not over paused or qui
   const labels = mapView('live', live, undefined, 10).edges.map((edge) => edge.label);
 
   expect(labels).toContain('ORDERS\n4/min');
-  expect(labels).toContain('NOTIFY · FETCH · CONFIRM\n1.3/min');
+  expect(labels).toContain('NOTIFY, FETCH, CONFIRM\n1.3/min');
 });
 
 it('says nothing about a rate before any order came in', () => {

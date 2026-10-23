@@ -59,7 +59,7 @@ function wide(extra = 0): Geometry {
       warehouse: { left: 760 + extra, top: 104, width: 220, height: 116 },
     },
     // Labels above a line end above it: each has a second line for its number. The eMAG one
-    // starts as far left as its box allows, so the protocol fits the gap before Glue.
+    // starts as far left as its box allows, so it ends clear of Glue's outline when selected.
     labelAt: {
       shopIn: { left: 256, top: 40 },
       mktIn: { left: 242, top: 276 },
