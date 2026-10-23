@@ -53,7 +53,12 @@ def list_review_items(ctx: Context) -> list[dict]:
     items = []
     for item in ctx.db.list_review()[::-1][:20]:
         shown = queries.review_item(ctx, item)
-        about = {"order": item["order_id"], "why": facts.CAUSES[shown["cause"]]}
+        cause = shown["cause"]
+        about = {
+            "order": item["order_id"],
+            "why": facts.CAUSES[cause],
+            "what that means": facts.MEANINGS[cause],
+        }
         if shown["order"]:
             about["from"] = facts.CHANNELS[shown["order"]["channel"]]
             about["products"] = f"{shown['order']['qty']} × {shown['order']['product']}"
@@ -62,7 +67,7 @@ def list_review_items(ctx: Context) -> list[dict]:
             about["the last unit went to"] = (
                 f"{winner['order_id']} from {facts.CHANNELS[winner['channel']]}"
             )
-        items.append(about | {"what happened": item["reason"], "since": item["created_at"]})
+        items.append(about | {"since": item["created_at"]})
     return items
 
 

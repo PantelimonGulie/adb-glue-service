@@ -192,6 +192,25 @@ async def test_tools_answer_in_product_names_and_plain_words(systems, sleeps):
         assert "+00:00" not in result
 
 
+async def test_a_review_item_reaches_the_model_as_its_plain_cause_never_its_stored_text(systems):
+    raw = (
+        "unexpected while handling emag.notification: HTTPStatusError: Client error"
+        " '404 Not Found' for url 'http://emag:8002/api-3/order/read'"
+    )
+    systems.ctx.db.open_review("order_failed", "emag-254867525", {"operation": "place"}, raw)
+    model = systems.use_model("One eMAG order needs a decision.", [("list_review_items", {})])
+
+    await ask(systems)
+
+    [result] = [m["content"] for m in model.requests[-1]["messages"] if m["role"] == "tool"]
+    [item] = json.loads(result)
+    assert (item["order"], item["why"]) == ("emag-254867525", "other problem")
+    assert item["what that means"] == "something else went wrong while Glue handled this order"
+    assert not any(
+        raw_text in result for raw_text in ("404", "http", "HTTPStatusError", "unexpected")
+    )
+
+
 async def test_budget_spent_returns_429(systems):
     model = systems.use_model("unused")
     systems.ctx.db.add_usage(200000)

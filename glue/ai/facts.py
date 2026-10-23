@@ -25,6 +25,13 @@ CAUSES = {
     "recount": "shelf count too low",
     "other": "other problem",
 }
+# Sent instead of an item's stored reason, which older items keep as raw error text.
+MEANINGS = {
+    "outage": "the warehouse did not answer when Glue sent the order",
+    "soldout": "the last unit went to another customer first",
+    "recount": "the warehouse counted fewer units than were promised to orders",
+    "other": "something else went wrong while Glue handled this order",
+}
 STATUSES = {
     "received": "received, not reserved yet",
     "allocated": "reserved at the warehouse",
