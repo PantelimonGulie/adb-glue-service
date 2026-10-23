@@ -1,4 +1,6 @@
+/* Phones get one card per row: what happened and when, then the order, then the details. */
 .scroll {
+  container-type: inline-size;
   overflow-x: auto;
 }
 
@@ -31,9 +33,13 @@
   color: var(--muted);
 }
 
+.label,
+.entity {
+  justify-self: start;
+}
+
 .order,
 .product {
-  justify-self: start;
   color: var(--blue);
   font-weight: 500;
   text-underline-offset: 2px;
@@ -61,4 +67,44 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
+}
+
+@container (max-width: 599px) {
+  .table {
+    min-width: 0;
+  }
+
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'label time'
+      'entity entity'
+      'details details';
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .time {
+    grid-area: time;
+    text-align: right;
+  }
+
+  .label {
+    grid-area: label;
+  }
+
+  .entity {
+    grid-area: entity;
+  }
+
+  .details {
+    grid-area: details;
+  }
+
+  .head + .row {
+    border-top: 0;
+  }
 }

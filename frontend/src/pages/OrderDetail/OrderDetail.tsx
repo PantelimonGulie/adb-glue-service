@@ -51,7 +51,9 @@ export function OrderDetail() {
         {backLink}
         <h1 className={styles.id}>{order.order_id}</h1>
         <Tag tone={from.tone}>{from.label}</Tag>
-        <Tag tone={now.tone}>{now.label}</Tag>
+        <Tag tone={now.tone} title={now.explanation}>
+          {now.label}
+        </Tag>
         <span className={styles.lines}>
           {order.qty} × {order.product}
         </span>

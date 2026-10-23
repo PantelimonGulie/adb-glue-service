@@ -4,6 +4,7 @@ import { Product } from '../../components/Product/Product';
 import { Tag } from '../../components/Tag/Tag';
 import { formatDay, formatTime } from '../../lib/format';
 import { channel as channelLabel, status as statusLabel } from '../../lib/labels';
+import { plainProblem } from '../../lib/problem';
 import table from '../../styles/table.module.css';
 import styles from './OrdersTable.module.css';
 
@@ -15,9 +16,19 @@ const LATEST: Record<OrderStatus, string> = {
   cancelled: 'cancelled',
 };
 
+const COLUMNS = [
+  { name: 'Order', hint: 'Open it to see everything that happened to it' },
+  { name: 'Channel', hint: 'Where the customer ordered' },
+  { name: 'Product', hint: undefined },
+  { name: 'Status', hint: 'Where the order is now' },
+  { name: 'Tries', hint: 'How many times Glue sent it to the warehouse' },
+  { name: 'Latest', hint: 'The last thing that happened to it, and when' },
+];
+
 function latest(order: Order): string {
   const when = `${formatDay(order.updated_at)} ${formatTime(order.updated_at)}`.trim();
-  return `${order.last_error ?? LATEST[order.status]} · ${when}`;
+  const what = order.last_error ? plainProblem(order.last_error) : LATEST[order.status];
+  return `${what} · ${when}`;
 }
 
 export function OrdersTable({ orders }: { orders: Order[] }) {
@@ -30,22 +41,21 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
     latest: latest(order),
   }));
   return (
-    <div className={table.scroll}>
+    <div className={`${table.scroll} ${styles.frame}`}>
       <table className={`${table.table} ${styles.table}`}>
         <thead>
           <tr>
-            <th>Order</th>
-            <th>Channel</th>
-            <th>Product</th>
-            <th>Status</th>
-            <th>Tries</th>
-            <th>Latest</th>
+            {COLUMNS.map((column) => (
+              <th key={column.name} title={column.hint}>
+                {column.name}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {rows.map(({ order, ...row }) => (
             <tr key={order.order_id}>
-              <td>
+              <td className={styles.id}>
                 <Link
                   className={styles.order}
                   to={`/orders/${encodeURIComponent(order.order_id)}`}
@@ -54,16 +64,20 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                   {order.order_id}
                 </Link>
               </td>
-              <td>
+              <td className={styles.channel}>
                 <Tag tone={row.channel.tone}>{row.channel.label}</Tag>
               </td>
-              <td>
+              <td className={styles.product}>
                 <Product name={order.product} sku={order.sku} />
               </td>
-              <td>
-                <Tag tone={row.status.tone}>{row.status.label}</Tag>
+              <td className={styles.status}>
+                <Tag tone={row.status.tone} title={row.status.explanation}>
+                  {row.status.label}
+                </Tag>
               </td>
-              <td className={table.number}>{order.attempts}</td>
+              <td className={`${table.number} ${styles.tries}`} data-label="Tries">
+                {order.attempts}
+              </td>
               <td className={styles.latest}>{row.latest}</td>
             </tr>
           ))}

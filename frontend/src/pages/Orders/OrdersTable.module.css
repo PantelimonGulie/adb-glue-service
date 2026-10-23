@@ -1,3 +1,8 @@
+/* Phones get one card per order, with the order and its status on the first line. */
+.frame {
+  container-type: inline-size;
+}
+
 .table {
   min-width: 780px;
 }
@@ -12,4 +17,75 @@
 .latest {
   color: var(--ink2);
   overflow-wrap: anywhere;
+}
+
+@container (max-width: 599px) {
+  .table {
+    display: block;
+    min-width: 0;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody {
+    display: block;
+  }
+
+  .table tr {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      'id channel status'
+      'product product product'
+      'latest latest tries';
+    align-items: center;
+    gap: 6px var(--space-2);
+    padding: var(--space-3) 14px;
+    border-top: 1px solid var(--line3);
+  }
+
+  .table tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .id {
+    grid-area: id;
+  }
+
+  .channel {
+    grid-area: channel;
+  }
+
+  .status {
+    grid-area: status;
+    justify-self: end;
+  }
+
+  .product {
+    grid-area: product;
+  }
+
+  .latest {
+    grid-area: latest;
+    font-size: var(--text-sm);
+  }
+
+  .tries {
+    grid-area: tries;
+    justify-self: end;
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+
+  .tries::before {
+    content: attr(data-label) ' ';
+    font-family: var(--font-sans);
+  }
 }

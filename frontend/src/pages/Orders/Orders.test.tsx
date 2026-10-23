@@ -134,3 +134,19 @@ it('a page past the end of the list goes back to page 1', async () => {
   expect(address().get('status')).toBe('failed');
   await waitFor(() => expect(lastQuery(fetch, '/api/orders')?.get('page')).toBe('1'));
 });
+
+it('explains each column and status on hover, in plain words', async () => {
+  const failed = { ...order, last_error: 'HTTP 503 after 5 attempts' };
+  stubApi({ ...api, '/api/orders': { ...api['/api/orders'], rows: [failed] } });
+  renderOrders('/orders');
+
+  const row = (await screen.findByRole('link', { name: 'emag-500124' })).closest('tr')!;
+  expect(within(row).getByText('Needs a decision')).toHaveAttribute(
+    'title',
+    expect.stringMatching(/review queue/),
+  );
+  expect(within(row).getByText(/^not available after 5 tries/)).toBeInTheDocument();
+  for (const name of ['Channel', 'Status', 'Tries', 'Latest']) {
+    expect(screen.getByRole('columnheader', { name })).toHaveAttribute('title');
+  }
+});

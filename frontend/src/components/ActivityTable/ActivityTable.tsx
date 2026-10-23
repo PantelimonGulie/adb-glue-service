@@ -56,10 +56,14 @@ export function ActivityTable({ rows, productName }: Props) {
               {item.time}
               {item.day && <small>{item.day}</small>}
             </span>
-            <Tag tone={item.label.tone} title={item.label.explanation}>
-              {item.label.label}
-            </Tag>
-            <EntityCell entity={item.entity} />
+            <span className={styles.label}>
+              <Tag tone={item.label.tone} title={item.label.explanation}>
+                {item.label.label}
+              </Tag>
+            </span>
+            <span className={styles.entity}>
+              <EntityCell entity={item.entity} />
+            </span>
             <span className={styles.details}>
               {item.sample && (
                 <Tag tone="grey" title={SAMPLE_HINT}>

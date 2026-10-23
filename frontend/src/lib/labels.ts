@@ -189,12 +189,32 @@ const MESSAGES: Record<Message, Label> = {
   },
 };
 
-const STATUSES: Record<OrderStatus, { label: string; tone: Tone }> = {
-  received: { label: 'Received', tone: 'blue' },
-  allocated: { label: 'Reserved', tone: 'green' },
-  shipped: { label: 'Shipped', tone: 'slate' },
-  failed: { label: 'Needs a decision', tone: 'red' },
-  cancelled: { label: 'Cancelled', tone: 'grey' },
+const STATUSES: Record<OrderStatus, Label> = {
+  received: {
+    label: 'Received',
+    tone: 'blue',
+    explanation: 'Glue saved the order and is sending it to the warehouse.',
+  },
+  allocated: {
+    label: 'Reserved',
+    tone: 'green',
+    explanation: 'The warehouse set the item aside for this customer.',
+  },
+  shipped: {
+    label: 'Shipped',
+    tone: 'slate',
+    explanation: 'The warehouse shipped it and the channel was told.',
+  },
+  failed: {
+    label: 'Needs a decision',
+    tone: 'red',
+    explanation: 'Glue could not finish it alone. It waits in the review queue for a person.',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    tone: 'grey',
+    explanation: 'The order was cancelled. A unit it held went back on the shelf.',
+  },
 };
 
 const CAUSES: Record<Cause, { label: string; hint: string; advice: string; tone: Tone }> = {
