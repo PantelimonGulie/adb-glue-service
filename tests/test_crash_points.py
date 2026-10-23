@@ -161,6 +161,13 @@ def outcome(systems) -> dict[str, object]:
         recorded = Counter(row["action"] for row in rows)
         for action in STATE_CHANGES:
             seen[f"4. {label} {action} rows"] = recorded[action]
+    # db.last_taken() reads these: what each channel accepted last.
+    pushed = db.rows(
+        "SELECT json_extract(detail, '$.channel') AS channel, entity_id AS sku, COUNT(*) AS n"
+        " FROM audit_log WHERE action = 'stock_pushed' GROUP BY channel, sku"
+    )
+    for row in pushed:
+        seen[f"4. {row['channel']} {row['sku']} stock_pushed rows"] = row["n"]
     return seen
 
 

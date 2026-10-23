@@ -106,23 +106,25 @@ def note_push(
     problem: str | None,
     held: int = 0,
 ) -> None:
-    changed = ctx.db.set_channel_stock(channel, sku, qty, dirty=problem is not None)
     by_rule = {"rule": "stock-buffer", "held_back": held} if held else {}
-    if problem is not None:
-        record(
-            ctx.db,
-            correlation_id,
-            "stock",
-            sku,
-            "stock_push_failed",
-            channel=channel,
-            qty=qty,
-            problem=problem,
-            **by_rule,
-        )
-    elif changed:
-        detail = {"channel": channel, "qty": qty, **by_rule}
-        record(ctx.db, correlation_id, "stock", sku, "stock_pushed", **detail)
+    # The row only follows a change, so a figure saved without it would never get one.
+    with ctx.db.transaction():
+        changed = ctx.db.set_channel_stock(channel, sku, qty, dirty=problem is not None)
+        if problem is not None:
+            record(
+                ctx.db,
+                correlation_id,
+                "stock",
+                sku,
+                "stock_push_failed",
+                channel=channel,
+                qty=qty,
+                problem=problem,
+                **by_rule,
+            )
+        elif changed:
+            detail = {"channel": channel, "qty": qty, **by_rule}
+            record(ctx.db, correlation_id, "stock", sku, "stock_pushed", **detail)
 
 
 def recount_conflicts(ctx: Context, row: dict, correlation_id: str) -> None:
