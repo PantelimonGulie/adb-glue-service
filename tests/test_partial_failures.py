@@ -1,6 +1,8 @@
 import httpx
+import pytest
 
 from glue import review, router
+from glue.retry import Problem
 
 
 async def shipped_while_emag_down(systems) -> tuple[str, dict]:
@@ -313,3 +315,45 @@ async def test_an_acknowledge_emag_answers_with_an_error_is_retried_on_renotify(
     assert systems.emag_order(order_id)["status"] == 2
     assert systems.ctx.db.counters()["emag_acknowledged"] == 1
     assert systems.open_reviews() == []
+
+
+def emag_refuses_status(systems, refused: int) -> None:
+    set_status = systems.ctx.emag.set_status
+
+    async def refusing(emag_id: int, status: int) -> httpx.Response:
+        if status == refused:
+            body = {"isError": True, "messages": ["status change not allowed"]}
+            return httpx.Response(200, json=body, request=httpx.Request("POST", "http://emag/save"))
+        return await set_status(emag_id, status)
+
+    systems.ctx.emag.set_status = refusing
+
+
+async def test_a_ship_status_emag_answers_with_an_error_goes_to_review(systems, sleeps):
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    emag_refuses_status(systems, 4)
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+
+    assert "order_shipped" not in systems.ctx.db.counters()
+    assert systems.emag_order(order_id)["status"] == 2
+    [item] = systems.open_reviews()
+    assert (item["kind"], item["payload"]["operation"]) == ("order_failed", "ship")
+    assert item["reason"] == "eMAG refused the ship notice"
+
+
+async def test_a_cancel_emag_answers_with_an_error_is_not_taken_as_done(systems, sleeps):
+    await systems.chaos("warehouse", down=True)
+    order_id = await systems.buy_on_emag("APP-3")
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=False)
+    [item] = systems.open_reviews()
+    emag_refuses_status(systems, 0)
+
+    with pytest.raises(Problem, match="eMAG refused to cancel the order"):
+        await review.decide(systems.ctx, item["id"], "cancel")
+
+    assert systems.ctx.db.get_order(order_id)["status"] == "failed"
+    [again] = systems.open_reviews()
+    assert again["reason"] == "cancel failed: eMAG refused to cancel the order"

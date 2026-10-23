@@ -1,5 +1,6 @@
 from functools import partial
 
+import httpx
 from pydantic import BaseModel, Field
 
 from common.models import Order, OrderLine
@@ -21,6 +22,14 @@ class EmagOrder(BaseModel):
     status: int
     products: list[EmagProduct] = Field(min_length=1)
     customer: str
+
+
+def refusal(response: httpx.Response) -> str | None:
+    # The technical detail of a refused call, or None if it was accepted. eMAG reports a refusal
+    # as HTTP 200 with isError set; the shop answers with a status code.
+    if response.is_success and not response.json().get("isError"):
+        return None
+    return f"HTTP {response.status_code} {response.text}"[:300]
 
 
 def fail(
@@ -121,9 +130,7 @@ async def import_emag_order(ctx: Context, event: dict) -> None:
         # The row follows eMAG's acceptance, so a re-run after a stop does not acknowledge twice.
         if not ctx.db.recorded(order.id, "emag_acknowledged"):
             response = await with_retries(ctx, "emag", lambda: ctx.emag.acknowledge(emag_id), log)
-            # eMAG reports a refusal as HTTP 200 with isError set.
-            if not response.is_success or response.json().get("isError"):
-                error = f"HTTP {response.status_code} {response.text}"[:300]
+            if error := refusal(response):
                 raise Problem("eMAG refused to acknowledge this order", error)
             record(ctx.db, correlation_id, "order", order.id, "emag_acknowledged")
     else:
@@ -180,8 +187,7 @@ async def cancel_on_channel(ctx: Context, order_id: str, correlation_id: str) ->
         send = partial(ctx.emag.set_status, int(order["channel_order_id"]), 0)
     log = retry_logger(ctx, correlation_id, "order", order_id)
     response = await with_retries(ctx, channel, send, log)
-    if not response.is_success:
-        error = f"HTTP {response.status_code}"
+    if error := refusal(response):
         raise Problem(f"{SYSTEMS[channel]} refused to cancel the order", error)
     await cancel_order(ctx, order_id, correlation_id)
 
@@ -216,11 +222,10 @@ async def notify_shipped(ctx: Context, order_id: str, correlation_id: str) -> No
     except RetryExhausted as exc:
         reason = f"channel not told it shipped: {exc}"
         return fail(ctx, order_id, correlation_id, "order_failed", reason, "ship", exc.error)
-    if not response.is_success:
+    if error := refusal(response):
         # The shop answers 409 when its customer cancelled the order the warehouse then shipped.
         why = ": it shows the order cancelled" if response.status_code == 409 else ""
         reason = f"{SYSTEMS[channel]} refused the ship notice{why}"
-        error = f"HTTP {response.status_code}"
         return fail(ctx, order_id, correlation_id, "order_failed", reason, "ship", error)
     record(
         ctx.db,

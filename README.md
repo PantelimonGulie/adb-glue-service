@@ -183,7 +183,7 @@ The diagrams (components, both order flows, stock with a partial batch failure, 
 ## Testing
 
 ```sh
-# Backend, in the same image Compose runs: lint, format check, 242 tests in about 20 seconds
+# Backend, in the same image Compose runs: lint, format check, 244 tests in about 20 seconds
 docker compose run --rm --no-deps --build glue sh -c "ruff check . && ruff format --check . && pytest -q"
 
 # Dashboard, with Node 24 as in the Dockerfile: lint, typecheck, 223 tests in 44 files
@@ -309,7 +309,7 @@ I built this with an AI coding assistant (Claude Code) and used it heavily. This
 
 **Decided by me.** The scenario (one Bucharest warehouse, the shop and eMAG); that the first order to reach the warehouse wins; that a person decides oversells; that triage is policy in code and the model only explains it; the look of every screen, approved as mockups before any UI code; what to leave out; and the order of work: the sync core first, then the operator console, then the demo layer.
 
-**How it was checked.** 242 backend and 223 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
+**How it was checked.** 244 backend and 223 dashboard tests; a mutation check of 18 planted bugs that the suite must catch; a load probe; a run from a fresh clone with only Docker installed; and browser walkthroughs of every screen at six widths for each role.
 
 **What review caught.** Three partial-failure gaps in the core (a ship notice nobody retried, a crash in the middle of a review decision, review items left open after the problem healed), a hard-coded "Orders lost: 0", a recount that flooded the review queue, and a worker loop capped at 20 orders per second that only the load probe exposed. Each is fixed and has a test.
 
