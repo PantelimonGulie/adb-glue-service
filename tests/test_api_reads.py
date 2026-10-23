@@ -1,5 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
+import httpx
+import pytest
+
+from glue import queries
+
 ORDER_KEYS = {
     "order_id",
     "channel",
@@ -170,6 +175,44 @@ async def test_overview_counts_the_range(systems):
     assert up == {"shop": True, "emag": True, "warehouse": True}
     assert (overview["open_reviews"], overview["review_groups"]) == (0, [])
     assert len(overview["latest"]) == 10
+
+
+@pytest.mark.parametrize(
+    ("reply", "state"),
+    [
+        (httpx.Response(200), "ok"),
+        (httpx.ReadTimeout("timed out"), "slow"),
+        (httpx.Response(429), "rate_limited"),
+        (httpx.Response(503), "down"),
+        (httpx.ConnectError("refused"), "down"),
+    ],
+)
+async def test_a_health_check_names_the_state(reply, state):
+    def answer(request: httpx.Request) -> httpx.Response:
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as http:
+        health = await queries.check_health(http, "http://system")
+
+    assert (health["state"], health["ok"]) == (state, state == "ok")
+
+
+async def test_overview_shows_a_system_that_limits_requests(systems, sleeps):
+    await systems.chaos("emag", rate_limit=True)
+    await systems.reconcile()
+    limited = await get(systems, "/api/overview")
+    await systems.chaos("emag", rate_limit=False)
+    await systems.reconcile()
+    healed = await get(systems, "/api/overview")
+
+    assert {name: s["state"] for name, s in limited["systems"].items()} == {
+        "shop": "ok",
+        "emag": "rate_limited",
+        "warehouse": "ok",
+    }
+    assert healed["systems"]["emag"]["state"] == "ok"
 
 
 async def test_a_repeated_cancel_is_a_duplicate_but_not_an_order_message(systems):

@@ -17,6 +17,7 @@ COUNTERS = {
     "retries": ("retry_scheduled",),
     "failed": ("order_failed", "unfulfillable"),
 }
+TROUBLE_SECONDS = 30
 REVIEW_KEYS = (
     "id",
     "kind",
@@ -35,22 +36,27 @@ async def check_health(http: httpx.AsyncClient, base_url: str) -> dict:
     started = time.perf_counter()
     try:
         response = await http.get(f"{base_url}/health", timeout=1)
+    except httpx.TimeoutException:
+        return {"ok": False, "state": "slow", "latency_ms": None}
     except httpx.HTTPError:
-        return {"ok": False, "state": "Not responding", "latency_ms": None}
+        return {"ok": False, "state": "down", "latency_ms": None}
     latency_ms = round((time.perf_counter() - started) * 1000)
-    if not response.is_success:
-        return {
-            "ok": False,
-            "state": f"Answering HTTP {response.status_code}",
-            "latency_ms": latency_ms,
-        }
-    return {"ok": True, "state": "Healthy", "latency_ms": latency_ms}
+    state = "ok" if response.is_success else "down"
+    if response.status_code == 429:
+        state = "rate_limited"
+    return {"ok": state == "ok", "state": state, "latency_ms": latency_ms}
 
 
 async def health_of(ctx: Context) -> dict:
     urls = ctx.settings.channel_urls()
     checks = await asyncio.gather(*(check_health(ctx.http, url) for url in urls.values()))
-    return dict(zip(urls, checks, strict=True))
+    health = dict(zip(urls, checks, strict=True))
+    for name, check in health.items():
+        state, at = ctx.trouble.get(name, ("ok", 0.0))
+        # A rate limit leaves the health check alone; only the calls Glue makes show it.
+        if check["ok"] and state == "rate_limited" and time.monotonic() - at < TROUBLE_SECONDS:
+            check.update(ok=False, state=state)
+    return health
 
 
 def counters(ctx: Context, since: str, until: str) -> dict[str, int]:
