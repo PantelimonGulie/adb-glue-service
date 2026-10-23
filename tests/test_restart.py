@@ -155,3 +155,23 @@ def test_a_database_from_before_versioning_upgrades_in_place(tmp_path):
     assert not reopened.insert_event_if_new("e-1", "shop", "order.placed", {})
     assert reopened.insert_event_if_new("e-1", "warehouse", "stock.adjusted", {})
     reopened.close()
+
+
+def test_orders_saved_before_received_at_existed_take_their_last_update(tmp_path):
+    path = str(tmp_path / "glue.db")
+    old = sqlite3.connect(path)
+    for step in db.MIGRATIONS[:2]:
+        old.executescript(step)
+    old.execute("PRAGMA user_version = 2")
+    old.execute(
+        "INSERT INTO orders (order_id, channel, channel_order_id, lines, customer, status,"
+        " updated_at) VALUES ('shop-1', 'shop', '1', '[]', 'Guest', 'shipped',"
+        " '2026-10-22T10:00:00.000+00:00')"
+    )
+    old.commit()
+    old.close()
+
+    upgraded = Database(path)
+
+    assert upgraded.get_order("shop-1")["received_at"] == "2026-10-22T10:00:00.000+00:00"
+    upgraded.close()

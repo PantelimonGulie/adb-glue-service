@@ -109,6 +109,7 @@ def place(h: History, channel: str, at: datetime) -> None:
     lines = [{"sku": h.rng.choices(list(SKUS), list(SKUS.values()))[0], "qty": 1}]
     event_id = h.event_id() if channel == "shop" else f"sample-emag-notify-{number}-new"
     h.event(at, event_id, "event_received", **EVENTS[channel])
+    received = stamp(at)
     if h.rng.random() < 0.03:
         h.event(h.later(at, 2, 40), event_id, "duplicate_dropped", **EVENTS[channel])
     at, attempts, outage_end = send(h, event_id, order_id, at)
@@ -131,4 +132,5 @@ def place(h: History, channel: str, at: datetime) -> None:
     order = {"order_id": order_id, "channel": channel, "channel_order_id": f"sample-{number}"}
     order |= {"lines": lines, "customer": CUSTOMERS[channel], "status": status}
     error = REASONS[kind] if kind and status != "shipped" else None
-    h.orders.append(order | {"attempts": attempts, "last_error": error, "updated_at": stamp(last)})
+    order |= {"attempts": attempts, "last_error": error, "received_at": received}
+    h.orders.append(order | {"updated_at": stamp(last)})

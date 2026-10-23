@@ -78,6 +78,7 @@ def order_item(row: dict) -> dict:
         "status": row["status"],
         "attempts": row["attempts"],
         "last_error": row["last_error"],
+        "received_at": row["received_at"],
         "updated_at": row["updated_at"],
     }
 

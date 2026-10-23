@@ -29,11 +29,18 @@ MIGRATIONS = (
     ALTER TABLE events_inbox_keyed RENAME TO events_inbox;
     CREATE INDEX events_inbox_status ON events_inbox(status, received_at);
     """,
+    # When Glue first saved the order; ranges of orders follow it. Before this step the closest
+    # time kept is the order's last update.
+    """
+    ALTER TABLE orders ADD COLUMN received_at TEXT NOT NULL DEFAULT '';
+    UPDATE orders SET received_at = updated_at;
+    CREATE INDEX orders_received ON orders(received_at);
+    """,
 )
 # An empty filter value means "any"; :skus is a JSON list of the products the search matches.
 ORDER_FILTER = (
     "(:channel = '' OR channel = :channel) AND (:status = '' OR status = :status)"
-    " AND updated_at >= :since AND (:until = '' OR updated_at < :until)"
+    " AND received_at >= :since AND (:until = '' OR received_at < :until)"
     " AND (:q = '' OR order_id LIKE '%' || :q || '%' OR EXISTS (SELECT 1 FROM json_each(lines)"
     " WHERE json_extract(value, '$.sku') IN (SELECT value FROM json_each(:skus))))"
 )
@@ -157,13 +164,16 @@ class Database:
             "limit": limit,
             "offset": offset,
         }
-        return self.page("orders", ORDER_FILTER, "updated_at DESC", params, "lines")
+        # Newest first by a time that never changes, with a tie-break for orders saved in the
+        # same millisecond, so paging neither repeats nor skips one.
+        order_by = "received_at DESC, order_id DESC"
+        return self.page("orders", ORDER_FILTER, order_by, params, "lines")
 
     def insert_order_if_new(self, order: Order, status: str = "received") -> bool:
         cursor = self.conn.execute(
             "INSERT OR IGNORE INTO orders"
-            " (order_id, channel, channel_order_id, lines, customer, status, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            " (order_id, channel, channel_order_id, lines, customer, status, updated_at,"
+            " received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 order.id,
                 order.channel,
@@ -171,6 +181,7 @@ class Database:
                 json.dumps([line.model_dump() for line in order.lines]),
                 order.customer,
                 status,
+                now(),
                 now(),
             ),
         )
@@ -393,8 +404,9 @@ class Database:
             self.conn.execute("BEGIN")
             self.conn.executemany(
                 "INSERT INTO orders (order_id, channel, channel_order_id, lines, customer, status,"
-                " attempts, last_error, updated_at) VALUES (:order_id, :channel, :channel_order_id,"
-                " :lines, :customer, :status, :attempts, :last_error, :updated_at)",
+                " attempts, last_error, updated_at, received_at) VALUES (:order_id, :channel,"
+                " :channel_order_id, :lines, :customer, :status, :attempts, :last_error,"
+                " :updated_at, :received_at)",
                 [order | {"lines": json.dumps(order["lines"])} for order in orders],
             )
             self.conn.executemany(

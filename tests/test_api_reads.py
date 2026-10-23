@@ -5,6 +5,12 @@ import pytest
 
 from glue import queries
 
+ORDER = {
+    "channel": "shop",
+    "lines": [{"sku": "APP-3", "qty": 1}],
+    "customer": "Guest",
+}
+
 ORDER_KEYS = {
     "order_id",
     "channel",
@@ -14,6 +20,7 @@ ORDER_KEYS = {
     "status",
     "attempts",
     "last_error",
+    "received_at",
     "updated_at",
 }
 
@@ -47,6 +54,38 @@ async def test_orders_filter_and_page(systems):
         1,
         "allocated",
     )
+
+
+async def test_orders_range_follows_when_the_order_came_in(systems):
+    old, recent = await systems.buy_on_shop("APP-3"), await systems.buy_on_shop("IPAD-A16")
+    await systems.run_worker()
+    yesterday = (datetime.now(UTC) - timedelta(days=1)).isoformat(timespec="milliseconds")
+    systems.ctx.db.conn.execute(
+        "UPDATE orders SET received_at = ? WHERE order_id = ?", (yesterday, old)
+    )
+    # Shipped today, but it came in yesterday.
+    await systems.http.post(f"http://warehouse/orders/{old}/ship")
+    await systems.run_worker()
+
+    today = await get(systems, "/api/orders", range="today")
+
+    assert [row["order_id"] for row in today["rows"]] == [recent]
+    assert today["total"] == 1
+    assert today["rows"][0]["received_at"] == systems.ctx.db.get_order(recent)["received_at"]
+
+
+async def test_orders_that_came_in_together_page_without_gaps(systems):
+    for n in (2, 4, 0, 3, 1):
+        await systems.send_event(
+            "shop", "order.placed", {**ORDER, "id": f"shop-{n}", "channel_order_id": str(n)}
+        )
+    await systems.run_worker()
+    systems.ctx.db.conn.execute("UPDATE orders SET received_at = '2026-10-22T10:00:00.000+00:00'")
+
+    pages = [await get(systems, "/api/orders", per_page=2, page=page) for page in (1, 2, 3)]
+
+    seen = [row["order_id"] for page in pages for row in page["rows"]]
+    assert seen == ["shop-4", "shop-3", "shop-2", "shop-1", "shop-0"]
 
 
 async def test_order_detail_has_timeline(systems):
