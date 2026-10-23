@@ -1,7 +1,10 @@
+import json
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from glue import worker
+from glue.audit import JsonFormatter
 from glue.db import now
 
 
@@ -87,3 +90,21 @@ async def test_health_is_liveness_only_and_calls_no_other_system(systems):
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "db": "ok"}
     assert called == ["glue"]
+
+
+async def test_an_unexpected_error_points_to_the_service_log_that_has_the_detail(
+    systems, monkeypatch, caplog
+):
+    async def crash(ctx: object, event: dict) -> None:
+        raise RuntimeError("disk full")
+
+    monkeypatch.setitem(worker.HANDLERS, "order.placed", crash)
+    await systems.buy_on_shop("APP-3")
+    await systems.run_worker()
+
+    [item] = systems.open_reviews()
+    assert item["reason"] == (
+        "Glue hit an unexpected error; the technical detail is in the service log"
+    )
+    [failed] = [entry for entry in caplog.records if entry.getMessage() == "event_failed"]
+    assert json.loads(JsonFormatter().format(failed))["error"] == "RuntimeError: disk full"

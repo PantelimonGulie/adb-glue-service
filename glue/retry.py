@@ -35,7 +35,7 @@ def explained(exc: Exception) -> tuple[str, str]:
     # The reason an operator reads, and the technical detail the audit log keeps.
     if isinstance(exc, Problem):
         return str(exc), exc.error or str(exc)
-    unexpected = "Glue hit an unexpected error; the details are in the activity log"
+    unexpected = "Glue hit an unexpected error; the technical detail is in the service log"
     return unexpected, f"{type(exc).__name__}: {exc}"
 
 
