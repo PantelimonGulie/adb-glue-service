@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import type { RangeName, RangeQuery } from '../api/types';
+import { formatDayLabel, zonedDate } from './format';
 
 export const RANGES: { value: RangeName; label: string }[] = [
   { value: 'live', label: 'Live · 15 min' },
@@ -49,12 +50,20 @@ export function rangeSearch(query: RangeQuery): string {
 }
 
 export function rangeLabel(query: RangeQuery): string {
-  if (query.range === 'custom') return `${query.from} to ${query.to}`;
+  if (query.range === 'custom') {
+    const { from = '', to = '' } = query;
+    // The year only when the range crosses one, as "29 Dec 2025 to 4 Jan 2026".
+    const sameYear = from.slice(0, 4) === to.slice(0, 4);
+    const day = (date: string) =>
+      sameYear ? formatDayLabel(date) : `${formatDayLabel(date)} ${date.slice(0, 4)}`;
+    return `${day(from)} to ${day(to)}`;
+  }
   return RANGES.find((range) => range.value === query.range)?.label ?? query.range;
 }
 
+// The month and the day as the business counts them, like the API's own ranges.
 export function thisMonth(now = new Date()): RangeQuery {
-  const today = now.toISOString().slice(0, 10);
+  const today = zonedDate(now);
   return { range: 'custom', from: `${today.slice(0, 8)}01`, to: today };
 }
 

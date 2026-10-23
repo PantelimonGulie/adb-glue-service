@@ -4,6 +4,7 @@ import { ApiError } from '../../api/client';
 import { useMe } from '../../auth/session';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
+import { setTimeZone } from '../../lib/format';
 import { Header } from '../Header/Header';
 import { SampleBanner } from '../SampleBanner/SampleBanner';
 import { Sidebar } from '../Sidebar/Sidebar';
@@ -25,6 +26,8 @@ export function AppShell() {
       </EmptyState>
     ) : null;
   }
+  // Set while rendering, not in an effect: the pages below format times in this same render.
+  setTimeZone(me.timezone);
   return (
     <div className={styles.shell}>
       <Header me={me} />
