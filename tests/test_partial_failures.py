@@ -50,6 +50,21 @@ async def test_a_ship_notice_behind_a_failed_cancel_still_gets_its_own_retry(sys
     assert [i["id"] for i in systems.open_reviews()] == [cancel["id"]]
 
 
+async def test_a_ship_notice_the_shop_refuses_goes_to_review_and_is_not_recorded(systems):
+    order_id = await systems.buy_on_shop("IPAD-A16")
+    await systems.run_worker()
+    # The customer's cancel and the shipment cross: the shop already shows it cancelled.
+    systems.shop.state.orders[order_id]["status"] = "canceled"
+    await systems.http.post(f"http://warehouse/orders/{order_id}/ship")
+    await systems.run_worker()
+
+    assert "order_shipped" not in systems.ctx.db.counters()
+    assert systems.ctx.db.get_order(order_id)["status"] == "shipped"
+    [item] = systems.open_reviews()
+    assert (item["kind"], item["payload"]["operation"]) == ("order_failed", "ship")
+    assert item["reason"] == "the shop refused the ship notice: it shows the order cancelled"
+
+
 def busy_once(client: object, name: str) -> None:
     send = getattr(client, name)
     calls = []

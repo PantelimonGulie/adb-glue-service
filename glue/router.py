@@ -210,6 +210,12 @@ async def notify_shipped(ctx: Context, order_id: str, correlation_id: str) -> No
     except RetryExhausted as exc:
         reason = f"channel not told it shipped: {exc}"
         return fail(ctx, order_id, correlation_id, "order_failed", reason, "ship", exc.error)
+    if not response.is_success:
+        # The shop answers 409 when its customer cancelled the order the warehouse then shipped.
+        why = ": it shows the order cancelled" if response.status_code == 409 else ""
+        reason = f"{SYSTEMS[channel]} refused the ship notice{why}"
+        error = f"HTTP {response.status_code}"
+        return fail(ctx, order_id, correlation_id, "order_failed", reason, "ship", error)
     record(
         ctx.db,
         correlation_id,

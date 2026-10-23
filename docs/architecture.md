@@ -400,7 +400,7 @@ Every retried outbound call writes a `retry_scheduled` row: the system, the try,
 | eMAG sends a cancel notice for an order it still shows open | Nothing changes; a `cancel_ignored` row | Nobody needs to; a real cancel shows status 0 when read |
 | Stock push to the shop fails, eMAG rate limits, or eMAG rejects one SKU in a batch | That channel's row for that SKU is dirty, `stock_push_failed`; the rest of the batch applies | Itself, next run |
 | Warehouse cancel fails, or the order already shipped | Order stays allocated, `order_failed` item for the cancel | Operator: **Retry** the cancel, or handle it as a return |
-| The channel is not told an order shipped | Order stays shipped, `order_failed` item for the ship notice | Operator **Retry**, which tells the channel again |
+| The channel is not told an order shipped, or refuses the notice | Order stays shipped, `order_failed` item for the ship notice; no `order_shipped` row | Operator **Retry**, which tells the channel again, or **Dismiss** |
 | Unexpected error in a handler | Event failed, `event_failed` row with the raw error, review item that points to the service log | Operator; a redelivery retries the event |
 | Glue stops mid-event | The event stays `processing`; on start it goes back to `pending` | Itself; handlers are idempotent |
 | Glue stops mid-decision | The item stays `acting`; on start it is reopened or resolved | Itself, or the operator decides again |
