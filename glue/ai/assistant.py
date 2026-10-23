@@ -199,5 +199,5 @@ async def ask(ctx: Context, turns: list[dict]) -> AskResult:
                 content = await run_tool(ctx, call.function.name, call.function.arguments)
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": content})
     finally:
-        ctx.db.add_usage(tokens)
+        ctx.db.add_usage(ranges.today(ctx.settings.zone), tokens)
     return AskResult(answer, tools, tokens)

@@ -355,17 +355,17 @@ class Database:
             (key, value, by, now()),
         )
 
-    def add_usage(self, tokens: int) -> None:
+    def add_usage(self, day: str, tokens: int) -> None:
         self.conn.execute(
             "INSERT INTO ai_usage (day, tokens, questions) VALUES (?, ?, 1)"
             " ON CONFLICT(day) DO UPDATE SET tokens = tokens + excluded.tokens,"
             " questions = questions + 1",
-            (now()[:10], tokens),
+            (day, tokens),
         )
 
-    def usage_today(self) -> dict:
+    def usage_on(self, day: str) -> dict:
         row = self.conn.execute(
-            "SELECT tokens, questions FROM ai_usage WHERE day = ?", (now()[:10],)
+            "SELECT tokens, questions FROM ai_usage WHERE day = ?", (day,)
         ).fetchone()
         return dict(row) if row else {"tokens": 0, "questions": 0}
 

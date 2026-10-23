@@ -22,6 +22,10 @@ def stamp(moment: datetime) -> str:
     return moment.astimezone(UTC).isoformat(timespec="milliseconds")
 
 
+def today(zone: ZoneInfo) -> str:
+    return datetime.now(zone).date().isoformat()
+
+
 def midnight(day: date, zone: ZoneInfo) -> datetime:
     return datetime.combine(day, time(), zone)
 

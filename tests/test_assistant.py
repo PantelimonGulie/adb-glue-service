@@ -1,11 +1,12 @@
 import json
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import httpx
 from openai import APITimeoutError
 
 from common.catalog import PRODUCTS
-from glue import queries
+from glue import queries, ranges
 from glue.ai import llm
 
 QUESTION = "Which orders need a decision?"
@@ -211,9 +212,34 @@ async def test_a_review_item_reaches_the_model_as_its_plain_cause_never_its_stor
     )
 
 
+async def test_the_token_budget_day_turns_at_midnight_in_bucharest(systems, monkeypatch):
+    clock = {"now": datetime(2026, 10, 22, 20, 59, tzinfo=UTC)}
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock["now"].astimezone(tz)
+
+    monkeypatch.setattr(ranges, "datetime", Clock)
+    systems.use_model("Nothing is waiting for a decision.")
+
+    await ask(systems)
+    before_midnight = await assistant_state(systems)
+    clock["now"] = datetime(2026, 10, 22, 21, 1, tzinfo=UTC)
+    after_midnight = await assistant_state(systems)
+    await ask(systems)
+    # Midnight UTC is 03:00 in Bucharest, the middle of the same business day.
+    clock["now"] = datetime(2026, 10, 23, 0, 1, tzinfo=UTC)
+    after_utc_midnight = await assistant_state(systems)
+
+    assert before_midnight["used_today"] == 60
+    assert after_midnight["used_today"] == 0
+    assert after_utc_midnight["used_today"] == 60
+
+
 async def test_budget_spent_returns_429(systems):
     model = systems.use_model("unused")
-    systems.ctx.db.add_usage(200000)
+    systems.ctx.db.add_usage(ranges.today(systems.ctx.settings.zone), 200000)
 
     response = await ask(systems)
 

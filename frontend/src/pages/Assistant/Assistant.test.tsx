@@ -78,7 +78,7 @@ it('asks with the conversation so far and shows what each answer looked at', asy
 
 it('shows why the assistant could not answer and keeps the question', async () => {
   const spent =
-    "Today's token budget is spent. It resets at midnight UTC, or an admin can raise it.";
+    "Today's token budget is spent. It resets at midnight, or an admin can raise it.";
   stubApi({ '/api/assistant': assistant, [ASK]: failure(429, spent) });
   renderPage(<Assistant />, { user: users.operator });
   await screen.findByText('Ready');

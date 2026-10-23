@@ -1,6 +1,6 @@
 import re
 
-from glue import queries, tuning
+from glue import queries, ranges, tuning
 from glue.ai import triage_prompt
 from glue.audit import record
 from glue.context import Context
@@ -28,7 +28,7 @@ async def ask_model(ctx: Context, question: str) -> str:
         )
         tokens = response.usage.total_tokens if response.usage else 0
     finally:
-        ctx.db.add_usage(tokens)
+        ctx.db.add_usage(ranges.today(ctx.settings.zone), tokens)
     return response.choices[0].message.content or ""
 
 

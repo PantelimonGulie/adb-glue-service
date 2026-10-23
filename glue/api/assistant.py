@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from openai import APIError
 from pydantic import BaseModel, ConfigDict, Field
 
-from glue import auth, tuning
+from glue import auth, ranges, tuning
 from glue.ai import assistant, llm
 from glue.context import Context
 
@@ -42,15 +42,15 @@ async def can_answer(request: Request) -> None:
     model = await llm.status(ctx)
     if model["status"] != "ready":
         raise HTTPException(503, llm.not_ready(model))
-    if ctx.db.usage_today()["tokens"] >= tuning.ai_limits(ctx.db)["daily_token_budget"]:
+    used = ctx.db.usage_on(ranges.today(ctx.settings.zone))["tokens"]
+    if used >= tuning.ai_limits(ctx.db)["daily_token_budget"]:
         raise HTTPException(
-            429,
-            "Today's token budget is spent. It resets at midnight UTC, or an admin can raise it.",
+            429, "Today's token budget is spent. It resets at midnight, or an admin can raise it."
         )
 
 
 async def assistant_view(ctx: Context) -> dict:
-    usage = ctx.db.usage_today()
+    usage = ctx.db.usage_on(ranges.today(ctx.settings.zone))
     return {
         "model": await llm.status(ctx),
         "models": MODELS,
