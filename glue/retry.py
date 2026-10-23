@@ -28,7 +28,7 @@ def retry_after_seconds(header: str | None) -> float | None:
     # Seconds or an HTTP-date (RFC 9110); None for anything else, so back-off applies.
     if not header:
         return None
-    if header.isdigit():
+    if header.isdecimal():
         return min(float(header), MAX_RETRY_AFTER_SECONDS)
     try:
         seconds = (parsedate_to_datetime(header) - datetime.now(UTC)).total_seconds()

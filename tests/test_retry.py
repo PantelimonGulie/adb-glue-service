@@ -5,7 +5,12 @@ from email.utils import format_datetime
 import httpx
 import pytest
 
-from glue.retry import MAX_RETRY_AFTER_SECONDS, RetryExhausted, send_with_retries
+from glue.retry import (
+    MAX_RETRY_AFTER_SECONDS,
+    RetryExhausted,
+    retry_after_seconds,
+    send_with_retries,
+)
 
 
 def scripted(*replies: httpx.Response | Exception) -> Callable[[], Awaitable[httpx.Response]]:
@@ -80,3 +85,8 @@ async def test_an_unreadable_retry_after_falls_back_to_backoff(sleeps, retry_aft
 
 async def test_a_retry_after_date_in_the_past_retries_at_once(sleeps):
     assert await first_delay(sleeps, http_date(-60)) == 0
+
+
+def test_a_digit_that_is_not_a_plain_number_is_unreadable():
+    # str.isdigit() accepts "²", which float() refuses.
+    assert retry_after_seconds("²") is None
