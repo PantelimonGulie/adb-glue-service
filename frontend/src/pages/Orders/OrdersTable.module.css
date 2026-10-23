@@ -1,4 +1,4 @@
-/* Phones get one card per order, with the order and its status on the first line. */
+/* Where the table would scroll sideways, each order is a card with its status on the first line. */
 .frame {
   container-type: inline-size;
 }
@@ -19,7 +19,7 @@
   overflow-wrap: anywhere;
 }
 
-@container (max-width: 599px) {
+@container (max-width: 779px) {
   .table {
     display: block;
     min-width: 0;

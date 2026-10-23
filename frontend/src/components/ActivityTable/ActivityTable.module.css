@@ -1,4 +1,5 @@
-/* Phones get one card per row: what happened and when, then the order, then the details. */
+/* Where the table would scroll sideways, each row becomes a card: what happened and when, then the
+   order, then the details. */
 .scroll {
   container-type: inline-size;
   overflow-x: auto;
@@ -69,7 +70,7 @@
   min-width: 0;
 }
 
-@container (max-width: 599px) {
+@container (max-width: 639px) {
   .table {
     min-width: 0;
   }
