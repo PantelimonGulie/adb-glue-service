@@ -29,7 +29,8 @@ export function decider(name: string): string {
   return rule ? `the ${rule.toLowerCase()}` : name;
 }
 
-// Same rule as the backend's db.PLACEMENT: eMAG event ids end with -new or -cancelled.
+// Same rule as the backend's analytics_series.placement(): eMAG event ids end with -new or
+// -cancelled.
 export function messageOf(row: AuditRow): Message | null {
   switch (row.detail.type) {
     case 'order.placed':
@@ -77,6 +78,8 @@ export function entityOf(row: AuditRow, productName: ProductName): Entity {
   if (row.entity_type === 'event') {
     const order = eventOrder(row);
     if (order) return { kind: 'order', id: order };
+    const sku = row.detail.sku;
+    if (typeof sku === 'string') return { kind: 'product', name: productName(sku) };
     const source = row.detail.source;
     return { kind: 'text', text: typeof source === 'string' ? systemName(source) : 'Message' };
   }

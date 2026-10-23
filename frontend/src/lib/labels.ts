@@ -42,6 +42,12 @@ const ACTIONS: Record<string, Label> = {
     explanation:
       'The warehouse counted fewer units than were promised to customers. A person decides which orders to cancel.',
   },
+  cancel_ignored: {
+    label: 'Cancel notice ignored',
+    tone: 'amber',
+    explanation:
+      'eMAG sent a cancel notice, but eMAG still shows the order as active, so Glue did not cancel it.',
+  },
   duplicate_dropped: {
     label: 'Duplicate ignored',
     tone: 'grey',

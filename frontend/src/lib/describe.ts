@@ -26,10 +26,11 @@ function orderLines(lines: unknown, productName: ProductName): string {
   return lines.map((line) => `${line.qty} × ${productName(String(line.sku))}`).join(', ');
 }
 
-// `sample` marks rows from the sample history; the tables show that as a tag instead.
+// `sample` marks rows from the sample history; the tables show that as a tag instead. `error`
+// keeps the technical detail for developers, never for the operator.
 function plain(detail: AuditRow['detail']): string {
   return Object.entries(detail)
-    .filter(([key]) => key !== 'sample')
+    .filter(([key]) => key !== 'sample' && key !== 'error')
     .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
     .map(([key, value]) => `${key.replaceAll('_', ' ')} ${value}`)
     .join(' · ');
@@ -49,6 +50,10 @@ export function describe(row: AuditRow, productName: ProductName): string {
   switch (row.action) {
     case 'event_received': {
       const kind = messageOf(row);
+      if (kind === 'shelf-count' && detail.on_hand !== undefined) {
+        const note = detail.note ? ` · ${text('note')}` : '';
+        return `the warehouse counted ${text('on_hand')}${note}`;
+      }
       return kind ? MESSAGE_DETAILS[kind] : text('type');
     }
     case 'duplicate_dropped':
@@ -79,7 +84,9 @@ export function describe(row: AuditRow, productName: ProductName): string {
     case 'unfulfillable':
       return plainProblem(text('reason'));
     case 'event_failed':
-      return plainProblem(text('error'));
+      return 'Glue could not finish it, so it went to review';
+    case 'cancel_ignored':
+      return text('reason');
     case 'warehouse_unreachable':
       return plainProblem(text('problem'));
     case 'review_opened':

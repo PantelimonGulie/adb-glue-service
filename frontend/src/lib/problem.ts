@@ -18,7 +18,10 @@ function status(code: string): string {
 
 function failure(name: string): string {
   if (name.endsWith('Timeout')) return 'no answer in time';
-  return name.startsWith('Connect') ? 'could not connect' : 'the connection failed';
+  if (name.startsWith('Connect')) return 'could not connect';
+  return /^(Read|Write|RemoteProtocol|Network)Error$/.test(name)
+    ? 'the connection failed'
+    : 'an unexpected error';
 }
 
 // Older rows keep the raw text the backend wrote: HTTP codes, exception names and URLs.

@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { row } from '../test/fixtures';
 import { entityOf, labelOf } from './activity';
 import { describe } from './describe';
+import { plainProblem } from './problem';
 
 const names: Record<string, string> = { 'MBA-M4': 'MacBook Air M4' };
 const productName = (sku: string) => names[sku] ?? sku;
@@ -98,6 +99,38 @@ it('never shows exception names, HTTP codes or rule ids', () => {
   expect(
     describe(on('webhook', 'shop', 'signature_rejected', { path: '/events' }), productName),
   ).toBe('no valid signature, so Glue refused it');
+});
+
+it('never shows the raw error a row keeps for developers', () => {
+  const error = 'ValueError: invalid literal for int() with base 10';
+  const failed = on('event', 'f3c2', 'event_failed', { type: 'order.placed', error });
+  const odd = on('order', 'shop-1', 'something_new', { reason: 'it broke', error });
+
+  expect(describe(failed, productName)).toBe('Glue could not finish it, so it went to review');
+  expect(describe(odd, productName)).toBe('reason it broke');
+  expect(plainProblem(`unexpected while handling order.placed: ${error}`)).toBe(
+    'could not handle a shop order: an unexpected error',
+  );
+});
+
+it('names the product and the count of a shelf count, and says when it was a demo restock', () => {
+  const counted = { source: 'warehouse', type: 'stock.adjusted', sku: 'MBA-M4', on_hand: 21 };
+  const restock = on('event', 'f3c3', 'event_received', { ...counted, note: 'demo restock' });
+
+  expect(entityOf(restock, productName)).toEqual({ kind: 'product', name: 'MacBook Air M4' });
+  expect(describe(restock, productName)).toBe('the warehouse counted 21 · demo restock');
+  expect(describe(on('event', 'f3c4', 'event_received', counted), productName)).toBe(
+    'the warehouse counted 21',
+  );
+});
+
+it('says why Glue ignored an eMAG cancel notice', () => {
+  const reason = 'eMAG still shows this order as in progress, so Glue did not cancel it';
+  const ignored = on('order', 'emag-7', 'cancel_ignored', { reason });
+
+  expect(labelOf(ignored).label).toBe('Cancel notice ignored');
+  expect(labelOf(ignored).explanation).toMatch(/still shows the order/);
+  expect(describe(ignored, productName)).toBe(reason);
 });
 
 it('says a failure went to review once, not twice with the same words', () => {
