@@ -1,3 +1,5 @@
+import asyncio
+
 from glue import rules
 
 
@@ -42,6 +44,27 @@ async def test_auto_retry_fires_once_when_the_warehouse_recovers(systems, sleeps
     assert (item["action"], item["decided_by"]) == ("retry", "rule:auto-retry")
     applied = [r for r in systems.ctx.db.audit_for(order_id) if r["action"] == "rule_applied"]
     assert [r["detail"]["rule"] for r in applied] == ["auto-retry"]
+
+
+async def test_auto_retry_noticed_inside_another_orders_placement_retries_both(systems, sleeps):
+    rules.save(systems.ctx, "auto-retry", True, {}, "admin")
+    await systems.chaos("warehouse", down=True)
+    waiting = [await systems.buy_on_shop(sku) for sku in ("IPAD-A16", "IPH16-256")]
+    await systems.run_worker()
+    await systems.reconcile()
+    assert systems.ctx.warehouse_down is True
+    await systems.chaos("warehouse", down=False)
+    # The recovery is noticed while the worker holds this order's lock, so the retries of the
+    # other two are decisions nested under it.
+    placing = await systems.buy_on_shop("MBA-M4")
+    await asyncio.wait_for(systems.run_worker(), 5)
+
+    for order_id in (*waiting, placing):
+        assert systems.ctx.db.get_order(order_id)["status"] == "allocated"
+    assert systems.open_reviews() == []
+    [allocated] = [r for r in systems.ctx.db.audit_for(placing) if r["action"] == "order_allocated"]
+    applied = [r for r in systems.ctx.db.audit_tail() if r["action"] == "rule_applied"]
+    assert {r["correlation_id"] for r in applied} == {allocated["correlation_id"]}
 
 
 async def test_operator_cannot_save_rule(systems):
