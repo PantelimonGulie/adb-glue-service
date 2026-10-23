@@ -118,8 +118,10 @@ async def import_emag_order(ctx: Context, event: dict) -> None:
         await cancel_order(ctx, order.id, correlation_id)
     elif event["payload"]["type"] == "new":
         await place_order(ctx, order, correlation_id)
-        await with_retries(ctx, "emag", lambda: ctx.emag.acknowledge(emag_id), log)
-        record(ctx.db, correlation_id, "order", order.id, "emag_acknowledged")
+        # The row follows eMAG's answer, so a re-run after a stop does not acknowledge twice.
+        if not ctx.db.recorded(order.id, "emag_acknowledged"):
+            await with_retries(ctx, "emag", lambda: ctx.emag.acknowledge(emag_id), log)
+            record(ctx.db, correlation_id, "order", order.id, "emag_acknowledged")
     else:
         shown = EMAG_STATUSES.get(raw.status, f"status {raw.status}")
         reason = f"eMAG still shows this order as {shown}, so Glue did not cancel it"
@@ -182,8 +184,12 @@ async def cancel_on_channel(ctx: Context, order_id: str, correlation_id: str) ->
 
 async def mark_shipped(ctx: Context, event: dict) -> None:
     order_id = event["payload"]["order_id"]
-    if ctx.db.get_order(order_id) is None:
+    order = ctx.db.get_order(order_id)
+    if order is None:
         raise Problem(f"the warehouse shipped {order_id}, an order Glue does not know")
+    # order_shipped follows the channel's answer, so a re-run after a stop does not tell it twice.
+    if order["status"] == "shipped" and ctx.db.recorded(order_id, "order_shipped"):
+        return
     with ctx.db.transaction():
         ctx.db.set_order(order_id, status="shipped")
         settle.settle(ctx, order_id, "shipped", event["event_id"])

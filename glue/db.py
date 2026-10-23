@@ -314,6 +314,10 @@ class Database:
             (order_id, correlation_id),
         ).fetchone()[0]
 
+    def recorded(self, entity_id: str, action: str) -> bool:
+        query = "SELECT EXISTS (SELECT 1 FROM audit_log WHERE entity_id = ? AND action = ?)"
+        return bool(self.conn.execute(query, (entity_id, action)).fetchone()[0])
+
     def open_reviews_for(self, order_id: str | None) -> list[dict]:
         return self.rows(
             "SELECT * FROM review_queue WHERE order_id = ? AND status = 'open' ORDER BY id",
