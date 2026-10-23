@@ -12,7 +12,7 @@ import type {
   Stock,
 } from '../api/types';
 
-const working = { ok: true, state: 'Healthy', latency_ms: 2 };
+const working = { ok: true, state: 'ok', latency_ms: 2 };
 const counters: Counters = { received: 110, duplicates: 4, reserved: 99, retries: 6, failed: 1 };
 
 export const row = (id: number, action: string, detail: AuditRow['detail'] = {}): AuditRow => ({
@@ -46,6 +46,7 @@ export const order: Order = {
   status: 'failed',
   attempts: 1,
   last_error: 'sold on the shop first',
+  received_at: '2026-10-22T09:59:58.000+00:00',
   updated_at: '2026-10-22T10:00:00.000+00:00',
 };
 
@@ -152,7 +153,7 @@ export const settings: Settings = {
       name: 'warehouse',
       url: 'http://warehouse:8003',
       ok: false,
-      state: 'Answering HTTP 503',
+      state: 'down',
       latency_ms: 4,
     },
   ],

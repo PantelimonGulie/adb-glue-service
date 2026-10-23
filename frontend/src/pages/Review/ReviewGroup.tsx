@@ -3,7 +3,7 @@ import { useOverview, useRetryAll } from '../../api/hooks';
 import type { Cause, ReviewItem } from '../../api/types';
 import { useDenied } from '../../auth/useDenied';
 import { formatNumber } from '../../lib/format';
-import { cause } from '../../lib/labels';
+import { cause, system } from '../../lib/labels';
 import controls from '../../styles/controls.module.css';
 import text from '../../styles/text.module.css';
 import cards from './cards.module.css';
@@ -11,7 +11,6 @@ import styles from './ReviewGroup.module.css';
 import { ReviewCard } from './ReviewCard';
 
 const RETRY_ALL_HINT = 'Send every order of this outage to the warehouse again';
-const WAREHOUSE_DOWN = 'Bucharest warehouse is not answering';
 
 interface Props {
   name: Cause;
@@ -25,7 +24,10 @@ export function ReviewGroup({ name, count, items, onShowAll }: Props) {
   const denied = useDenied('decide');
   const retryAll = useRetryAll();
   const { data: overview } = useOverview({ range: 'live' });
-  const down = overview?.systems.warehouse.ok === false ? WAREHOUSE_DOWN : undefined;
+  // The API refuses Retry all unless the warehouse is working, so a slow one blocks it too.
+  const warehouse = overview?.systems.warehouse;
+  const down =
+    warehouse?.ok === false ? `Bucharest warehouse is ${system(warehouse).label}` : undefined;
   const blocked = denied ?? down;
   const { label, hint } = cause(name);
   const orders = `${formatNumber(count)} order${count === 1 ? '' : 's'}`;

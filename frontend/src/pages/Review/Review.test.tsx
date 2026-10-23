@@ -84,7 +84,10 @@ it('says what a decision did after its card has gone', async () => {
   await userEvent.click(within(card).getByRole('button', { name: 'Cancel on eMAG' }));
   await userEvent.click(within(card).getByRole('button', { name: 'Yes, cancel it' }));
 
-  expect(await screen.findByText('Cancelled emag-500124 on eMAG')).toHaveAttribute('role', 'status');
+  expect(await screen.findByText('Cancelled emag-500124 on eMAG')).toHaveAttribute(
+    'role',
+    'status',
+  );
 });
 
 it('says how many orders Retry all sent again', async () => {
@@ -106,13 +109,23 @@ it('shows why the warehouse outage could not be retried', async () => {
 });
 
 it('cannot retry the outage while the warehouse is not answering', async () => {
-  const down = { ok: false, state: 'Not responding', latency_ms: null };
+  const down = { ok: false, state: 'down', latency_ms: null };
   const systems = { ...overview.systems, warehouse: down };
   renderReview('/review', { ...api, '/api/overview': { ...overview, systems } });
 
   const retryAll = await screen.findByRole('button', { name: 'Retry all 4' });
   await waitFor(() => expect(retryAll).toBeDisabled());
   expect(retryAll).toHaveAttribute('title', 'Bucharest warehouse is not answering');
+});
+
+it('names a slow warehouse as slow when it blocks Retry all', async () => {
+  const slow = { ok: false, state: 'slow', latency_ms: null };
+  const systems = { ...overview.systems, warehouse: slow };
+  renderReview('/review', { ...api, '/api/overview': { ...overview, systems } });
+
+  const retryAll = await screen.findByRole('button', { name: 'Retry all 4' });
+  await waitFor(() => expect(retryAll).toHaveAttribute('title', 'Bucharest warehouse is slow'));
+  expect(retryAll).toBeDisabled();
 });
 
 it('lists decided items, newest first as the API sends them', async () => {

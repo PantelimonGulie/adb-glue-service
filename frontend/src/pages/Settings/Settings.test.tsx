@@ -93,14 +93,19 @@ it('shows why the API refused the change', async () => {
   );
 });
 
-it('lists each connection with its address and whether it answers', async () => {
-  stubApi({ '/api/settings': settings });
+it('lists each connection with its address and how it answers, in plain words', async () => {
+  const limited = { ...settings.connections[1], ok: false, state: 'rate_limited' };
+  const connections = [settings.connections[0], limited, settings.connections[2]];
+  stubApi({ '/api/settings': { ...settings, connections } });
   renderPage(<Settings />, { user: users.viewer });
 
   const row = (await screen.findByText('Bucharest warehouse')).closest('tr')!;
   expect(within(row).getByText('http://warehouse:8003')).toBeInTheDocument();
   expect(within(row).getByText('not answering')).toBeInTheDocument();
-  expect(within(row).getByText('Answering HTTP 503')).toBeInTheDocument();
+  expect(within(row).getByText('It does not answer at all.')).toBeInTheDocument();
+  const emag = screen.getByText('eMAG Marketplace').closest('tr')!;
+  expect(within(emag).getByText('limiting requests')).toBeInTheDocument();
+  expect(within(emag).queryByText(/rate_limited/)).toBeNull();
   expect(screen.getByRole('spinbutton', { name: /Give up on one call after/ })).toBeDisabled();
 });
 

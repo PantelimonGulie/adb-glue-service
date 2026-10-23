@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renderPage, silenceRenderErrors, users } from '../../test/render';
 import { AppShell } from './AppShell';
 
-const working = { ok: true, state: 'Healthy', latency_ms: 3 };
+const working = { ok: true, state: 'ok', latency_ms: 3 };
 const overview = {
   counters: { received: 0, duplicates: 0, reserved: 0, retries: 0, failed: 0 },
   previous: null,

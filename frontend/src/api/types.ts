@@ -48,9 +48,8 @@ export interface Order {
   status: OrderStatus;
   attempts: number;
   last_error: string | null;
-  // When Glue first saved the order; the Orders range follows it. Optional only until the test
-  // fixtures carry it.
-  received_at?: string;
+  // When Glue first saved the order; the Orders range follows it.
+  received_at: string;
   updated_at: string;
 }
 
@@ -77,9 +76,8 @@ export interface User {
   name: string;
   role: Role;
   permissions: Permission[];
-  // The IANA zone the API cuts days in, e.g. Europe/Bucharest. Optional only until the test
-  // fixtures carry it.
-  timezone?: string;
+  // The IANA zone the API cuts days in, e.g. Europe/Bucharest.
+  timezone: string;
 }
 
 export interface Page<T> {

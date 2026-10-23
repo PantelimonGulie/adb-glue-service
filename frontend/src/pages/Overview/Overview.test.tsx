@@ -62,7 +62,7 @@ it('period mode shows totals instead of dots', async () => {
 });
 
 it('a warehouse that is not answering turns its line red', async () => {
-  const down = { ok: false, state: 'Answering HTTP 503', latency_ms: 3 };
+  const down = { ok: false, state: 'down', latency_ms: 3 };
   const systems = { ...overview.systems, warehouse: down };
   stubApi({ ...api, '/api/overview': { ...overview, systems } });
   renderMap(<FlowMap mode="live" />);

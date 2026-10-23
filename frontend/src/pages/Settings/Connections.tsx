@@ -38,7 +38,7 @@ export function Connections({ connections }: { connections: Settings['connection
                 <td>
                   <span className={styles.status}>
                     <Tag tone={row.status.tone}>{row.status.label}</Tag>
-                    {!row.ok && <span className={styles.problem}>{row.state}</span>}
+                    {!row.ok && <span className={styles.problem}>{row.status.explanation}</span>}
                   </span>
                 </td>
               </tr>

@@ -6,13 +6,21 @@ import { vi } from 'vitest';
 import type { User } from '../api/types';
 import { meKey } from '../auth/session';
 
+const timezone = 'Europe/Bucharest';
+
 export const users: Record<User['role'], User> = {
-  viewer: { name: 'viewer', role: 'viewer', permissions: ['view'] },
-  operator: { name: 'operator', role: 'operator', permissions: ['ask', 'decide', 'view'] },
+  viewer: { name: 'viewer', role: 'viewer', permissions: ['view'], timezone },
+  operator: {
+    name: 'operator',
+    role: 'operator',
+    permissions: ['ask', 'decide', 'view'],
+    timezone,
+  },
   admin: {
     name: 'admin',
     role: 'admin',
     permissions: ['ask', 'decide', 'demo', 'rules', 'settings', 'view'],
+    timezone,
   },
 };
 
