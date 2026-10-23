@@ -12,7 +12,7 @@ from glue.context import Context
 CHANNELS = ("shop", "emag")
 # "received" is not here: it counts order placements only, see db.placements().
 COUNTERS = {
-    "duplicates": ("duplicate_dropped", "order_known"),
+    "duplicates": ("duplicate_dropped", "order_known", "cancel_repeated"),
     "reserved": ("order_allocated",),
     "retries": ("retry_scheduled",),
     "failed": ("order_failed", "unfulfillable"),

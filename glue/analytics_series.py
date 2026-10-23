@@ -38,6 +38,7 @@ def placement(row: dict) -> bool:
 
 
 def duplicate(row: dict) -> bool:
+    # Order placements only, like the funnel's "received"; a repeated cancel is not one.
     return row["action"] == "order_known" or (
         row["action"] == "duplicate_dropped" and placement(row)
     )

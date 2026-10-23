@@ -170,3 +170,18 @@ async def test_overview_counts_the_range(systems):
     assert up == {"shop": True, "emag": True, "warehouse": True}
     assert (overview["open_reviews"], overview["review_groups"]) == (0, [])
     assert len(overview["latest"]) == 10
+
+
+async def test_a_repeated_cancel_is_a_duplicate_but_not_an_order_message(systems):
+    order_id = await systems.buy_on_shop("WATCH-S10")
+    await systems.run_worker()
+    for _ in range(2):
+        await systems.send_event("shop", "order.cancelled", {"order_id": order_id})
+    await systems.run_worker()
+
+    overview = await get(systems, "/api/overview", range="today")
+    report = await get(systems, "/api/analytics", range="today")
+
+    assert overview["counters"]["duplicates"] == 1
+    # The funnel follows order placements; a second cancel is not one.
+    assert (report["funnel"]["received"], report["funnel"]["duplicates"]) == (1, 0)

@@ -41,6 +41,7 @@ describe('dotsForRows', () => {
       stock(4, 'stock_pushed', 'emag'),
       order(5, 'order_known', 'emag-9'),
       order(6, 'emag_acknowledged'),
+      order(9, 'cancel_repeated', 'shop-3'),
     ];
 
     expect(dotsForRows(rows).dots.map(({ route, tone, motion }) => [route, tone, motion])).toEqual([
@@ -51,6 +52,7 @@ describe('dotsForRows', () => {
       ['whOut', 'amber', 'knock'],
       ['mktOut', 'slate', 'travel'],
       ['mktIn', 'grey', 'drop'],
+      ['shopIn', 'grey', 'drop'],
     ]);
   });
 

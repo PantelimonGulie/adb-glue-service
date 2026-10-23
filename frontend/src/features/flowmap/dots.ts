@@ -51,6 +51,7 @@ function dotFor(row: AuditRow): Omit<Dot, 'id' | 'delay'> | null {
       return { route: inbound, tone: isPlacement(row) ? 'blue' : 'slate', motion: 'travel' };
     case 'duplicate_dropped':
     case 'order_known':
+    case 'cancel_repeated':
       return inbound ? { route: inbound, tone: 'grey', motion: 'drop' } : null;
     case 'order_allocated':
       return { route: 'whOut', tone: 'green', motion: 'travel' };
