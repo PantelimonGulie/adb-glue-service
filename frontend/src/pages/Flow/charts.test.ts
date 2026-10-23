@@ -4,12 +4,11 @@ import { formatWindow } from '../../lib/format';
 import { analytics } from '../../test/fixtures';
 import { bucketEvents, flowCharts } from './charts';
 
-const range = (unit: Analytics['range']['unit'], since: string): Analytics['range'] => ({
-  since,
-  until: '',
-  unit,
-  labels: [],
-});
+const range = (
+  unit: Analytics['range']['unit'],
+  since: string,
+  labels: string[] = [],
+): Analytics['range'] => ({ since, until: '', unit, labels });
 
 const query = (link: string) => {
   const url = new URL(link, 'http://glue');
@@ -17,14 +16,15 @@ const query = (link: string) => {
 };
 
 it('opens exactly the time of the picked bar', () => {
-  const day = bucketEvents(range('day', '2026-10-01T00:00:00.000+00:00'), 4, 'stock');
+  const days = ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05'];
+  const day = bucketEvents(range('day', '2026-09-30T21:00:00.000+00:00', days), 4, 'stock');
   const hour = bucketEvents(range('hour', '2026-10-22T00:00:00.000+00:00'), 13, 'orders');
   const minute = bucketEvents(range('minute', '2026-10-22T23:58:31.250+00:00'), 2);
 
   expect(query(day)).toEqual({
     path: '/activity',
-    since: '2026-10-05T00:00:00.000Z',
-    until: '2026-10-06T00:00:00.000Z',
+    since: '2026-10-04T21:00:00.000Z',
+    until: '2026-10-05T21:00:00.000Z',
     kind: 'stock',
   });
   expect(query(hour)).toMatchObject({

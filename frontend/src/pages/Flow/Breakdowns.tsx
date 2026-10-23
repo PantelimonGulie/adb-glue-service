@@ -2,13 +2,13 @@ import type { Analytics, CauseCount } from '../../api/types';
 import { EmptyState } from '../../components/EmptyState/EmptyState';
 import { Panel } from '../../components/Panel/Panel';
 import { Product } from '../../components/Product/Product';
-import { formatNumber, formatSeconds } from '../../lib/format';
+import { formatLatency, formatNumber } from '../../lib/format';
 import { cause } from '../../lib/labels';
 import styles from './Breakdowns.module.css';
 
 type ProductRow = Analytics['by_product'][number];
 
-const typicalTime = (row: ProductRow) => (row.reserved ? formatSeconds(row.p50_seconds) : '—');
+const typicalTime = (row: ProductRow) => (row.reserved ? formatLatency(row.p50_seconds) : '—');
 
 function ProductTable({ rows }: { rows: ProductRow[] }) {
   return (
@@ -72,10 +72,10 @@ function CauseList({ causes, total }: { causes: CauseCount[]; total: number }) {
 export function Breakdowns({ analytics }: { analytics: Analytics }) {
   const products = analytics.by_product;
   const causes = analytics.failure_causes;
-  // Counts each time an order went to review, also orders later retried and reserved, so it
-  // can exceed the funnel's failed orders.
+  // Review items, not orders: one order can go to review more than once, and a short shelf
+  // count or a failed cancel opens an item for an order that was reserved.
   const reviews = causes.reduce((sum, item) => sum + item.count, 0);
-  const times = `${formatNumber(reviews)} time${reviews === 1 ? '' : 's'} sent to review`;
+  const times = `${formatNumber(reviews)} review item${reviews === 1 ? '' : 's'} opened`;
   return (
     <div className={styles.breakdowns}>
       <div className={styles.products}>
@@ -88,9 +88,9 @@ export function Breakdowns({ analytics }: { analytics: Analytics }) {
         </Panel>
       </div>
       <div className={styles.failures}>
-        <Panel title="Why orders failed" note={times}>
+        <Panel title="Why items went to review" note={times}>
           {reviews === 0 ? (
-            <EmptyState title="No orders failed in this period" />
+            <EmptyState title="Nothing went to review in this period" />
           ) : (
             <CauseList causes={causes} total={reviews} />
           )}

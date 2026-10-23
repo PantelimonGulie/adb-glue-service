@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { ActivityKind, Analytics, RangeQuery } from '../../api/types';
 import { Panel } from '../../components/Panel/Panel';
 import type { Part } from '../../features/flowmap/layout';
-import { formatNumber, formatSeconds } from '../../lib/format';
+import { formatLatency, formatNumber } from '../../lib/format';
 import { rangeSearch } from '../../lib/range';
 import controls from '../../styles/controls.module.css';
 import styles from './PartPanel.module.css';
@@ -56,8 +56,8 @@ const PARTS: Record<Part, About> = {
     numbers: ({ glue }) => [
       ['Order messages handled', formatNumber(glue.handled)],
       ['Duplicates ignored', formatNumber(glue.duplicates)],
-      ['Typical time to reserve', formatSeconds(glue.p50_seconds)],
-      ['Slowest 5% took', formatSeconds(glue.p95_seconds)],
+      ['Typical time to reserve', formatLatency(glue.p50_seconds)],
+      ['Slowest 5% took', formatLatency(glue.p95_seconds)],
       ['Orders lost', formatNumber(glue.lost)],
     ],
   },
@@ -67,10 +67,10 @@ const PARTS: Record<Part, About> = {
     text:
       'The warehouse holds the real stock. When it does not answer, Glue tries again with longer waits, then sends the order to review.',
     numbers: ({ warehouse }) => [
-      ['Orders received', formatNumber(warehouse.received)],
-      ['Accepted on first try', `${warehouse.first_try_pct.toFixed(1)}%`],
-      ['Retries needed', formatNumber(warehouse.retries)],
-      ['Failed after all tries', formatNumber(warehouse.failed)],
+      ['Orders sent to it', formatNumber(warehouse.received)],
+      ['Reserved on first try', `${warehouse.first_try_pct.toFixed(1)}%`],
+      ['Calls to it tried again', formatNumber(warehouse.retries)],
+      ['Orders it could not reserve', formatNumber(warehouse.failed)],
       ['Longest outage', outage(warehouse)],
     ],
   },

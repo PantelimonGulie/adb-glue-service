@@ -12,10 +12,22 @@ const STEPS: { key: keyof Steps; label: string; hint: string }[] = [
     hint: 'every order message from both channels, duplicates included',
   },
   { key: 'duplicates', label: 'Duplicates ignored', hint: 'same message twice, handled once' },
-  { key: 'sent', label: 'Sent to warehouse', hint: 'unique orders Glue passed on' },
+  {
+    key: 'sent',
+    label: 'Orders sent to the warehouse',
+    hint: 'each order once, duplicates left out',
+  },
   { key: 'first_try', label: 'Reserved on first try', hint: 'warehouse accepted straight away' },
-  { key: 'after_retry', label: 'Reserved after retry', hint: 'needed one or more retries' },
-  { key: 'failed', label: 'Failed, sent to review', hint: 'every try failed; a person decides' },
+  {
+    key: 'after_retry',
+    label: 'Reserved after retry',
+    hint: 'the warehouse needed more than one try, or a person retried it',
+  },
+  {
+    key: 'failed',
+    label: 'Not reserved, sent to review',
+    hint: 'every try failed, or the last unit was gone; a person decides',
+  },
 ];
 
 function rows(funnel: Steps) {

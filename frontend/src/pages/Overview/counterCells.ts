@@ -1,5 +1,5 @@
 import type { Counters, Overview, RangeQuery } from '../../api/types';
-import { formatNumber } from '../../lib/format';
+import { formatNumber, zonedDate } from '../../lib/format';
 
 interface Spec {
   key: keyof Counters;
@@ -13,37 +13,42 @@ const SPECS: Spec[] = [
   {
     key: 'received',
     label: 'Orders in',
-    hint: 'Orders placed on the shop and on eMAG',
+    hint: 'Orders that came in from the shop and eMAG in this period, the same ones the Orders page lists',
     upIsGood: true,
   },
   {
     key: 'duplicates',
     label: 'Duplicates ignored',
-    hint: 'Messages that arrived twice and were handled once',
+    hint: 'Messages that arrived again in this period and were handled once',
     upIsGood: false,
   },
   {
     key: 'reserved',
     label: 'Reserved',
-    hint: 'Orders the warehouse accepted',
+    hint: 'Of the orders in this period, how many the warehouse reserved',
     upIsGood: true,
     tone: 'good',
   },
   {
     key: 'retries',
     label: 'Retries',
-    hint: 'Times Glue had to try the warehouse again',
+    hint: 'Every call Glue had to make again in this period, to the warehouse, eMAG or the shop',
     upIsGood: false,
     tone: 'warn',
   },
-  { key: 'failed', label: 'Failed', hint: 'Orders where every try failed', upIsGood: false },
+  {
+    key: 'failed',
+    label: 'Failed',
+    hint: 'Of the orders in this period, how many the warehouse could not reserve: every try failed or the last unit was gone',
+    upIsGood: false,
+  },
 ];
 
 const DAY_MS = 24 * 3600 * 1000;
 
 const daysBefore = (days: number) => (days === 1 ? 'the day before' : `the ${days} days before`);
 
-// The API compares with the same length of time just before the range (UTC days).
+// The API compares with the same number of days just before the range, in Bucharest days.
 export function comparedWith(query: RangeQuery, now = new Date()): string | null {
   switch (query.range) {
     case 'live':
@@ -53,7 +58,7 @@ export function comparedWith(query: RangeQuery, now = new Date()): string | null
     case 'week':
       return daysBefore(7);
     case 'month':
-      return daysBefore(now.getUTCDate());
+      return daysBefore(Number(zonedDate(now).slice(8)));
     case 'custom':
       return daysBefore((Date.parse(`${query.to}`) - Date.parse(`${query.from}`)) / DAY_MS + 1);
   }

@@ -1,7 +1,7 @@
 import type { ActivityKind, Analytics, Channel } from '../../api/types';
 import type { Series } from '../../components/BarChart/BarChart';
 import { bucketBounds, bucketIds, bucketLabels } from '../../lib/buckets';
-import { formatSeconds } from '../../lib/format';
+import { formatLatency } from '../../lib/format';
 
 type Range = Analytics['range'];
 
@@ -31,15 +31,14 @@ export function flowCharts({ range, series }: Analytics) {
   const { orders, problems, latency } = series;
   const per = `per ${range.unit}`;
   const totals = orders.shop.map((count, i) => count + orders.emag[i]);
-  // Retries count tries, not orders, so the red part never outgrows the bar.
-  const troubled = totals.map((total, i) =>
-    Math.min(total, problems.retried[i] + problems.failed[i]),
-  );
+  // Both count orders by when they came in, so the red part is a part of the bar.
+  const troubled = problems.retried.map((retried, i) => retried + problems.failed[i]);
   const charts: Chart[] = [
     {
       id: 'all',
       title: `Orders ${per}`,
-      note: 'all channels · red part had problems',
+      note: 'all channels · red: needed a retry or not reserved',
+      kind: 'orders',
       series: [
         {
           key: 'fine',
@@ -59,16 +58,21 @@ export function flowCharts({ range, series }: Analytics) {
     },
     {
       id: 'problems',
-      title: `Problems ${per}`,
-      note: 'retries and failures',
+      title: `Orders with problems ${per}`,
+      note: 'reserved after a retry, or not reserved',
       series: [
         {
           key: 'retried',
-          name: 'Retried',
+          name: 'Reserved after a retry',
           color: 'var(--chart-retried)',
           values: problems.retried,
         },
-        { key: 'failed', name: 'Failed', color: 'var(--tone-red-dot)', values: problems.failed },
+        {
+          key: 'failed',
+          name: 'Not reserved',
+          color: 'var(--tone-red-dot)',
+          values: problems.failed,
+        },
       ],
     },
     {
@@ -77,7 +81,7 @@ export function flowCharts({ range, series }: Analytics) {
       note: 'in seconds, side by side',
       kind: 'orders',
       grouped: true,
-      format: formatSeconds,
+      format: formatLatency,
       series: [
         { key: 'p50', name: 'Typical', color: 'var(--chart-typical)', values: latency.p50 },
         { key: 'p95', name: 'Slowest 5%', color: 'var(--blue)', values: latency.p95 },
