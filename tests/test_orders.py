@@ -23,6 +23,28 @@ async def test_duplicate_shop_events_create_one_order(systems):
     assert counters["order_known"] == 1
 
 
+async def test_received_and_duplicate_messages_name_their_order(systems):
+    shop_order = await systems.buy_on_shop("IPH16-128")
+    await systems.chaos("shop", duplicate_last=True)
+    emag_order = await systems.buy_on_emag("APP-3")
+    await systems.chaos("emag", renotify_now=True)
+    await systems.recount("WATCH-S10", 5)
+
+    rows = systems.ctx.db.rows("SELECT action, detail FROM audit_log", (), "detail")
+    named = [
+        (row["action"], row["detail"].get("order_id"))
+        for row in rows
+        if row["action"] in ("event_received", "duplicate_dropped")
+    ]
+    assert named == [
+        ("event_received", shop_order),
+        ("duplicate_dropped", shop_order),
+        ("event_received", emag_order),
+        ("duplicate_dropped", emag_order),
+        ("event_received", None),
+    ]
+
+
 async def test_order_left_received_by_a_crash_is_sent_again(systems):
     order_id = await systems.buy_on_shop("IPH16-256")
     order = Order(**systems.shop.state.orders[order_id])

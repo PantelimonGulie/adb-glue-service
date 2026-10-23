@@ -60,7 +60,13 @@ def accept(ctx: Context, event_id: str, source: str, event_type: str, payload: d
         action = "event_received"
     else:
         action = "duplicate_dropped"
-    record(ctx.db, event_id, "event", event_id, action, source=source, type=event_type)
+    order_id = payload.get("id") or payload.get("order_id")
+    about = (
+        {}
+        if order_id is None
+        else {"order_id": f"emag-{order_id}" if source == "emag" else order_id}
+    )
+    record(ctx.db, event_id, "event", event_id, action, source=source, type=event_type, **about)
 
 
 @router.post("/events", status_code=202)
