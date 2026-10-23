@@ -170,6 +170,8 @@ async def test_a_cancel_notice_for_an_order_emag_still_shows_open_changes_nothin
     assert ignored["detail"]["reason"] == (
         "eMAG still shows this order as in progress, so Glue did not cancel it"
     )
+    problems = await systems.http.get("http://glue/api/activity", params={"kind": "problems"})
+    assert [row["action"] for row in problems.json()["rows"]] == ["cancel_ignored"]
 
 
 async def test_a_new_order_notice_for_an_order_emag_shows_cancelled_reserves_nothing(systems):

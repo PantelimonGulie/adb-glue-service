@@ -22,6 +22,7 @@ KINDS = {
         "signature_rejected",
         "event_rejected",
         "warehouse_unreachable",
+        "cancel_ignored",
     ],
     "duplicates": ["duplicate_dropped", "order_known", "cancel_repeated"],
     "stock": ["stock_pushed", "stock_push_failed"],
