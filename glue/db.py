@@ -49,9 +49,6 @@ AUDIT_FILTER = (
     " AND (:kinds IS NULL OR action IN (SELECT value FROM json_each(:kinds)))"
     " AND (:entity = '' OR entity_id = :entity OR correlation_id = :entity)"
 )
-# An inbound order placement: eMAG uses one event type for new and cancelled orders, and its
-# event id ends with which one. Mirrored in Python by analytics_series.placement().
-PLACEMENT = "(json_extract(detail, '$.type') = 'order.placed' OR entity_id LIKE '%-new')"
 SAMPLE = "correlation_id LIKE 'sample-%' AND json_extract(detail, '$.sample') = 1"
 # Real order ids are <channel>-<digits>, so this marker can never match one.
 SAMPLE_ORDER = "order_id LIKE '%-sample-%'"
@@ -455,12 +452,20 @@ class Database:
             "detail",
         )
 
-    def placements(self, since: str = "", until: str = "") -> int:
-        query = (
-            f"SELECT COUNT(*) FROM audit_log WHERE action = 'event_received' AND {PLACEMENT}"
-            " AND ts >= :since AND (:until = '' OR ts < :until)"
-        )
-        return self.conn.execute(query, {"since": since, "until": until}).fetchone()[0]
+    def order_counts(self, since: str = "", until: str = "") -> dict[str, int]:
+        # The orders that came in during the window, so reserved and failed are parts of it. A
+        # failure after the reservation (a short recount, a cancel or ship notice) is not one.
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS received, COUNT(*) FILTER (WHERE reserved) AS reserved,"
+            " COUNT(*) FILTER (WHERE failed AND NOT reserved) AS failed FROM (SELECT"
+            "  EXISTS (SELECT 1 FROM audit_log WHERE entity_id = o.order_id"
+            "   AND action = 'order_allocated') AS reserved,"
+            "  EXISTS (SELECT 1 FROM audit_log WHERE entity_id = o.order_id"
+            "   AND action IN ('order_failed', 'unfulfillable')) AS failed"
+            " FROM orders o WHERE received_at >= :since AND (:until = '' OR received_at < :until))",
+            {"since": since, "until": until},
+        ).fetchone()
+        return dict(row)
 
     def lost(self, order_ids: list[str]) -> int:
         # Placed orders that are failed, or never got a row, and that no item keeps in front of

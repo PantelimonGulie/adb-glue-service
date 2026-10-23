@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from glue.queries import CHANNELS, COUNTERS
+from glue.queries import CHANNELS, FAILED
 from glue.ranges import DAY, Window, midnight, stamp
 
 STEP = {"minute": timedelta(minutes=1), "hour": timedelta(hours=1)}
@@ -35,7 +35,7 @@ class Trip:
 
 
 def placement(row: dict) -> bool:
-    # Same rule as db.PLACEMENT.
+    # eMAG uses one event type for new and cancelled orders, and its event id ends with which.
     return row["detail"].get("type") == "order.placed" or row["entity_id"].endswith("-new")
 
 
@@ -77,7 +77,7 @@ def trips(rows: list[dict]) -> dict[str, Trip]:
             trip.reserved = row["ts"]
         elif warehouse_retry(row):
             trip.retried = True
-        elif row["action"] in COUNTERS["failed"]:
+        elif row["action"] in FAILED:
             trip.failed = True
     return found
 
@@ -124,21 +124,19 @@ def series(rows: list[dict], found: dict[str, Trip], keys: list[str]) -> dict:
 
     orders = {channel: [0] * len(keys) for channel in CHANNELS}
     seconds: list[list[float]] = [[] for _ in keys]
+    # Orders, by when they came in, so the problem part of a bar never outgrows it.
+    retried, failed = [0] * len(keys), [0] * len(keys)
     for trip in found.values():
         i = index(trip.received)
         orders[trip.channel][i] += 1
         if trip.reserved:
             seconds[i].append(trip.seconds)
-    retried, failed = [0] * len(keys), [0] * len(keys)
+        retried[i] += trip.outcome == "after_retry"
+        failed[i] += trip.outcome == "failed"
     unsynced: dict[str, list[set]] = {channel: [set() for _ in keys] for channel in CHANNELS}
     for row in rows:
-        i = index(row["ts"])
-        if row["action"] in COUNTERS["retries"]:
-            retried[i] += 1
-        elif row["action"] in COUNTERS["failed"]:
-            failed[i] += 1
-        elif row["action"] == "stock_push_failed":
-            unsynced[row["detail"]["channel"]][i].add(row["entity_id"])
+        if row["action"] == "stock_push_failed":
+            unsynced[row["detail"]["channel"]][index(row["ts"])].add(row["entity_id"])
     return {
         "orders": orders,
         "problems": {"retried": retried, "failed": failed},

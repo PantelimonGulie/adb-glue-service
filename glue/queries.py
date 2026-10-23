@@ -10,13 +10,12 @@ from glue import review, rules
 from glue.context import Context
 
 CHANNELS = ("shop", "emag")
-# "received" is not here: it counts order placements only, see db.placements().
+# Counted from the audit log; received, reserved and failed count orders, see db.order_counts().
 COUNTERS = {
     "duplicates": ("duplicate_dropped", "order_known", "cancel_repeated"),
-    "reserved": ("order_allocated",),
     "retries": ("retry_scheduled",),
-    "failed": ("order_failed", "unfulfillable"),
 }
+FAILED = ("order_failed", "unfulfillable")
 TROUBLE_SECONDS = 30
 REVIEW_KEYS = (
     "id",
@@ -61,9 +60,13 @@ async def health_of(ctx: Context) -> dict:
 
 def counters(ctx: Context, since: str, until: str) -> dict[str, int]:
     counts = ctx.db.counters(since, until)
+    orders = ctx.db.order_counts(since, until)
     return {
-        "received": ctx.db.placements(since, until),
-        **{name: sum(counts.get(a, 0) for a in actions) for name, actions in COUNTERS.items()},
+        "received": orders["received"],
+        "duplicates": sum(counts.get(a, 0) for a in COUNTERS["duplicates"]),
+        "reserved": orders["reserved"],
+        "retries": sum(counts.get(a, 0) for a in COUNTERS["retries"]),
+        "failed": orders["failed"],
     }
 
 

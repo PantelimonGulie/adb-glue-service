@@ -110,6 +110,58 @@ async def test_totals_count_order_placements_only(systems):
     assert report["totals"]["received"] == report["funnel"]["received"] == 2
 
 
+async def test_overview_flow_and_orders_page_agree_on_one_day(systems, sleeps):
+    first_try = await systems.buy_on_shop("APP-3")
+    await systems.chaos("shop", duplicate_last=True)
+    await systems.run_worker()
+    await systems.chaos("warehouse", fail_next=1)
+    after_retry = await systems.buy_on_shop("IPAD-A16")
+    await systems.run_worker()
+    await systems.chaos("emag", freeze_stock=True)
+    await systems.buy_on_shop("MBA-M4")
+    await systems.run_worker()
+    sold_out = await systems.buy_on_emag("MBA-M4")
+    await systems.run_worker()
+    # A reserved order the shelf can no longer cover is not a failed order.
+    recounted = await systems.buy_on_shop("WATCH-S10")
+    await systems.run_worker()
+    await systems.recount("WATCH-S10", 0)
+    await systems.run_worker()
+    await systems.chaos("warehouse", down=True)
+    outage = await systems.buy_on_shop("IPH16-128")
+    await systems.run_worker()
+
+    counters = (await get(systems, "/api/overview", range="today"))["counters"]
+    report = await get(systems, range="today")
+    orders = await get(systems, "/api/orders", range="today")
+
+    funnel, problems = report["funnel"], report["series"]["problems"]
+    assert counters == report["totals"]
+    assert counters["received"] == orders["total"] == funnel["sent"] == 6
+    assert counters["reserved"] == funnel["first_try"] + funnel["after_retry"] == 4
+    assert counters["failed"] == funnel["failed"] == report["parts"]["warehouse"]["failed"] == 2
+    assert (sum(problems["retried"]), sum(problems["failed"])) == (1, 2)
+    assert counters["retries"] == systems.ctx.db.counters()["retry_scheduled"]
+    assert {c["cause"]: c["count"] for c in report["failure_causes"]} == {
+        "outage": 1,
+        "soldout": 1,
+        "recount": 1,
+    }
+    assert {r["order_id"] for r in orders["rows"] if r["status"] == "failed"} == {sold_out, outage}
+    assert {first_try, after_retry, recounted} <= {r["order_id"] for r in orders["rows"]}
+
+
+async def test_by_product_leaves_out_orders_without_lines(systems, sleeps):
+    await systems.buy_on_shop("APP-3")
+    await systems.chaos("emag", down=True)
+    await systems.buy_on_emag("IPAD-A16")
+    await systems.run_worker()
+
+    report = await get(systems, range="today")
+
+    assert [row["sku"] for row in report["by_product"]] == ["APP-3"]
+
+
 async def test_series_by_channel(systems):
     await systems.buy_on_shop("IPH16-128")
     await systems.buy_on_shop("APP-3")
@@ -176,7 +228,9 @@ async def test_latency_percentiles(systems):
 
 async def test_compare_returns_previous(systems):
     old = local(-1, "12:00")
-    log(systems, old, "old", "old", "event_received", source="shop", type="order.placed")
+    order = Order(id="shop-900", channel="shop", channel_order_id="900", lines=[], customer="")
+    systems.ctx.db.insert_order_if_new(order)
+    systems.ctx.db.conn.execute("UPDATE orders SET received_at = ?", (old,))
 
     compared = await get(systems, range="today", compare=1)
     plain = await get(systems, range="today", compare=0)

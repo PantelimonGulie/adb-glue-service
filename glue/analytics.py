@@ -112,6 +112,8 @@ def by_product(found: dict[str, Trip]) -> list[dict]:
             "p50_seconds": percentile([trip.seconds for trip in group if trip.reserved], 0.5),
         }
         for sku, group in groups.items()
+        # An order Glue never got the lines of, e.g. one eMAG could not show, has no product.
+        if sku
     ]
     return sorted(rows, key=lambda row: (-row["orders"], row["sku"]))
 
