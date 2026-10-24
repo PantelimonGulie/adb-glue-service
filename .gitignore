@@ -13,3 +13,6 @@ frontend/node_modules/
 frontend/dist/
 docs/presentation/interview-prep.md
 .local/
+
+# Office lock files while a document is open
+~$*
