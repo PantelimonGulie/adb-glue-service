@@ -85,13 +85,6 @@ Everything else is the dashboard, an optional AI helper and the three mock syste
 
 A load test (`python -m scripts.load_probe --orders 300`) gives about 527 orders a second on my laptop. It also found a bug: the worker was capped at 20 orders a second. That is fixed. The first real limit is eMAG's rate limit, not this service. To grow: a real queue with workers split by order, Postgres, and batching the stock updates.
 
-## Use of AI
-
-I used an AI coding assistant (Claude Code) a lot. It wrote most of the code, the tests and the first drafts of the docs, and it ran most of the reviews.
-
-I decided the scenario, the rules (who gets the last unit, a person decides oversells), what to leave out, and the order of work: the sync core first, the dashboard after. I agreed every screen as a mockup before any code was written.
-
-Where I chose not to rely on AI: at runtime the model never acts on an order, the rule is code. I used a local model so customer data never leaves the machine. And I decided when something was done, by the tests and by running the demo myself.
 
 ## Possible extensions
 
