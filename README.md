@@ -35,6 +35,8 @@ cd frontend && npm ci && npm test                          # dashboard, 223 test
 
 ## How it works
 
+![How the glue service works](docs/architecture.png)
+
 The core is six files in `glue/`. Read them in this order:
 
 1. `inbox.py`: checks the signature, saves the event, answers 202. If processing fails later, nothing is lost.
@@ -85,6 +87,11 @@ Everything else is the dashboard, an optional AI helper and the three mock syste
 
 A load test (`python -m scripts.load_probe --orders 300`) gives about 527 orders a second on my laptop. It also found a bug: the worker was capped at 20 orders a second. That is fixed. The first real limit is eMAG's rate limit, not this service. To grow: a real queue with workers split by order, Postgres, and batching the stock updates.
 
+## Use of AI
+
+The ideas, the design and the decisions in this project are mine: the scenario, how the systems talk to each other, who gets the last unit, and that a person decides an oversell. I used Claude Code to turn them into working code, tests and docs. That is what made it possible to build and demo this much in the time I had.
+
+I did not rely on AI inside the product: the AI never acts on an order, the rules are plain code, and the model runs locally so customer data stays on the machine.
 
 ## Possible extensions
 

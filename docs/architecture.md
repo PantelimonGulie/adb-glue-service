@@ -2,33 +2,7 @@
 
 ## Components
 
-```mermaid
-flowchart LR
-    shop["Shop<br/>Adobe Commerce mock"]
-    emag["eMAG<br/>marketplace mock"]
-    wh["Bucharest warehouse<br/>mock"]
-
-    subgraph glue["Glue: one process, one SQLite file"]
-        inbox["Inbox<br/>verify, save, answer 202"]
-        worker["Worker<br/>one order at a time"]
-        router["Router<br/>order status"]
-        rec["Reconciler<br/>stock to both channels"]
-        review["Review queue<br/>a person decides"]
-    end
-
-    ui["Dashboard"] --> glue
-
-    shop -- "order placed / cancelled" --> inbox
-    emag -- "new order / cancelled" --> inbox
-    wh -- "shipped / recount" --> inbox
-    inbox --> worker --> router
-    router -- "reserve, cancel" --> wh
-    router -- "read, acknowledge" --> emag
-    router --> review
-    rec -- "read stock" --> wh
-    rec -- "push stock" --> shop
-    rec -- "push stock" --> emag
-```
+![Components](architecture.png)
 
 Every message coming in is signed and saved before any work starts. Every call going out uses the same retry policy (`glue/retry.py`). The three systems are mocks shaped like the real APIs, with switches to make them fail on purpose.
 
