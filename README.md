@@ -90,7 +90,6 @@ A load test (`python -m scripts.load_probe --orders 300`) gives about 527 orders
 ## Use of AI
 
 The ideas, the design and the decisions in this project are mine: the scenario, how the systems talk to each other, who gets the last unit, and that a person decides an oversell. I used Claude Code to turn them into working code, tests and docs. That is what made it possible to build and demo this much in the time I had.
-
 I did not rely on AI inside the product: the AI never acts on an order, the rules are plain code, and the model runs locally so customer data stays on the machine.
 
 ## Possible extensions
