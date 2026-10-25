@@ -16,3 +16,8 @@ docs/presentation/interview-prep.md
 
 # Office lock files while a document is open
 ~$*
+
+# Kept locally, not part of the submission
+CLAUDE.md
+docs/presentation/diagrams/
+docs/presentation/demo-script.md
