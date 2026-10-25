@@ -98,6 +98,6 @@ Close with: "Every line you saw is also a JSON log line with the same correlatio
 
 ## Backup material
 
-- Slides 15 to 17 of the deck show the Overview map, the review queue, Flow and the three mocks.
+- Backup slides 23 to 25 of the deck show the Overview map, the review queue, Flow and the three mocks.
 - Diagrams for deep dives: `docs/presentation/diagrams/` (component map, the architecture overview, both order sequences, stock reconcile, the oversell, order states, review item states). The `.mmd` files are the sources.
 - Code to open if asked: `glue/router.py` (order states), `glue/retry.py` (the policy), `glue/reconciler.py` (stock and dirty flags), `glue/review.py` and `glue/settle.py` (the queue, crash-safe decisions, auto-resolve), `glue/inbox.py` (signatures and source binding), `glue/worker.py` (per-order lock), `tests/conftest.py` (all four apps in one process).
