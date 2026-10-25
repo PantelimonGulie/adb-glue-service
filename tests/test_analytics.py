@@ -33,14 +33,23 @@ def today_at(clock: str) -> str:
     return local(0, clock)
 
 
+def hours_today() -> int:
+    # 23 or 25 on the days the clocks change.
+    day = datetime.now(BUCHAREST).date()
+    start = datetime.combine(day, time(0), BUCHAREST).astimezone(UTC)
+    end = datetime.combine(day + timedelta(days=1), time(0), BUCHAREST).astimezone(UTC)
+    return int((end - start).total_seconds() // 3600)
+
+
 async def test_analytics_empty_range(systems):
     report = await get(systems, range="today")
 
     assert report["range"]["unit"] == "hour"
     assert report["range"]["labels"][:3] == ["00:00", "01:00", "02:00"]
-    assert len(report["range"]["labels"]) == 24
+    hours = hours_today()
+    assert len(report["range"]["labels"]) == hours
     for group in report["series"].values():
-        assert all(values == [0] * 24 for values in group.values())
+        assert all(values == [0] * hours for values in group.values())
     assert set(report["funnel"].values()) == {0}
     assert report["parts"]["warehouse"]["first_try_pct"] == 0
     assert report["parts"]["glue"]["lost"] == 0
@@ -265,7 +274,7 @@ async def test_csv_has_header_and_total(systems):
     lines = response.text.splitlines()
     assert lines[0] == "bucket,orders,retried,failed"
     assert lines[1].startswith("00:00,")
-    assert len(lines) == 26
+    assert len(lines) == hours_today() + 2
     assert lines[-1] == "total,1,0,0"
 
 
