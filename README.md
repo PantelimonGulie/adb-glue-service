@@ -9,11 +9,19 @@ A reseller sells on its own Adobe Commerce shop and on eMAG, from one warehouse 
 
 ## Run it
 
-Needs Docker Desktop.
+With Docker Desktop:
 
 ```sh
 docker compose up --build
 ```
+
+Without Docker (needs Python 3.12+ and Node.js 20.19+):
+
+```sh
+python3 scripts/run_local.py
+```
+
+Both start the same four systems on the same addresses. Without Docker, the AI assistant also needs [Ollama](https://ollama.com) installed; everything else works without it.
 
 | Address | What it is |
 |---|---|
@@ -24,12 +32,11 @@ docker compose up --build
 
 Other users: `operator` / `operator` can decide review items, `viewer` / `viewer` can only read. The first start downloads a small local AI model (about 2 GB, once); everything else works right away. On the **Demo controls** page you can break things on purpose: stop the warehouse, send an order twice, sell the last unit on both channels.
 
-Without Docker (Python 3.12+ and Node): `python3 scripts/run_local.py`.
-
 Tests:
 
 ```sh
 docker compose run --rm --no-deps --build glue pytest -q   # backend, 245 tests
+.venv/bin/python -m pytest -q                              # backend, without Docker (after run_local.py)
 cd frontend && npm ci && npm test                          # dashboard, 223 tests
 ```
 
